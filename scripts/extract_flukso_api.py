@@ -29,7 +29,7 @@ if extract_all:
     for flukso_id in all_sensordata.keys():
         for sensor_id, s in all_sensordata[flukso_id].items():
             # sensor_id is 1-6, s is {}
-            if s is not None:
+            if s is not None and s:
                 # determine the type of the measurement to set the unit                
                 t = s['Type'].lower()
                 if t.startswith('ele'):
