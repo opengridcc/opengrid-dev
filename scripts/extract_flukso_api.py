@@ -24,8 +24,11 @@ save_all = True
 
 hp = Houseprint()
 all_sensordata = hp.get_all_fluksosensors()
+print('Sensor data fetched')
 
+i=0
 if extract_all:
+    print('Writing files:')
     for flukso_id in all_sensordata.keys():
         for sensor_id, s in all_sensordata[flukso_id].items():
             # sensor_id is 1-6, s is {}
@@ -42,5 +45,9 @@ if extract_all:
 
                 if save_all:
                     fluksoapi.save2csv(r, csvpath=None, fileNamePrefix=s['Sensor'])
-                
+                    i=i+1
+                    print('.'),
+                    sys.stdout.flush()
+    print('done')
+print str(i) + " sensor data files saved"
             
