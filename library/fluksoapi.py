@@ -10,8 +10,7 @@ import os
 from time import mktime,strftime
 import pdb
 
-def pull_api(sensor, token, unit, 
-             start = dt(2013,1,1,0), end = dt.now(), resolution = 'minute'):
+def pull_api(sensor, token, unit, interval='day', resolution = 'minute'):
    
     """     
    
@@ -19,8 +18,7 @@ def pull_api(sensor, token, unit,
     
     Parameters
     ----------
-    - start : start time (default = first of january 2013)
-    - end : end time (default = now)
+    - inverval: string specifying the interval (day, month, ...)
     - sensor :  sensor name (from the flukso.net sensor tab)
     - token :  sensor token (from the flukso.net sensor tab)
     - resolution: time resolution (e.g. minute, 15min, hour, day, week, month, 
@@ -30,18 +28,16 @@ def pull_api(sensor, token, unit,
     Note
     ----
     The Flukso Server will automatically restrict the data to what's available
-    The csv output file will be named according to the data found on the server
+    
     
     Returns
     -------
-    Array with the raw data.  Use the save2csv function to parse and save.
+    Resulf of the http request with the raw data.  
+    Use the save2csv function to parse and save.
     
     """
-    start_unixtime = str(int(mktime(start.timetuple())))
-    end_unixtime = str(int(mktime(end.timetuple())))
     
-    payload = {'start'      :   start_unixtime,
-               'end'        :   end_unixtime,
+    payload = {'interval'   :   interval,
                'resolution' :   resolution,
                'unit'       :   unit}
                
@@ -57,6 +53,18 @@ def pull_api(sensor, token, unit,
         r = s.get(url, params = payload, headers = headers, verify=False)
     except:
         print "-------> Problem with HTTP request to Flukso <-------"
+    
+    # check result
+    
+    if not r.ok:
+        print "The flukso api GET request did not succeed."
+        print "Some details:"
+        print "Request headers:"
+        print r.request.headers
+        print "Request url:"
+        print r.request.url
+        
+        
     
     return r
 
