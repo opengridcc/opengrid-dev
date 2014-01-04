@@ -43,7 +43,7 @@ class Houseprint(object):
         self._identify_fluksos()
         
         self.sensorcols={}
-        for i in range(1,sensoramount+1):
+        for i in range(1,self.sensoramount+1):
             self.sensorcols[i] = self.sheet.find("Sensor "+ str(i)).col
         self.cellvalues=self.sheet.get_all_values()
 
