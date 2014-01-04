@@ -13,6 +13,7 @@ def storeTimeSeriesData(data, sensor, token, unit):
     resultpath="results"
     metapath=resultpath +"/"+ sensor + ".meta"
     datapath=resultpath +"/"+ sensor + ".txt"
+    datalength=6
 
     #create results folder if it does not exist
     if not os.path.exists(resultpath):
@@ -25,8 +26,11 @@ def storeTimeSeriesData(data, sensor, token, unit):
         # set write mode to read and overwrite
         mode = 'r+b'
         #check for inconsistencies
-        if metadata['sensor'] != sensor or metadata['token'] != token or metadata['unit'] != unit:
+        if metadata['sensor'] != sensor or metadata['token'] != token or metadata['unit'] != unit or metadata['datalength'] != datalength:
             raise ValueError('Argument is inconsistent with its stored value')
+        if (data[0][0]- metadata['starttime']) % 60 != 0:
+            print "Timestamp does not have the correct spacing compared to the initial timestamp! Storage cancelled."
+            return
     else:
         #create new meta file
         metadata=dict()
@@ -34,8 +38,8 @@ def storeTimeSeriesData(data, sensor, token, unit):
         metadata['sensor']=sensor
         metadata['token']=token
         metadata['unit']=unit
-        metadata['resolution']='minute' #need to edit factor '60' below when this is changed!
-        metadata['datalength']=6
+        metadata['resolution']='minute' #need to edit factors '60' below when this is changed!
+        metadata['datalength']=datalength
         metadata['separator']=' '
         metadata['edittimes']=[]
         # set write mode to write
@@ -56,7 +60,7 @@ def storeTimeSeriesData(data, sensor, token, unit):
         filesize = fp.tell()
         #if the file has been untouched for too long: append dummy data
         if filesize < startIndex:
-            fp.write(("???".zfill(metadata['datalength']) + metadata['separator'])*(startIndex - filesize))
+            fp.write(("???".zfill(metadata['datalength']) + metadata['separator'])*((startIndex - filesize)/entrylength))
         fp.seek(startIndex,0)
         for row in data:
             fp.write(str(row[1]).zfill(metadata['datalength'])+ metadata['separator'])

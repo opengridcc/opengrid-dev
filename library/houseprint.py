@@ -28,6 +28,7 @@ class Houseprint(object):
         Create a connection with the google drive spreadsheet.
         Initialize a few attributes
         """
+        self.sensoramount=6
         
         # Get the path of this current file 
         self.sourcedir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -41,6 +42,11 @@ class Houseprint(object):
                 
         self._identify_fluksos()
         
+        self.sensorcols={}
+        for i in range(1,self.sensoramount+1):
+            self.sensorcols[i] = self.sheet.find("Sensor "+ str(i)).col
+        self.cellvalues=self.sheet.get_all_values()
+
         print houseprint + " successfully opened"
          
     
@@ -57,8 +63,8 @@ class Houseprint(object):
         """
         
         # get the column of correct sensor
-        col = self.sheet.find("Sensor "+ str(int_sensor)).col
-        cont = self.sheet.cell(int_row, col).value
+        col = self.sensorcols[int_sensor]
+        cont = self.cellvalues[int_row-1][col-1]
         keys = ['Sensor', 'Token', 'Type', 'Function']
 
         try:
@@ -85,7 +91,7 @@ class Houseprint(object):
         """
         
         res = {}
-        for i in range(1,7):
+        for i in range(1,self.sensoramount+1):
             res[i] = self.get_sensor(int_row, i)
             
         return res
