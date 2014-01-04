@@ -56,7 +56,7 @@ def storeTimeSeriesData(data, sensor, token, unit):
         filesize = fp.tell()
         #if the file has been untouched for too long: append dummy data
         if filesize < startIndex:
-            fp.write(("???".zfill(metadata['datalength']) + metadata['separator'])*(startIndex - filesize))
+            fp.write(("???".zfill(metadata['datalength']) + metadata['separator'])*((startIndex - filesize)/entrylength))
         fp.seek(startIndex,0)
         for row in data:
             fp.write(str(row[1]).zfill(metadata['datalength'])+ metadata['separator'])
