@@ -68,11 +68,15 @@ class Houseprint(object):
         keys = ['Sensor', 'Token', 'Type', 'Function']
 
         try:
-            return dict(zip(keys, cont.split()))
+            res = dict(zip(keys, cont.split()))
         except:
             # there is no (complete) sensor data
-            return None
-            
+            res = None
+        
+        if res == {}:
+            res = None
+        
+        return res
             
     def get_all_sensors(self, int_row):
         """

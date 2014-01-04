@@ -87,4 +87,4 @@ if __name__ == '__main__':
     #selection = unittest.TestSuite()
     #selection.addTest(HouseprintTest('test_get_sensor'))
         
-    unittest.TextTestRunner(verbosity=1, failfast=True).run(alltests)
+    unittest.TextTestRunner(verbosity=1, failfast=False).run(alltests)
