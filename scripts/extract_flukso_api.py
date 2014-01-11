@@ -46,7 +46,9 @@ if extract_all:
                                        unit=unit)
                 if save_all:
                     storeTimeSeriesData(r.json(), s['Sensor'], s['Token'], unit)
-                    fluksoapi.save2csv(r, csvpath=None, fileNamePrefix=s['Sensor'])
+                    ts = fluksoapi.parse(r)
+                    fluksoapi.save_csv(ts, csvpath=None, 
+                                       fileNamePrefix='_'.join([flukso_id, s['Sensor']]))
                     i=i+1
                     print('.'),
                     sys.stdout.flush()

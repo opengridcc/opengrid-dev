@@ -4,7 +4,7 @@ Created on Mon Jan 21 15:31:36 2013 by Carlos Dierckxsens
 
 """
 from datetime import datetime as dt
-from pandas import TimeSeries
+import pandas as pd
 import requests
 import os
 from time import mktime,strftime
@@ -69,26 +69,35 @@ def pull_api(sensor, token, unit, interval='day', resolution = 'minute'):
     return r
 
 
-def save2csv(r, csvpath=None, fileNamePrefix=''):
+def parse(r):
     """
-    Parse and save to csv
+    Parse and return a pandas TimeSeries object
     """
     
     
-    # Create Dataframe   
+    # Create TimeSeries   
     try:
         d = {}
         for tup in r.json():
             d[dt.fromtimestamp(tup[0])] = tup[1]
         #pdb.set_trace()
-        Ts = TimeSeries(data=d)
+        Ts = pd.TimeSeries(data=d)
         # this line gives an error.  Should be checked, but for now I keep the nan's        
         # Ts = Ts[Ts != 'nan']
         
     except:
         print "-------> Problem with Flukso data parsing <-------"
         raise
+    
+    return Ts
 
+
+def save_csv(Ts, csvpath=None, fileNamePrefix=''):
+    """
+    Save the TimeSeries or DataFrame to csv with specified name
+    """
+    
+   
     # save to file
     if csvpath is None:
         csvpath = os.getcwd()
@@ -96,4 +105,17 @@ def save2csv(r, csvpath=None, fileNamePrefix=''):
     e = strftime("%Y-%m-%d_%H-%M-%S",Ts.index[-1].timetuple())
     Ts.to_csv(os.path.join(csvpath, fileNamePrefix + '_FROM_' + s + 
                                     '_TO_' + e + '.csv'))    
+
    
+def load_csv(csv):
+    """
+    Load a previously saved csv file into a timeseries or dataframe and 
+    return it.
+    """
+    
+    return pd.read_csv(csv, index_col = 0, header=None, parse_dates=True)
+    
+    
+
+    
+    
