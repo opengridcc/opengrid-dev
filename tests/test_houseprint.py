@@ -70,6 +70,8 @@ class HouseprintTest(unittest.TestCase):
         
         fl = self.hp.get_all_fluksosensors()
         self.assertListEqual(sorted(fl.keys()), keys)
+        fl.pop('FL03001552')
+        self.assertListEqual(sorted(self.hp.fluksosensors.keys()), keys)
         
 
 if __name__ == '__main__':

@@ -80,14 +80,17 @@ def parse(r):
         d = {}
         for tup in r.json():
             d[dt.fromtimestamp(tup[0])] = tup[1]
-        #pdb.set_trace()
-        Ts = pd.TimeSeries(data=d)
-        # this line gives an error.  Should be checked, but for now I keep the nan's        
-        # Ts = Ts[Ts != 'nan']
         
     except:
         print "-------> Problem with Flukso data parsing <-------"
         raise
+    
+    #pdb.set_trace()
+    Ts = pd.TimeSeries(data=d)
+    # Convert the index to a pandas DateTimeIndex 
+    Ts.index = pd.to_datetime(Ts.index)
+    # this line gives an error.  Should be checked, but for now I keep the nan's        
+    # Ts = Ts[Ts != 'nan']
     
     return Ts
 
@@ -101,10 +104,14 @@ def save_csv(Ts, csvpath=None, fileNamePrefix=''):
     # save to file
     if csvpath is None:
         csvpath = os.getcwd()
-    s = strftime("%Y-%m-%d_%H-%M-%S",Ts.index[0].timetuple())    
-    e = strftime("%Y-%m-%d_%H-%M-%S",Ts.index[-1].timetuple())
-    Ts.to_csv(os.path.join(csvpath, fileNamePrefix + '_FROM_' + s + 
-                                    '_TO_' + e + '.csv'))    
+    s = Ts.index[0].strftime(format="%Y-%m-%d_%H-%M-%S")
+    e = Ts.index[-1].strftime(format="%Y-%m-%d_%H-%M-%S")
+        
+    csv = os.path.join(csvpath, fileNamePrefix + '_FROM_' + s + 
+                                    '_TO_' + e + '.csv')
+    
+    Ts.to_csv(csv, header=False)
+    return csv    
 
    
 def load_csv(csv):
@@ -113,9 +120,30 @@ def load_csv(csv):
     return it.
     """
     
-    return pd.read_csv(csv, index_col = 0, header=None, parse_dates=True)
+    ts = pd.read_csv(csv, index_col = 0, header=None, parse_dates=True)
+    # Convert the index to a pandas DateTimeIndex 
+    ts.index = pd.to_datetime(ts.index)
+    return ts
     
+def consolidate(folder, sensor):
+    """
+    Merge all csv files in folder for the given sensor into one csv file.
+    """
+    #pdb.set_trace()
+    # Get all files for the given sensor in the given path    
+    files = [f for f in os.listdir(folder) if f.index(sensor) > -1]
+    timeseries = [load_csv(os.path.join(folder, f)) for f in files]
+    combination = timeseries[0]    
+    for ts in timeseries[1:]:
+        combination = combination.combine_first(ts)
     
-
+    # Obtain the new filename
+    prefix_end = files[0].index('_FROM')
+    prefix = files[0][:prefix_end]
+    csv = save_csv(combination, csvpath = folder, fileNamePrefix=prefix)
+    
+    print 'Saved ', csv
+    return csv
+    
     
     

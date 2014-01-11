@@ -128,7 +128,8 @@ class Houseprint(object):
     
     def get_all_fluksosensors(self):        
         """
-        Return a nested dictionary with all sensors for all fluksos
+        Return a nested dictionary with all sensors for all fluksos.
+        Also add it to self as self.fluksosensors
         
         Returns
         --------
@@ -140,7 +141,8 @@ class Houseprint(object):
         for k,v in self.flukso_ids.items():
             res[k] = self.get_all_sensors(v)
             
-        return res
+        self.fluksosensors = res
+        return res.copy()
         
         
                 
