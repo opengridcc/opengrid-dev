@@ -26,7 +26,8 @@ class Houseprint(object):
     def __init__(self, houseprint = "Opengrid houseprint (Responses)"):
         """
         Create a connection with the google drive spreadsheet.
-        Initialize a few attributes
+        Initialize a few attributes and save all the values in the spreadsheet
+        to self.cellvalues (list of lists).
         """
         self.sensoramount=6
         
@@ -39,15 +40,18 @@ class Houseprint(object):
         # open spreadsheet, store main sheet in self.sheet
         self.gc = gspread.login('opengridcc@gmail.com', pwd)
         self.sheet = self.gc.open(houseprint).sheet1
+        self.cellvalues=self.sheet.get_all_values()
                 
+        # store {flukso_id:rownumber} in self.flukso_ids
         self._identify_fluksos()
         
+        # store {sensor_x:column number} in self.sensorcols
         self.sensorcols={}
         for i in range(1,self.sensoramount+1):
             self.sensorcols[i] = self.sheet.find("Sensor "+ str(i)).col
-        self.cellvalues=self.sheet.get_all_values()
+        
 
-        print houseprint + " successfully opened"
+        print houseprint + " successfully opened."
          
     
     def get_sensor(self, int_row, int_sensor):
