@@ -16,7 +16,7 @@ script_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 sys.path.append(os.path.join(script_dir, os.pardir, os.pardir))
 from opengrid.library.houseprint import Houseprint
 from opengrid.library import fluksoapi
-from opengrid.library.storetimeseriesdata import storeTimeSeriesData
+from opengrid.library.storetimeseriesdata import TimeSeriesData
 
 # script settings ############################################################
 extract_all = True
@@ -45,7 +45,9 @@ if extract_all:
                 r = fluksoapi.pull_api(sensor=s['Sensor'], token=s['Token'],
                                        unit=unit)
                 if save_all:
-                    storeTimeSeriesData(r.json(), s['Sensor'], s['Token'], unit)
+                    tsd=TimeSeriesData(sensor=s['Sensor'], token=s['Token'],unit=unit)
+                    tsd.storeTimeSeriesData(newdata=r.json())
+                    # storeTimeSeriesData(r.json(), s['Sensor'], s['Token'], unit)
                     fluksoapi.save2csv(r, csvpath=None, fileNamePrefix=s['Sensor'])
                     i=i+1
                     print('.'),
