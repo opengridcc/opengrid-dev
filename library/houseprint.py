@@ -144,8 +144,65 @@ class Houseprint(object):
         self.fluksosensors = res
         return res.copy()
         
+
+    def get_sensors_by_type(self, sensortype = None):
+        """
+        Return a list with sensor ids for the given sensortype.
         
+        Parameters
+        ----------
+        
+        * sensortype = 'gas', 'electricity' or 'water'
+        
+        Returns
+        --------
+        
+        List with all sensor numbers of the given sensortype.
+        """
+        
+        if not hasattr(self, 'fluksosensors'):
+            self.get_all_fluksosensors()
+        
+        res = [] 
+        for flukso, sensors in self.fluksosensors.items():
+            for int_sensor,sensordic in sensors.items():
+                try:
+                    if sensordic['Type'] == sensortype:
+                        res.append(sensordic['Sensor'])
+                except TypeError:
+                    pass
                 
+        return res
+        
+
+    def get_flukso_from_sensor(self, sensor):
+        """
+        Return a list with sensor ids for the given sensortype.
+        
+        Parameters
+        ----------
+        
+        * sensor = sensor number (hex)
+        
+        Returns
+        --------
+        
+        List with all sensor numbers of the given sensortype.
+        """
+        
+        if not hasattr(self, 'fluksosensors'):
+            self.get_all_fluksosensors()
+        
+        for flukso, sensors in self.fluksosensors.items():
+            for int_sensor, sensordic in sensors.items():
+                try:
+                    if sensordic['Sensor'] == sensor:
+                        return flukso
+                except TypeError:
+                    pass
+                
+        return ValueError("Flukso not found for sensor " + sensor)        
+
         
 if __name__ == '__main__':
     

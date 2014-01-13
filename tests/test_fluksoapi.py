@@ -42,6 +42,14 @@ class FluksoapiTest(unittest.TestCase):
         self.assertEqual(ts.index[-1], ts2.index[-1])
         self.assertEqual(ts.loc['2014-01-08 08:00:00'], 1120.0, "Last file should overwrite identical indices")
         os.remove(new_csv)
+        
+    def test_consolidate_raises(self):
+        """Consolidation for a sensor without files should raise a ValueError"""
+        
+        datafolder = os.path.join(test_dir, 'data')    
+        self.assertRaises(ValueError, fluksoapi.consolidate, folder = datafolder, sensor = 'nonexistent')
+                                        
+        
 
 if __name__ == '__main__':
     

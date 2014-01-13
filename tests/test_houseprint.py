@@ -73,6 +73,26 @@ class HouseprintTest(unittest.TestCase):
         fl.pop('FL03001552')
         self.assertListEqual(sorted(self.hp.fluksosensors.keys()), keys)
         
+        
+    def test_get_sensors_by_type(self):
+        """Get all sensors by type (gas, water electricity)"""
+        
+        expected = sorted(['a6028457292f1866b468b63adcc82ee3', '29ba25498c657eda0cdd34bf22d3f9e4',
+                    '313b78fec4f845be91c328ee2f92c6d4', '051a928dd04ca55e0411bd6f07e05c04',
+                    'd4b28740c7ee7a98f94a4d23d794af79'])
+                    
+        sensors = sorted(self.hp.get_sensors_by_type('gas'))
+        self.assertListEqual(expected, sensors)
+        
+        
+    def test_get_flukso_from_sensor(self):
+        """get_flukso_from_sensor should return correct flukso or ValueError"""
+        
+        expected = 'FL03001552'
+        fl = self.hp.get_flukso_from_sensor('53b1eb0479c83dee927fff10b0cb0fe6') 
+        self.assertEqual(expected, fl)
+        
+        self.assertRaises(ValueError, self.hp.get_flukso_from_sensor, sensor = 'nonexistentsensor')        
 
 if __name__ == '__main__':
     

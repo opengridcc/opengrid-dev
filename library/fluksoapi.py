@@ -129,9 +129,13 @@ def consolidate(folder, sensor):
     """
     Merge all csv files in folder for the given sensor into one csv file.
     """
-    pdb.set_trace()
+
     # Get all files for the given sensor in the given path    
     files = [f for f in os.listdir(folder) if f.find(sensor) > -1]
+
+    if files == []:
+        raise ValueError('No files found for sensor '+sensor+' in '+folder)
+    
     timeseries = [load_csv(os.path.join(folder, f)) for f in files]
     combination = timeseries[0]    
     for ts in timeseries[1:]:
@@ -145,5 +149,5 @@ def consolidate(folder, sensor):
     print 'Saved ', csv
     return csv
     
-    
+
     
