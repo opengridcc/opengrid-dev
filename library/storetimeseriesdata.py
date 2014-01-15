@@ -125,15 +125,34 @@ class TimeSeriesData(object):
     def getAllData(self):
         with open(self.datapath, 'rb') as fp:
             stringdata=fp.read()
-            stringformat=str(self.metadata['dataformat'])*(len(stringdata)/self.metadata['datalength'])
-            data= struct.unpack_from(stringformat,stringdata)
+        data=stringDataToData(stringData)
+        return dataToDict(data, self.metadata['starttime'])
+    
+    #fetch 'samples' data samples starting from timestamp 'firsttimestamp' and return it together with the timestamps
+    #when 'samples' is omitted, all data is read
+    def getSamplesStartingFrom(self, firstTimeStamp, samples=-1):
+        offset=(firstTimeStamp-self.metadata['starttime'])*self.metadata['datalength']
+        if offset<0:
+            raise ValueError("Trying to fetch data before start of the file")
+        with open(self.datapath, 'rb') as fp:
+            fp.seek(offset)
+            stringData=fp.read(samples*self.metadata['datalength'])
+        data=stringDataToData(stringData)
+        return dataToDict(data, firstTimeStamp)
+    
+    #convert string data to 'formatted' data -> unpack data
+    def stringDataToData(self, stringData):
+        stringFormat=str(self.metadata['dataformat'])*(len(stringData)/self.metadata['datalength'])
+        return struct.unpack_from(stringFormat,stringData)
+    
+    #add timestamps to the data, the first row in 'data' has timestamp 'firstTimeStamp'
+    def dataToDict(self,data, firstTimeStamp):
         timeStampedData={}
-        timeStamp=self.metadata['starttime']
+        timeStamp=firstTimeStamp
         seconds=self.getSecondsFromResolution()
         for row in data:
             timeStampedData[timeStamp]=row
             timeStamp=timeStamp+seconds
-        return timeStampedData
     
     #returns the amount of seconds between each measurement
     def getSecondsFromResolution(self):
