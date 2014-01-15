@@ -112,8 +112,7 @@ class TimeSeriesData(object):
         if self.metadata['sensor'] != self.sensor or self.metadata['token'] != self.token or self.metadata['unit'] != self.unit:
             raise ValueError('Argument is inconsistent with its stored value')
         if (timestamp- self.metadata['starttime']) % self.getSecondsFromResolution() != 0:
-            print "Timestamp does not have the correct spacing compared to the initial timestamp! Storage cancelled."
-            return
+            raise ValueError("Timestamp does not have the correct spacing compared to the initial timestamp! Storage cancelled.")
     
     #perform the actual data storage
     def storeMetaData(self):
@@ -124,9 +123,9 @@ class TimeSeriesData(object):
     #fetch all data from the current sensor and return it together with the timestamps
     def getAllData(self):
         with open(self.datapath, 'rb') as fp:
-            stringdata=fp.read()
-        data=stringDataToData(stringData)
-        return dataToDict(data, self.metadata['starttime'])
+            stringData=fp.read()
+        data=self.stringDataToData(stringData)
+        return self.dataToDict(data, self.metadata['starttime'])
     
     #fetch 'samples' data samples starting from timestamp 'firsttimestamp' and return it together with the timestamps
     #when 'samples' is omitted, all data is read
@@ -137,8 +136,8 @@ class TimeSeriesData(object):
         with open(self.datapath, 'rb') as fp:
             fp.seek(offset)
             stringData=fp.read(samples*self.metadata['datalength'])
-        data=stringDataToData(stringData)
-        return dataToDict(data, firstTimeStamp)
+        data=self.stringDataToData(stringData)
+        return self.dataToDict(data, firstTimeStamp)
     
     #convert string data to 'formatted' data -> unpack data
     def stringDataToData(self, stringData):
@@ -153,6 +152,7 @@ class TimeSeriesData(object):
         for row in data:
             timeStampedData[timeStamp]=row
             timeStamp=timeStamp+seconds
+        return timeStampedData
     
     #returns the amount of seconds between each measurement
     def getSecondsFromResolution(self):
