@@ -113,6 +113,19 @@ class TimeSeriesData(object):
         # save (updated) meta data file
         with open(self.metapath, 'wb') as fp:
             json.dump(self.metadata, fp)
+    
+    def getAllData(self):
+        with open(self.datapath, 'rb') as fp:
+            stringdata=fp.read()
+            stringformat=str(self.metadata['dataformat'])*(len(stringdata)/self.metadata['datalength'])
+            data= struct.unpack_from(stringformat,stringdata)
+        timeStampedData={}
+        timeStamp=self.metadata['starttime']
+        for row in data:
+            timeStampedData[timeStamp]=row
+            timeStamp=timeStamp+60
+        return timeStampedData
+            
 
 def convertDataFormat(fromPath, toPath, toFormat):
     data=fetchDataFromFile(fromPath)
