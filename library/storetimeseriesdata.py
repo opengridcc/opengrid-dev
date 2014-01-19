@@ -129,8 +129,11 @@ class TimeSeriesData(object):
     
     #fetch 'samples' data samples starting from timestamp 'firsttimestamp' and return it together with the timestamps
     #when 'samples' is omitted, all data is read
-    def getSamplesStartingFrom(self, firstTimeStamp, samples=-1):
-        offset=(firstTimeStamp-self.metadata['starttime'])*self.metadata['datalength']
+    def getSamplesStartingFrom(self, firstTimeStamp=0, samples=-1):
+        if firstTimeStamp==0:
+            offset=0
+        else:
+            offset=(firstTimeStamp-self.metadata['starttime'])*self.metadata['datalength']
         if offset<0:
             raise ValueError("Trying to fetch data before start of the file")
         with open(self.datapath, 'rb') as fp:
@@ -146,13 +149,18 @@ class TimeSeriesData(object):
     
     #add timestamps to the data, the first row in 'data' has timestamp 'firstTimeStamp'
     def dataToDict(self,data, firstTimeStamp):
-        timeStampedData={}
+        result={}
         timeStamp=firstTimeStamp
         seconds=self.getSecondsFromResolution()
+        timeStamps=[]
+        samples=[]
         for row in data:
-            timeStampedData[timeStamp]=row
+            timeStamps.append(timeStamp)
+            samples.append(row)
             timeStamp=timeStamp+seconds
-        return timeStampedData
+        result['timestamps']=timeStamps
+        result['samples']=samples
+        return result
     
     #returns the amount of seconds between each measurement
     def getSecondsFromResolution(self):
