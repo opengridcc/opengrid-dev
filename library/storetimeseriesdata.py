@@ -9,9 +9,9 @@ measurements: no timestamps. The location of the measurement in the file indicat
 the time at which it was measured. If there exists already stored data for the sensor, data 
 is appended and/or overwritten.
 
-TODO: improve documentation, fetching a custom range of data
+TODO: improve documentation
 """
-import os, json, struct,io, sys
+import os, json, struct, io, sys
 
 
 class TimeSeriesData(object):
@@ -128,7 +128,7 @@ class TimeSeriesData(object):
         return self.dataToDict(data, self.metadata['starttime'])
     
     #fetch 'samples' data samples starting from timestamp 'firsttimestamp' and return it together with the timestamps
-    #when 'samples' is omitted, all data is read
+    #when 'samples' is omitted, all data is read. A 'firsttimestamp' of zero (or empty) will return data starting from the first sample.
     def getSamplesStartingFrom(self, firstTimeStamp=0, samples=-1):
         if firstTimeStamp==0:
             offset=0
@@ -147,7 +147,7 @@ class TimeSeriesData(object):
         stringFormat=str(self.metadata['dataformat'])*(len(stringData)/self.metadata['datalength'])
         return struct.unpack_from(stringFormat,stringData)
     
-    #add timestamps to the data, the first row in 'data' has timestamp 'firstTimeStamp'
+    #add timestamps to the data and return them as a dictionary containing two lists, one with samples and one with timestamps
     def dataToDict(self,data, firstTimeStamp):
         result={}
         timeStamp=firstTimeStamp
