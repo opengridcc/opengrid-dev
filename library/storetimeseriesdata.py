@@ -103,8 +103,16 @@ class TimeSeriesData(object):
         entrylength=self.metadata['datalength']
         offset=(timestamp-self.metadata['starttime'])/self.getSecondsFromResolution()*entrylength
         storeData(newdata, self.datapath, self.metadata['dataformat'], offset)
-    
+        self.updateNumSamples()
+        
         self.storeMetaData()
+    
+    #update the metadata entry stating how many samples the data file contains
+    def updateNumSamples(self):
+        with open(self.datapath, 'rb') as fp:
+            fp.seek(0, os.SEEK_END)
+            filesize = fp.tell()
+        self.metadata['numSamples']=filesize/self.metadata['datalength']
     
     #check whether the given inputs are consistent with the pre-existing files
     def validateData(self, newdata, timestamp):
@@ -125,24 +133,35 @@ class TimeSeriesData(object):
     
     #fetch all data from the current sensor and return it together with the timestamps
     def getAllData(self):
-        with open(self.datapath, 'rb') as fp:
-            stringData=fp.read()
-        data=self.stringDataToData(stringData)
+        data= self.getDataFromFile(0, -1)
         return self.dataToDict(data, self.metadata['starttime'])
     
-    #fetch 'samples' data samples starting from timestamp 'firsttimestamp' and return it together with the timestamps
-    #when 'samples' is omitted, all data is read. A 'firsttimestamp' of zero (or empty) will return data starting from the first sample.
-    def getSamplesStartingFrom(self, firstTimeStamp=0, samples=-1):
-        if firstTimeStamp==0:
-            offset=0
-        else:
-            offset=(firstTimeStamp-self.metadata['starttime'])*self.metadata['datalength']
-        if offset<0:
-            raise ValueError("Trying to fetch data before start of the file")
+    #fetch data from file and convert to correct format
+    def getDataFromFile(self, offset, samples):
         with open(self.datapath, 'rb') as fp:
             fp.seek(offset)
             stringData=fp.read(samples*self.metadata['datalength'])
-        data=self.stringDataToData(stringData)
+        return self.stringDataToData(stringData)
+         
+        
+    
+    #Fetch 'samples' data samples starting from timestamp 'firsttimestamp' and return it together with the timestamps
+    #when 'samples' is omitted or negative, all data is read. A 'firsttimestamp' of zero (or empty) will return data starting from the first sample.
+    #A negative 'firsttimestamp' value will read the _last_ 'samples' samples from the file.
+    def getSamplesStartingFrom(self, firstTimeStamp=0, samples=-1):
+        if firstTimeStamp==0:
+            offset=0
+        elif firstTimeStamp < 0:
+            if samples < 0:
+                offset=0
+            else:
+                offset=(self.metadata['numSamples']-samples)*self.metadata['datalength']
+        else:
+            offset=(firstTimeStamp-self.metadata['starttime'])*self.metadata['datalength']/self.getSecondsFromResolution()
+        if offset<0:
+            raise ValueError("Trying to fetch data before start of the file")
+        
+        data= self.getDataFromFile(offset, samples)
         return self.dataToDict(data, firstTimeStamp)
     
     #convert string data to 'formatted' data -> unpack data
@@ -169,6 +188,8 @@ class TimeSeriesData(object):
     def getSecondsFromResolution(self):
         if self.metadata['resolution']=='minute':
             return 60
+        elif self.metadata['resolution']=='second':
+            return 1
         else:
             raise ValueError("The given resolution is not supported yet")
 
