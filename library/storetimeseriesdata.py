@@ -9,6 +9,9 @@ measurements: no timestamps. The location of the measurement in the file indicat
 the time at which it was measured. If there exists already stored data for the sensor, data 
 is appended and/or overwritten.
 
+Based on this object it is also possible to fetch timestamped data from these files using getAllData() 
+and getSamplesStartingFrom().
+
 TODO: improve documentation
 """
 import os, json, struct, io, sys
