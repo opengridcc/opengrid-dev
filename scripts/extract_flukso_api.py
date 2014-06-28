@@ -42,7 +42,7 @@ if extract_all:
                 else:
                     unit = 'lperday'
                 # pull the data from the flukso server
-                r = fluksoapi.pull_api(sensor=s['Sensor'], token=s['Token'],
+                r = fluksoapi.pull_api(sensor=s['Sensor'], interval='day', token=s['Token'],
                                        unit=unit)
                 if save_all:
                     storeTimeSeriesData(r.json(), s['Sensor'], s['Token'], unit)
