@@ -14,7 +14,7 @@ import inspect
 script_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 # add the path to opengrid to sys.path
 sys.path.append(os.path.join(script_dir, os.pardir, os.pardir))
-from opengrid.library.houseprint import Houseprint
+from opengrid.library.houseprint import load_houseprint_from_file
 from opengrid.library import fluksoapi
 from opengrid.library.storetimeseriesdata import storeTimeSeriesData
 
@@ -24,7 +24,7 @@ save_all = True
 
 ##############################################################################
 
-hp = Houseprint()
+hp = load_houseprint_from_file(os.path.join(script_dir, 'hp_anonymous.pkl'))
 all_sensordata = hp.get_all_fluksosensors()
 print('Sensor data fetched')
 
