@@ -12,7 +12,7 @@ import inspect
 test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 # add the path to opengrid to sys.path
 sys.path.append(os.path.join(test_dir, os.pardir, os.pardir))
-from opengrid.library.houseprint import Houseprint
+from opengrid.library.houseprint import Houseprint, load_houseprint_from_file
 
 class HouseprintTest(unittest.TestCase):
     """
@@ -118,8 +118,14 @@ class HouseprintTest(unittest.TestCase):
         for attr in ['gc', 'sheet', 'sourcedir']:
             self.assertFalse(hasattr(self.hp, attr), msg="hp should NOT have attribute {}".format(attr))
             
-                    
-
+    def test_save_and_load(self):
+        """Save a HP and load it back"""
+        
+        self.hp.save('test_saved_hp.hp')
+        hp2 = load_houseprint_from_file('test_saved_hp.hp')
+        
+        self.assertListEqual(hp2.cellvalues, self.hp.cellvalues)        
+        
 if __name__ == '__main__':
     
     # http://stackoverflow.com/questions/4005695/changing-order-of-unit-tests-in-python    

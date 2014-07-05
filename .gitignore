@@ -1,2 +1,3 @@
 *.pyc
 library/og.txt
+tests/test_saved_hp.hp
