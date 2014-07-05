@@ -117,6 +117,7 @@ class HouseprintTest(unittest.TestCase):
                     self.assertFalse(email, msg=u"'@' found in cell {}".format(j))
         for attr in ['gc', 'sheet', 'sourcedir']:
             self.assertFalse(hasattr(self.hp, attr), msg="hp should NOT have attribute {}".format(attr))
+            
                     
 
 if __name__ == '__main__':

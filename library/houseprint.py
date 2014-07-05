@@ -13,6 +13,7 @@ Created on Mon Dec 30 00:51:49 2013 by Roel De Coninck
 import os, sys
 import gspread
 import inspect
+import cPickle as pickle
 
 class Houseprint(object):
     """
@@ -222,11 +223,47 @@ class Houseprint(object):
             row[1] = ''
         
         for attr in ['gc', 'sheet', 'sourcedir']:
-            delattr(self, attr)
+            try:
+                delattr(self, attr)
+            except:
+                pass
             
         print("Housprint object is anonymous")
 
-                
+
+    def save(self, filename):
+        """
+        Pickle the houseprint object
+        
+        Parameters
+        ----------
+        * filename : str
+            Filename, if relative path or just filename, it is appended to the
+            current working directory
+        
+        Notes
+        -----
+        For safety reasons, the houseprint is ALWAYS anonymized before saving
+        
+        """
+        
+        self.anonymize()
+        
+        abspath = os.path.join(os.getcwd(), filename)
+        f=file(abspath, 'w')
+        pickle.dump(self, f)
+        f.close()
+        
+        print("Saved anonymous houseprint to {}".format(abspath))
+        
+        
+def load_houseprint_from_file(filename):
+    """Return a static (=anonymous) houseprint object"""
+    
+    f = open(filename, 'r')    
+    hp = pickle.load(f)
+    f.close()
+    return hp
     
 if __name__ == '__main__':
     
