@@ -177,7 +177,7 @@ class Houseprint(object):
 
     def get_flukso_from_sensor(self, sensor):
         """
-        Return a list with sensor ids for the given sensortype.
+        Return the flukso id for a given sensor id.
         
         Parameters
         ----------
@@ -187,7 +187,7 @@ class Houseprint(object):
         Returns
         --------
         
-        List with all sensor numbers of the given sensortype.
+        Flukso id corresponding to the sensor (as string).
         """
         
         if not hasattr(self, 'fluksosensors'):
@@ -201,9 +201,33 @@ class Houseprint(object):
                 except TypeError:
                     pass
                 
-        return ValueError("Flukso not found for sensor " + sensor)        
+        raise ValueError("Flukso not found for sensor " + sensor)        
 
         
+    def anonymize(self):
+        """
+        Remove all non-anonymous information from this houseprint object
+
+        Notes
+        -----
+        
+        This removes:
+        - all email addresses from self.cellvalues
+        - the sourcedir attribute
+        - the gc attribute
+        - the sheet attribute
+        """
+        
+        for row in self.cellvalues[1:]:
+            row[1] = ''
+        
+        for attr in ['gc', 'sheet', 'sourcedir']:
+            delattr(self, attr)
+            
+        print("Housprint object is anonymous")
+
+                
+    
 if __name__ == '__main__':
     
     hp = Houseprint()

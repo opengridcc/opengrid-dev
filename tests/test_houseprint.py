@@ -93,6 +93,31 @@ class HouseprintTest(unittest.TestCase):
         self.assertEqual(expected, fl)
         
         self.assertRaises(ValueError, self.hp.get_flukso_from_sensor, sensor = 'nonexistentsensor')        
+            
+    
+    def test_anonymize(self):
+        """Test if the hp is truly anonymous after anyonimizing"""
+        
+        ### ATTENTION ###
+        # This test will remove e-mail addresses from the self.hp object.
+        # If other tests require this information, put them BEFORE this one
+        # as the tests are executed in order of appearance
+        #################
+        
+        self.hp.anonymize()
+        # test if there is still an e-mail address somewhere
+        email = False
+        for i in self.hp.cellvalues:
+            for j in i:
+                try:
+                    email = j.find(u'@') > 0
+                except:
+                    pass
+                if email:
+                    self.assertFalse(email, msg=u"'@' found in cell {}".format(j))
+        for attr in ['gc', 'sheet', 'sourcedir']:
+            self.assertFalse(hasattr(self.hp, attr), msg="hp should NOT have attribute {}".format(attr))
+                    
 
 if __name__ == '__main__':
     
