@@ -3,7 +3,7 @@
 Created on Mon Jan 21 15:31:36 2013 by Carlos Dierckxsens
 
 """
-from datetime import datetime as dt
+import datetime as dt
 import pandas as pd
 import requests
 import os
@@ -79,7 +79,7 @@ def parse(r):
     try:
         d = {}
         for tup in r.json():
-            d[dt.fromtimestamp(tup[0])] = tup[1]
+            d[dt.datetime.fromtimestamp(tup[0])] = tup[1]
         
     except:
         print "-------> Problem with Flukso data parsing <-------"
@@ -125,13 +125,33 @@ def load_csv(csv):
     ts.index = pd.to_datetime(ts.index)
     return ts
     
-def consolidate(folder, sensor):
+
+def consolidate(folder, sensor, dt_day=None):
     """
-    Merge all csv files in folder for the given sensor into one csv file.
+    Merge all csv files for a given sensor into a single csv file
+    
+    - the given sensor
+    - and the given day
+    into a single csv file
+    
+    Parameters
+    ----------
+    folder : path
+        Folder containing the csv files
+    sensor : hex
+        Sensor for which files are to be consolidated
+    dt_day : (optional) datetime
+        If a valid datetime is passed, only files containing data from this day 
+        will be considered
     """
 
+    if dt_day is not None:    
+        dt_day_string = dt_day.strftime(format="%Y-%m-%d")     
+    
     # Get all files for the given sensor in the given path    
     files = [f for f in os.listdir(folder) if f.find(sensor) > -1]
+    if dt_day is not None:
+        files = [f for f in files if f.find(dt_day_string) > -1]
 
     if files == []:
         raise ValueError('No files found for sensor '+sensor+' in '+folder)
@@ -141,13 +161,20 @@ def consolidate(folder, sensor):
     for ts in timeseries[1:]:
         combination = combination.combine_first(ts)
     
+    if dt_day is not None:
+        # only retain data from this day
+        dt_start = dt.datetime.strptime(dt_day_string, "%Y-%m-%d")
+        dt_end = dt_start + dt.timedelta(days=1)
+        combination = combination.ix[dt_start:dt_end]
+        
+        
     # Obtain the new filename
     prefix_end = files[0].index('_FROM')
-    prefix = files[0][:prefix_end]
+    prefix = files[0][:prefix_end]    
+    
     csv = save_csv(combination, csvpath = folder, fileNamePrefix=prefix)
-    
     print 'Saved ', csv
-    return csv
-    
 
+    return csv
+ 
     
