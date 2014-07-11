@@ -21,4 +21,6 @@ all_sensordata = hp.get_all_fluksosensors()
 print('Sensor data fetched')
 
 hp.save('hp_anonymous.pkl')
- 
+hp.save('/var/www/private/hp_anonymous.pkl')
+
+            
