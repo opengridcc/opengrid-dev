@@ -52,15 +52,19 @@ for sensor in sensors:
     edt=pytz.timezone('US/Eastern')
     df.index = df.index.tz_localize(edt)
     df.index = df.index.tz_convert('UTC')
-
-    # save single csv file per day
-    # first, create the datetimes for each day
-    days=df.resample(rule='D').index
-    for i in range(len(days)-1):
-        df_day = df.ix[days[i]:days[i+1]]
-        if not df_day.isnull().all()[1]:
-            fluksoapi.save_csv(df_day, csvpath=os.path.join(path_to_data, 'daily'), 
-                               fileNamePrefix='_'.join([flukso_id, sensor]))
+    
+    # save consolidated files in UTC
+    fluksoapi.save_csv(df, csvpath=os.path.join(path_to_data, 'UTC'), 
+                       fileNamePrefix='_'.join([flukso_id, sensor]))
+    
+#    # save single csv file per day
+#    # first, create the datetimes for each day
+#    days=df.resample(rule='D').index
+#    for i in range(len(days)-1):
+#        df_day = df.ix[days[i]:days[i+1]]
+#        if not df_day.isnull().all()[1]:
+#            fluksoapi.save_csv(df_day, csvpath=os.path.join(path_to_data, 'UTC'), 
+#                               fileNamePrefix='_'.join([flukso_id, sensor]))
         
 
     

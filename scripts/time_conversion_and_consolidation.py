@@ -25,7 +25,7 @@ from opengrid.library import houseprint
 from opengrid.library import fluksoapi
 
 # script settings ############################################################
-path_to_data = os.path.abspath('/usr/local/data')
+path_to_data = os.path.abspath('/home/roel/data/work/opengrid/backup_data_in_EDT/data')
 
 # get all sensors
 hp = houseprint.load_houseprint_from_file('hp_anonymous.pkl')
@@ -54,7 +54,8 @@ for sensor in sensors:
     df.index = df.index.tz_convert('UTC')
     
     # save consolidated files in UTC
-    fluksoapi.save_csv(df, csvpath=os.path.join(path_to_data, 'UTC'), 
+    flukso_id = hp.get_flukso_from_sensor(sensor)    
+    fluksoapi.save_csv(df, csvpath=os.path.join(path_to_data, '/home/roel/data/work/opengrid/backup_data_in_UTC'), 
                        fileNamePrefix='_'.join([flukso_id, sensor]))
     
 #    # save single csv file per day
