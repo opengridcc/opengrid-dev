@@ -169,8 +169,8 @@ def consolidate(folder, sensor, dt_day=None):
         
         
     # Obtain the new filename
-    prefix_end = files[0].index('_FROM')
-    prefix = files[0][:prefix_end]    
+    prefix_end = files[-1].index('_FROM')
+    prefix = files[-1][:prefix_end]    
     
     csv = save_csv(combination, csvpath = folder, fileNamePrefix=prefix)
     print 'Saved ', csv
