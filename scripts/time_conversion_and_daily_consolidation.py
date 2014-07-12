@@ -25,7 +25,7 @@ from opengrid.library import houseprint
 from opengrid.library import fluksoapi
 
 # script settings ############################################################
-path_to_data = os.path.abspath('/home/roel/data/work/opengrid/work')
+path_to_data = os.path.abspath('/usr/local/data')
 
 # get all sensors
 hp = houseprint.load_houseprint_from_file('hp_anonymous.pkl')
@@ -40,7 +40,7 @@ for flukso_id, d in hp.fluksosensors.items():
 
 print("{} sensors found".format(len(sensors)))
         
-for sensor in ['1e1e43f5edb4d5e43ab721c391410cde']:
+for sensor in sensors:
     
     # create a single csv
     csv=fluksoapi.consolidate(folder=path_to_data, sensor=sensor)
@@ -58,7 +58,6 @@ for sensor in ['1e1e43f5edb4d5e43ab721c391410cde']:
     days=df.resample(rule='D').index
     for i in range(len(days)-1):
         df_day = df.ix[days[i]:days[i+1]]
-        df_day = df_day.resample(rule='T')
         if not df_day.isnull().all()[1]:
             fluksoapi.save_csv(df_day, csvpath=os.path.join(path_to_data, 'daily'), 
                                fileNamePrefix='_'.join([flukso_id, sensor]))
