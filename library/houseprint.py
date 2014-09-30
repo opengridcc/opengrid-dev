@@ -36,7 +36,7 @@ class Houseprint(object):
         self.sourcedir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
         
         pwdfile = file(os.path.join(self.sourcedir, 'og.txt'))
-        pwd = pwdfile.read().rstrip()
+        pwd = pwdfile.readlines()[0].rstrip()
         
         # open spreadsheet, store main sheet in self.sheet
         self.gc = gspread.login('opengridcc@gmail.com', pwd)
@@ -83,7 +83,7 @@ class Houseprint(object):
         
         return res
             
-    def get_all_sensors(self, int_row):
+    def get_sensors_for_row(self, int_row):
         """
         Return a nested dictionary with all sensors for a given row
         
@@ -140,7 +140,7 @@ class Houseprint(object):
         
         res = {}
         for k,v in self.flukso_ids.items():
-            res[k] = self.get_all_sensors(v)
+            res[k] = self.get_sensors_for_row(v)
             
         self.fluksosensors = res
         return res.copy()
@@ -175,6 +175,30 @@ class Houseprint(object):
                 
         return res
         
+
+    def get_all_sensors(self):
+        """
+        Return a list with all sensor ids in the houseprint object.
+        
+        
+        Returns
+        --------
+        List with all sensor ids.
+        """
+        
+        if not hasattr(self, 'fluksosensors'):
+            self.get_all_fluksosensors()
+        
+        res = [] 
+        for flukso, sensors in self.fluksosensors.items():
+            for int_sensor,sensordic in sensors.items():
+                try:
+                    res.append(sensordic['Sensor'])
+                except TypeError:
+                    pass
+                
+        return res
+
 
     def get_flukso_from_sensor(self, sensor):
         """
