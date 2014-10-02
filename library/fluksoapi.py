@@ -134,7 +134,7 @@ def find_csv(folder, sensor):
     Returns
     -------
     
-    path : pathname to found csv
+    path : absolute pathname to found csv
     
     Raises
     ------
@@ -148,7 +148,7 @@ def find_csv(folder, sensor):
     if len(found) > 1:
         raise ValueError("More than one csv-file found for sensor {}.\nRun fluksoapi.consolidate() first".format(sensor))
     else:
-        return found[0]
+        return os.path.join(folder, found[0])
     
     
 
@@ -224,18 +224,21 @@ def consolidate_sensor(folder, sensor, dt_day=None, remove_temp=False):
         dt_end = dt_start + dt.timedelta(days=1)
         combination = combination.ix[dt_start:dt_end]
         
+    if remove_temp:    
+        for f in files:
+            os.remove(os.path.join(folder, f))
+        print("Removed the {} temporary files".format(len(files)))
+
         
-    # Obtain the new filename
+    # Obtain the new filename prefix, something like FX12345678_sensorid_
+    # the _FROM....csv will be added by the save_csv method
     prefix_end = files[-1].index('_FROM')
     prefix = files[-1][:prefix_end]    
     
     csv = save_csv(combination, csvpath = folder, fileNamePrefix=prefix)
     print 'Saved ', csv
     
-    if remove_temp:    
-        for f in files:
-            os.remove(os.path.join(folder, f))
-        print("Removed the {} temporary files".format(len(files)))
+
 
     return csv
 
@@ -249,19 +252,31 @@ def consolidate_folder(folder):
         consolidate_sensor(folder, s, remove_temp=True) 
         
 
-def synchronize_old(folder, consolidate=True):
-    """Download the latest zip-files from the opengrid droplet and unzip.
+def synchronize(folder, unzip=True, consolidate=True):
+    """Download the latest zip-files from the opengrid droplet, unzip and consolidate.
     
-    The files will be stored in folder/zip and unzipped to folder/csv
+    The files will be stored in folder/zip and unzipped and 
+    consolidated into folder/csv
     
     Parameters
     ----------
     
     folder : path
         The *data* folder, containing subfolders *zip* and *csv*
+    unzip : [True]/False
+        If True, unzip the downloaded files to folder/csv
     consolidate : [True]/False
         If True, all csv files in folder/csv will be consolidated to a 
         single file per sensor
+    
+    Notes
+    -----
+    
+    This will only unzip the downloaded files and then consolidate all
+    csv files in the csv folder.  If you want to rebuild the consolidated
+    csv from all available data you can either delete all zip files and 
+    run this function or run _unzip(folder, consolidate=True) on the 
+    data folder.
         
     """
     
@@ -278,11 +293,11 @@ def synchronize_old(folder, consolidate=True):
     session.auth = ('opengrid', pwd)
     resp = session.get('http://95.85.34.168:8080/')
     
-    # make a list of all zip files
+    # make a list of all zipfiles
     pattern = '("[0-9]{8}.zip")' 
-    files = re.findall(pattern, resp.content)
-    files = [x.strip('"') for x in files]
-    
+    zipfiles = re.findall(pattern, resp.content)
+    zipfiles = [x.strip('"') for x in zipfiles]
+    zipfiles.append('all_data_till_20140711.zip')
     
     zipfolder = os.path.join(folder, 'zip')    
     csvfolder = os.path.join(folder, 'csv')
@@ -292,9 +307,11 @@ def synchronize_old(folder, consolidate=True):
         if not os.path.exists(fldr):
             os.mkdir(fldr)
     
-    for f in files:
+    downloadfiles = [] # these are the successfully downloaded files       
+    for f in zipfiles:
         # download the file to zipfolder if it does not yet exist
-        if not os.path.exists(os.path.join(zipfolder, f)):        
+        if not os.path.exists(os.path.join(zipfolder, f)):
+            print("Downloading {}".format(f))       
             with open(os.path.join(zipfolder, f), 'wb') as handle:
                 response = session.get('http://95.85.34.168:8080/' + f, stream=True)
         
@@ -305,80 +322,24 @@ def synchronize_old(folder, consolidate=True):
                     if not block:
                         break
                     handle.write(block)
+            downloadfiles.append(f)
             
-            # now unzip to zipfolder
-            z = zipfile.ZipFile(os.path.join(zipfolder, f), 'r')
-            z.extractall(path=csvfolder)
+    # Now unzip and consolidate the downloaded files only
+    if unzip:
+        _unzip(folder=folder, files=downloadfiles, consolidate=consolidate)
         
-    if consolidate:
-        # create a set of unique sensor id's in the csv folder        
-        consolidate_folder(csvfolder)
-            
 
-def synchronize(folder):
-    """Download the latest zip-files from the opengrid droplet.
-    
-    The files will be stored in folder/zip
-    
-    Parameters
-    ----------
-    
-    folder : path
-        The *data* folder.  If not containing subfolders *zip* and *csv*, 
-        these will be created.
-
+def _unzip(folder, files='all', consolidate=True):
     """
-    
-    if not os.path.exists(folder):
-        raise IOError("Provide your path to the data folder where a zip and csv subfolder will be created.")
-    
-    # Get the pwd; start from the path of this current file 
-    sourcedir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    pwdfile = file(os.path.join(sourcedir, 'og.txt'))
-    pwd = pwdfile.readlines()[1].rstrip()
-    
-    # create a session to the private opengrid webserver
-    session = requests.Session()
-    session.auth = ('opengrid', pwd)
-    resp = session.get('http://95.85.34.168:8080/')
-    
-    # make a list of all zip files
-    pattern = '("[0-9]{8}.zip")' 
-    files = re.findall(pattern, resp.content)
-    files = [x.strip('"') for x in files]
-    
-    zipfolder = os.path.join(folder, 'zip')    
-    csvfolder = os.path.join(folder, 'csv')
-
-    # create the folders if they don't exist
-    for fldr in [zipfolder, csvfolder]:
-        if not os.path.exists(fldr):
-            os.mkdir(fldr)
-            
-    for f in files:
-        # download the file to zipfolder if it does not yet exist
-        if not os.path.exists(os.path.join(zipfolder, f)):        
-            with open(os.path.join(zipfolder, f), 'wb') as handle:
-                response = session.get('http://95.85.34.168:8080/' + f, stream=True)
+    Unzip zip files from folder/zip to folder/csv and consolidate if wanted
         
-                if not response.ok:
-                    raise IOError('Something went wrong in downloading of {}'.format(f))
-        
-                for block in response.iter_content(1024):
-                    if not block:
-                        break
-                    handle.write(block)
-            
-
-def unzip(folder, consolidate=True):
-    """
-    Unzip all zip files from folder/zip to folder/csv and consolidate if wanted
-    
     Parameters
     ----------
     
     folder : path
         The *data* folder, containing subfolders *zip* and *csv*
+    files = 'all' (default) or list of files
+        Unzip only these files
     consolidate : [True]/False
         If True, all csv files in folder/csv will be consolidated to a 
         single file per sensor
@@ -393,7 +354,8 @@ def unzip(folder, consolidate=True):
         if not os.path.exists(fldr):
             os.mkdir(fldr)
 
-    files = os.listdir(zipfolder)
+    if files == 'all':
+        files = os.listdir(zipfolder)
     badfiles = []
     
     for f in files:
@@ -404,6 +366,11 @@ def unzip(folder, consolidate=True):
         except:
             badfiles.append(f)
             pass
+    
+    if badfiles:
+        print("Could not unzip these files:")
+        for f in badfiles:
+            print f
         
     if consolidate:
         # create a set of unique sensor id's in the csv folder        
