@@ -33,7 +33,7 @@ path_to_webserver = os.path.abspath('/var/www/private')
 date = dt.datetime.now() - dt.timedelta(days=1)
 
 # get all sensors
-hp = houseprint.load_houseprint_from_file('hp_anonymous.pkl')
+hp = houseprint.load_houseprint_from_file(os.path.join(script_dir, 'hp_anonymous.pkl'))
 sensors = []
 for flukso_id, d in hp.fluksosensors.items():
     for sensor_id, s in d.items():
