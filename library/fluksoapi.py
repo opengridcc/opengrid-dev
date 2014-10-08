@@ -9,6 +9,10 @@ import requests
 import os
 from time import mktime,strftime
 import pdb
+import inspect
+import requests
+import re
+import zipfile
 
 def pull_api(sensor, token, unit, interval='day', resolution = 'minute'):
    
@@ -114,19 +118,67 @@ def save_csv(Ts, csvpath=None, fileNamePrefix=''):
     return csv    
 
    
-def load_csv(csv):
+def find_csv(folder, sensor):
     """
-    Load a previously saved csv file into a timeseries or dataframe and 
-    return it.
+    Find csv file corresponding to sensor in the given folder.  Run consolidate
+    first if there are multiple csv files for a given sensor.
+    
+    Parameters
+    ----------
+    
+    folder : path
+        Folder containing the csv files
+    sensor : hex
+        Sensor for which files are to be consolidated
+        
+    Returns
+    -------
+    
+    path : absolute pathname to found csv
+    
+    Raises
+    ------
+    
+    ValueError when more than one file is found
     """
     
-    ts = pd.read_csv(csv, index_col = 0, header=None, parse_dates=True)
-    # Convert the index to a pandas DateTimeIndex 
-    ts.index = pd.to_datetime(ts.index)
-    return ts
+    files = os.listdir(folder)
+    found = filter(lambda x: x.find(sensor) > -1, files)
+
+    if len(found) > 1:
+        raise ValueError("More than one csv-file found for sensor {}.\nRun fluksoapi.consolidate() first".format(sensor))
+    else:
+        return os.path.join(folder, found[0])
+    
     
 
-def consolidate(folder, sensor, dt_day=None):
+def load_csv(csv):
+    """
+    Load a previously saved csv file into a dataframe and return it.
+    
+    Parameters
+    ----------
+    csv : path
+        Path to a csv file.  Filename should be something like fluksoID_sensor_FROM_x_to_y.csv
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        The dataframe will have a DatetimeIndex with UTC timezone.  The 
+        column will be the sensor-ID, extracted from the csv filename
+    
+    """
+    
+    df = pd.read_csv(csv, index_col = 0, header=None, parse_dates=True)
+    # Convert the index to a pandas DateTimeIndex 
+    df.index = pd.to_datetime(df.index)
+    df.index = df.index.tz_localize('UTC')
+    df.columns = [csv.split('_')[1]]
+    
+    return df
+    
+
+def consolidate_sensor(folder, sensor, dt_day=None, remove_temp=False):
     """
     Merge all csv files for a given sensor into a single csv file
     
@@ -143,6 +195,9 @@ def consolidate(folder, sensor, dt_day=None):
     dt_day : (optional) datetime
         If a valid datetime is passed, only files containing data from this day 
         will be considered
+    remove_temp : (optional) Boolean, default=False
+        If True, only the resulting consolidated csv is kept, the files that
+        have been consolidated are deleted.
     """
 
     if dt_day is not None:    
@@ -156,6 +211,8 @@ def consolidate(folder, sensor, dt_day=None):
     if files == []:
         raise ValueError('No files found for sensor '+sensor+' in '+folder)
     
+    print("About to consolidate {} files for sensor {}".format(len(files), sensor))
+    
     timeseries = [load_csv(os.path.join(folder, f)) for f in files]
     combination = timeseries[0]    
     for ts in timeseries[1:]:
@@ -167,14 +224,159 @@ def consolidate(folder, sensor, dt_day=None):
         dt_end = dt_start + dt.timedelta(days=1)
         combination = combination.ix[dt_start:dt_end]
         
+    if remove_temp:    
+        for f in files:
+            os.remove(os.path.join(folder, f))
+        print("Removed the {} temporary files".format(len(files)))
+
         
-    # Obtain the new filename
+    # Obtain the new filename prefix, something like FX12345678_sensorid_
+    # the _FROM....csv will be added by the save_csv method
     prefix_end = files[-1].index('_FROM')
     prefix = files[-1][:prefix_end]    
     
     csv = save_csv(combination, csvpath = folder, fileNamePrefix=prefix)
     print 'Saved ', csv
+    
+
 
     return csv
+
+
+def consolidate_folder(folder):
+    
+    sensorlist = [x.split('_')[1] for x in os.listdir(folder)]
+    sensors = set(sensorlist)
+    
+    for s in sensors:
+        consolidate_sensor(folder, s, remove_temp=True) 
+        
+
+def synchronize(folder, unzip=True, consolidate=True):
+    """Download the latest zip-files from the opengrid droplet, unzip and consolidate.
+    
+    The files will be stored in folder/zip and unzipped and 
+    consolidated into folder/csv
+    
+    Parameters
+    ----------
+    
+    folder : path
+        The *data* folder, containing subfolders *zip* and *csv*
+    unzip : [True]/False
+        If True, unzip the downloaded files to folder/csv
+    consolidate : [True]/False
+        If True, all csv files in folder/csv will be consolidated to a 
+        single file per sensor
+    
+    Notes
+    -----
+    
+    This will only unzip the downloaded files and then consolidate all
+    csv files in the csv folder.  If you want to rebuild the consolidated
+    csv from all available data you can either delete all zip files and 
+    run this function or run _unzip(folder, consolidate=True) on the 
+    data folder.
+        
+    """
+    
+    if not os.path.exists(folder):
+        raise IOError("Provide your path to the data folder where a zip and csv subfolder will be created.")
+    
+    # Get the pwd; start from the path of this current file 
+    sourcedir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    pwdfile = file(os.path.join(sourcedir, 'og.txt'))
+    pwd = pwdfile.readlines()[1].rstrip()
+    
+    # create a session to the private opengrid webserver
+    session = requests.Session()
+    session.auth = ('opengrid', pwd)
+    resp = session.get('http://95.85.34.168:8080/')
+    
+    # make a list of all zipfiles
+    pattern = '("[0-9]{8}.zip")' 
+    zipfiles = re.findall(pattern, resp.content)
+    zipfiles = [x.strip('"') for x in zipfiles]
+    zipfiles.append('all_data_till_20140711.zip')
+    
+    zipfolder = os.path.join(folder, 'zip')    
+    csvfolder = os.path.join(folder, 'csv')
+
+    # create the folders if they don't exist
+    for fldr in [zipfolder, csvfolder]:
+        if not os.path.exists(fldr):
+            os.mkdir(fldr)
+    
+    downloadfiles = [] # these are the successfully downloaded files       
+    for f in zipfiles:
+        # download the file to zipfolder if it does not yet exist
+        if not os.path.exists(os.path.join(zipfolder, f)):
+            print("Downloading {}".format(f))       
+            with open(os.path.join(zipfolder, f), 'wb') as handle:
+                response = session.get('http://95.85.34.168:8080/' + f, stream=True)
+        
+                if not response.ok:
+                    raise IOError('Something went wrong in downloading of {}'.format(f))
+        
+                for block in response.iter_content(1024):
+                    if not block:
+                        break
+                    handle.write(block)
+            downloadfiles.append(f)
+            
+    # Now unzip and consolidate the downloaded files only
+    if unzip:
+        _unzip(folder=folder, files=downloadfiles, consolidate=consolidate)
+        
+
+def _unzip(folder, files='all', consolidate=True):
+    """
+    Unzip zip files from folder/zip to folder/csv and consolidate if wanted
+        
+    Parameters
+    ----------
+    
+    folder : path
+        The *data* folder, containing subfolders *zip* and *csv*
+    files = 'all' (default) or list of files
+        Unzip only these files
+    consolidate : [True]/False
+        If True, all csv files in folder/csv will be consolidated to a 
+        single file per sensor
+    
+    """
+
+    zipfolder = os.path.join(folder, 'zip')    
+    csvfolder = os.path.join(folder, 'csv')
+
+    # create the folders if they don't exist
+    for fldr in [zipfolder, csvfolder]:
+        if not os.path.exists(fldr):
+            os.mkdir(fldr)
+
+    if files == 'all':
+        files = os.listdir(zipfolder)
+    badfiles = []
+    
+    for f in files:
+        # now unzip to zipfolder
+        try:       
+            z = zipfile.ZipFile(os.path.join(zipfolder, f), 'r')
+            z.extractall(path=csvfolder)
+        except:
+            badfiles.append(f)
+            pass
+    
+    if badfiles:
+        print("Could not unzip these files:")
+        for f in badfiles:
+            print f
+        
+    if consolidate:
+        # create a set of unique sensor id's in the csv folder        
+        consolidate_folder(csvfolder)            
+  
+    
+
  
     
