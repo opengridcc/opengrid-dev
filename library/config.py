@@ -54,13 +54,13 @@ class Config(SafeConfigParser):
         self.set('opengrid_server', 'host', '95.85.34.168')
         self.set('opengrid_server', 'port', '8080')
         self.set('opengrid_server', 'user', 'opengrid')
-        self.set('opengrid_server', 'password', 'CHANGE_ME')
+        self.set('opengrid_server', 'password', 'CHANGE ME IN AN OPENGRID.CFG FILE')
 
         self.add_section('data')
         self.set('data', 'folder', os.path.expanduser("~/.opengrid/data"))
 
         self.add_section('houseprint')
-        self.set('houseprint', 'password', 'CHANGE_ME')
+        self.set('houseprint', 'password', 'CHANGE ME IN AN OPENGRID.CFG FILE')
 
 
 
