@@ -17,3 +17,6 @@ password: CHANGE_ME
 
 [houseprint]
 password: CHANGE_ME
+
+[wunderground]
+password: CHANGE_ME

@@ -146,7 +146,11 @@ def find_csv(folder, sensor):
     found = filter(lambda x: x.find(sensor) > -1, files)
 
     if len(found) > 1:
+        return []
         raise ValueError("More than one csv-file found for sensor {}.\nRun fluksoapi.consolidate() first".format(sensor))
+    elif len(found) ==0:
+        return []
+        raise ValueError("No file found for this sensor {} ".format(sensor))		
     else:
         return os.path.join(folder, found[0])
     
@@ -165,18 +169,24 @@ def load_csv(csv):
     -------
     df : pandas.DataFrame
         The dataframe will have a DatetimeIndex with UTC timezone.  The 
-        column will be the sensor-ID, extracted from the csv filename
+        column will be the sensor-ID, extracted from the csv filename. If invalid filename is given, an empty dataframe will be returned.
     
     """
-    
-    df = pd.read_csv(csv, index_col = 0, header=None, parse_dates=True)
-    # Convert the index to a pandas DateTimeIndex 
-    df.index = pd.to_datetime(df.index)
-    df.index = df.index.tz_localize('UTC')
-    df.columns = [csv.split('_')[1]]
-    
-    return df
-    
+    empty = pd.DataFrame()
+    if len(csv) == 0:
+        return empty
+        raise ValueError("Please give valid file name as input")
+    elif  csv.find('FROM')==False:
+        return empty
+        raise ValueError("unable to load file {}. Please give data file as input. Its typically named FL***_sensorID_FROM_DD-MM-YYYY_TO_DD-MM-YYYY.csv".format(csv))
+    else:
+        df = pd.read_csv(csv, index_col = 0, header=None, parse_dates=True)
+        # Convert the index to a pandas DateTimeIndex 
+        df.index = pd.to_datetime(df.index)
+        df.index = df.index.tz_localize('UTC')
+        df.columns = [csv.split('_')[-7]]
+        return df
+
 
 def consolidate_sensor(folder, sensor, dt_day=None, remove_temp=False):
     """
