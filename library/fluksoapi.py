@@ -299,10 +299,14 @@ def synchronize(folder, unzip=True, consolidate=True):
     sourcedir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     c = config.Config()
     pwd = c.get('opengrid_server', 'password')
-    URL = 'http://95.85.34.168:8080/'
+    host = c.get('opengrid_server','host')
+    port = c.get('opengrid_server','port')
+    user = c.get('opengrid_server','user')
+    URL = "".join(['http://',host,':',port,'/'])
+    
     # create a session to the private opengrid webserver
     session = requests.Session()
-    session.auth = ('opengrid', pwd)
+    session.auth = (user, pwd)
     resp = session.get(URL)
     
     # make a list of all zipfiles
