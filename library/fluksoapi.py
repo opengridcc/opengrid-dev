@@ -13,6 +13,7 @@ import inspect
 import requests
 import re
 import zipfile
+import glob
 
 def pull_api(sensor, token, unit, interval='day', resolution = 'minute'):
    
@@ -209,48 +210,49 @@ def consolidate_sensor(folder, sensor, dt_day=None, remove_temp=False):
         If True, only the resulting consolidated csv is kept, the files that
         have been consolidated are deleted.
     """
-
     if dt_day is not None:    
         dt_day_string = dt_day.strftime(format="%Y-%m-%d")     
     
-    # Get all files for the given sensor in the given path    
-    files = [f for f in os.listdir(folder) if f.find(sensor) > -1]
+    # List all files for the given sensor in the given path & withouth hidden ones:			
+	# glob.glob checks for hidden files 'start with '.' and then does os.listdir(folder).
+    files = [f for f in glob.glob(os.path.join(folder, '*')) if (f.find(sensor) > -1)]
+		
     if dt_day is not None:
         files = [f for f in files if f.find(dt_day_string) > -1]
 
     if files == []:
-        raise ValueError('No files found for sensor '+sensor+' in '+folder)
+        print 'No (unhidden) files found for sensor '+sensor+' in '+folder 
+        # Changed from valueerror to print, since else valueerror is raised if hidden files present.
+    if (len(files) > 1 ): # If multiple (unhidden) files for one sensor are present, then consolidate
+        print("About to consolidate {} files for sensor {}".format(len(files), sensor))
+        timeseries = [load_csv(os.path.join(folder, f)) for f in files]
+        combination = timeseries[0]    
+        for ts in timeseries[1:]:
+            combination = combination.combine_first(ts)
     
-    print("About to consolidate {} files for sensor {}".format(len(files), sensor))
+        if dt_day is not None:
+            # only retain data from this day
+            dt_start = dt.datetime.strptime(dt_day_string, "%Y-%m-%d")
+            dt_end = dt_start + dt.timedelta(days=1)
+            combination = combination.ix[dt_start:dt_end]
+        if remove_temp:    
+            for f in files:
+                os.remove(os.path.join(folder, f))
+            print("Removed the {} temporary files".format(len(files)))
+        # Obtain the new filename prefix, something like FX12345678_sensorid_
+        # the _FROM....csv will be added by the save_csv method
+        prefix_end = files[-1].index('_FROM')
+        prefix = files[-1][:prefix_end]    
+        csv = save_csv(combination, csvpath = folder, fileNamePrefix=prefix)
+        print('Saved ', csv)
+        return csv
+		
+    else: # If just one file to consolidate, then give message and stop
+        print("No files consolidated for {} (only 1 present).".format(sensor))
     
-    timeseries = [load_csv(os.path.join(folder, f)) for f in files]
-    combination = timeseries[0]    
-    for ts in timeseries[1:]:
-        combination = combination.combine_first(ts)
-    
-    if dt_day is not None:
-        # only retain data from this day
-        dt_start = dt.datetime.strptime(dt_day_string, "%Y-%m-%d")
-        dt_end = dt_start + dt.timedelta(days=1)
-        combination = combination.ix[dt_start:dt_end]
-        
-    if remove_temp:    
-        for f in files:
-            os.remove(os.path.join(folder, f))
-        print("Removed the {} temporary files".format(len(files)))
 
-        
-    # Obtain the new filename prefix, something like FX12345678_sensorid_
-    # the _FROM....csv will be added by the save_csv method
-    prefix_end = files[-1].index('_FROM')
-    prefix = files[-1][:prefix_end]    
-    
-    csv = save_csv(combination, csvpath = folder, fileNamePrefix=prefix)
-    print 'Saved ', csv
-    
 
-
-    return csv
+    
 
 
 def consolidate_folder(folder):
@@ -292,16 +294,16 @@ def synchronize(folder, unzip=True, consolidate=True):
     
     if not os.path.exists(folder):
         raise IOError("Provide your path to the data folder where a zip and csv subfolder will be created.")
-    
+    from opengrid.library import config
     # Get the pwd; start from the path of this current file 
     sourcedir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    pwdfile = file(os.path.join(sourcedir, 'og.txt'))
-    pwd = pwdfile.readlines()[1].rstrip()
-    
+    c = config.Config()
+    pwd = c.get('opengrid_server', 'password')
+    URL = 'http://95.85.34.168:8080/'
     # create a session to the private opengrid webserver
     session = requests.Session()
     session.auth = ('opengrid', pwd)
-    resp = session.get('http://95.85.34.168:8080/')
+    resp = session.get(URL)
     
     # make a list of all zipfiles
     pattern = '("[0-9]{8}.zip")' 
