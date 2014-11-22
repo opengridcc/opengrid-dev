@@ -21,6 +21,125 @@ from pprint import pprint
 import time
 
 
+class Wunderground(object):
+    """
+    Class to manage api calls to fetch current and historic weather data from
+    Wunderground weather stations
+    
+    This class avoids calling the api again for getting the current conditions
+    if they have been obtained within time_delay_min. This is handled by the
+    following attributes:
+    
+    * timestamp_current: timestamp when last call to fetch current conditions
+      was succesfully launched
+    * json_current : json object returned with the last call
+    * time_delay : if timestamp_current is within this time_delay from the
+      actual time, use the existing json_current.  Else, call Wunderground to 
+      update json_current, and update timestamp_current accordingly.
+    """
+
+    def __init__(self, apikey, city, time_delay=20*60):
+        """
+        Parameters
+        ----------
+        * apikey : String
+            Wunderground API key (can be obtained after subscription)
+        * city : String
+            Location of weather station
+        * time_delay: float
+            Time delay in seconds for calling api since last call for current conditions
+        """
+        
+        self.apikey = apikey
+        self.city = city
+        self.time_delay = time_delay
+        
+        self.json_current = None
+        self.timestamp_current = 0
+        
+    def reset(self):
+        """
+        Reset json_current and timestam_current
+        """
+        
+        self.json_current = None
+        self.timestamp_current = 0
+        
+    
+    def _fetch_current(self):
+        """
+        Call Wunderground to get current conditions and overwrite
+        json_current and timestamp_current
+        """
+        URL = ''.join(['http://api.wunderground.com/api/',self.apikey,'/geolookup/conditions/q/EU/',self.city,'.json'])
+        f = urllib2.urlopen(URL) 
+        json_string = f.read() 
+        self.json_current = json.loads(json_string)
+        self.timestamp_current = time.time()
+        
+        print("Obtained current conditions and saved json in self.json_current")
+        
+    def fetch_current(self):
+        """
+        Call Wunderground to get current conditions IF NEEDED based on current
+        time, self.timestamp_current and self.time_delay.  
+        If Wunderground is to be called, overwrite json_current and timestamp_current
+        """        
+        
+        if time.time() < (self.timestamp_current + self.time_delay):
+            print("No need to call Wunderground, using cached current conditions.")
+        else:
+            self._fetch_current()
+            
+    
+    def show_properties(self):
+        """
+        Print all properties that can be obtained from the current conditions
+        todo!!
+        """
+        
+        try:
+            print "These are the known current properties:\n"
+            for prop in self.json_current['current_observation'].keys():
+                print prop
+        except:
+            print "Problem reading self.json_current"
+            
+
+    def get_current(self, prop):
+        """
+        Extract current value for prop from self.json_current. 
+        Fetch current conditions from Wunderground if needed, depending on 
+        current time, self.timestamp_current and self.time_delay. 
+        
+        Parameters
+        ----------
+        * prop : String
+            Type of weather property to look up.
+            
+        Returns
+        -------
+        value, timestamp : value and associated timestamp
+        
+        Note
+        ----
+        If prop cannot be found, print all possible properties and raise a 
+        ValueError
+        """
+            
+        self.fetch_current()
+                
+        try:
+            curr_value = float(self.json_current['current_observation'][prop] )
+        except:
+            print "Property not found."            
+            self.show_properties()
+            raise ValueError('Property {} not found.  See show_properties() to get a list with all possibilities'.format(prop))
+        
+    
+        return curr_value, self.timestamp_current
+        
+
 #Script to obtain CURRENT weather detail readings
 def fetch_curr_conditions(apikey, city, prop='temp_c'):
     '''
