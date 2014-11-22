@@ -29,16 +29,20 @@ def fetch_curr_conditions(apikey, city, prop='temp_c'):
     Parameters
     ----------
     * apikey : String
-        Wunderground API key (should be obtained after subscription)
+        Wunderground API key (can be obtained after subscription)
     * city : String
         location of weather station
     * prop : String
         Type of weather property to look up.  
+        
+    Returns
+    -------
+    
     
     Author: Ryton & comments from Saroele
 
-	Output:  double return with value, date/time. If an error occurs, the json response will be printed.
-	'''
+    Output:  double return with value, date/time. If an error occurs, the json response will be printed.
+    '''
     #
     
     URL = ''.join(['http://api.wunderground.com/api/',apikey,'/geolookup/conditions/q/EU/',city,'.json'])
@@ -59,19 +63,28 @@ def fetch_curr_conditions(apikey, city, prop='temp_c'):
 
     return curr_value, currdate
 
-def Details_Temp_Xdaysago(key,city,x_days_ago = 5,prop = "temp_c",PDcolumnname ='T_out'):
-#get more subhourly details for a single day, eg. day 5
+def details_xdaysago(key,city,x_days_ago = 5,prop = "temp_c",columnname ='T_out'):
+    """
+    Get more subhourly details for a single day, x days ago
+    
+    todo: complete docstring
+    """
     x_days_ago_date =  datetime.datetime.today()- datetime.timedelta(days=x_days_ago)   
-    Temp_values = Fetch_historic_temp_ByDate(key,city,x_days_ago_date,prop,PDcolumnname)
-    return Temp_values
+    temp_values = fetch_historic_temp_bydate(key,city,x_days_ago_date,prop,columnname)
+    return temp_values
 
 
 #some scripts for HISTORIC data fetching
 
-def Fetch_historic_tempYMD(key,city,year,month,day, prop = 'tempm',PDcolumnname= 'T_out' ):
-    # example URL: http://api.wunderground.com/api/<key>/history_20140808/q/EU/Leuven.json
-    # get temp df using year month day.
+def fetch_historic_tempYMD(key,city,year,month,day, prop = 'tempm',columnname= 'T_out' ):
+    """
+    Get temp df using year month day.
+
     
+    Example URL: http://api.wunderground.com/api/<key>/history_20140808/q/EU/Leuven.json
+    
+    todo: complete docstring    
+    """    
     d = datetime.datetime(year,month,day,0,0)
     datestr = '{:%Y%m%d}'.format(d)
     
@@ -98,21 +111,21 @@ def Fetch_historic_tempYMD(key,city,year,month,day, prop = 'tempm',PDcolumnname=
         
         #print concattime, temp_c
     # print shape(temp_c_list), shape(time_list)
-    Tout_h = pd.DataFrame(temp_c_list,columns = [PDcolumnname],index = time_list)
+    Tout_h = pd.DataFrame(temp_c_list,columns = [columnname],index = time_list)
     return Tout_h
     f.close()
     
-def Fetch_historic_temp_ByDate(key,city,date_object, prop = 'tempm',PDcolumnname= 'T_out' ):
+def fetch_historic_temp_bydate(key,city,date_object, prop = 'tempm',columnname= 'T_out' ):
 #same as above, but with dateobject as input. hour / min are ignored
     year = date_object.year
     month = date_object.month
     day = date_object.day
-    Tout_h = Fetch_historic_tempYMD(key,city,year,month,day, prop ,PDcolumnname)
+    Tout_h = fetch_historic_tempYMD(key,city,year,month,day, prop ,columnname)
     return Tout_h
 
 #scripts for Historic day-AVERAGE weather fetching
 
-def Fetch_historic_dayaverage(key,city,year,month,day,prop = "meantempm",PDcolumnname ='T_out'):
+def fetch_historic_dayaverage(key,city,year,month,day,prop = "meantempm",columnname ='T_out'):
     # example URL: http://api.wunderground.com/api/<key>/history_20140808/q/EU/Leuven.json
     # get temp df using year month day.
     #city = 'Geel'   
@@ -143,7 +156,7 @@ def Fetch_historic_dayaverage(key,city,year,month,day,prop = "meantempm",PDcolum
         #print concattime, temp_c
     #Tout_h = pd.DataFrame([temp_c_list],columns = ['T_out'],index = time_list)
     #parse_dates=['Date'], dayfirst=True, index_col='Date'
-    Tout_h = pd.DataFrame([temp_c_list],columns = [PDcolumnname], index=time_list)
+    Tout_h = pd.DataFrame([temp_c_list],columns = [columnname], index=time_list)
     #
     
     #Tout_h_T.set_index(time_list)
@@ -151,19 +164,19 @@ def Fetch_historic_dayaverage(key,city,year,month,day,prop = "meantempm",PDcolum
     return Tout_h
     
     
-def Fetch_historic_dayaverage_By_date(key,city,date_object,prop = 'meantempm',PDcolumnname ='T_out'):
+def fetch_historic_dayaverage_by_date(key,city,date_object,prop = 'meantempm',columnname ='T_out'):
 #same as above, but with dateobject as input. hour / min are ignored
     year = date_object.year
     month = date_object.month
     day = date_object.day
-    Tout_h = Fetch_historic_dayaverage(key,city,year,month,day,prop,PDcolumnname);
+    Tout_h = fetch_historic_dayaverage(key,city,year,month,day,prop,columnname);
     return Tout_h
 
-def Average_Temp_Xdaysago(key,city,x_days_ago = 5,prop = 'meantempm',PDcolumnname ='T_out'):
+def average_temp_xdaysago(key,city,x_days_ago = 5,prop = 'meantempm',columnname ='T_out'):
 #get more subhourly details for a single day, eg. day 5
     x_days_ago_date =  datetime.datetime.today()- datetime.timedelta(days=x_days_ago)   
-    Temp_values = Fetch_historic_dayaverage_By_date(key,city,x_days_ago_date,prop,PDcolumnname)
-    return Temp_values
+    temp_values = fetch_historic_dayaverage_by_date(key,city,x_days_ago_date,prop,columnname)
+    return temp_values
 
 
 	
