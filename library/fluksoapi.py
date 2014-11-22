@@ -103,6 +103,19 @@ def parse(r):
 def save_csv(Ts, csvpath=None, fileNamePrefix=''):
     """
     Save the TimeSeries or DataFrame to csv with specified name
+    
+    Parameters
+    ----------
+    Ts : pandas Timeseries or Dataframe
+    csvpath : path, default=None
+        Folder where the csv will be saved. Defaults to os.getcwd()
+    fileNamePrefix = string, default=''
+        Name prefix for the csv, usually FLxxxxxxx_sensorid
+        
+    Returns
+    -------
+    csv : abspath
+        Absolute path to the saved file
     """
     
    
@@ -121,8 +134,8 @@ def save_csv(Ts, csvpath=None, fileNamePrefix=''):
    
 def find_csv(folder, sensor):
     """
-    Find csv file corresponding to sensor in the given folder.  Run consolidate
-    first if there are multiple csv files for a given sensor.
+    Find csv file corresponding to sensor in the given folder.  
+    Consolidate all found files when more than one file found.
     
     Parameters
     ----------
@@ -139,21 +152,20 @@ def find_csv(folder, sensor):
     
     Raises
     ------
-    
-    ValueError when more than one file is found
+    ValueError when no file is found
     """
     
-    files = os.listdir(folder)
-    found = filter(lambda x: x.find(sensor) > -1, files)
+    # List all files (ABSPATH) for the given sensor in the given path, without hidden files			
+    # glob.glob() is equivalent to os.listdir(folder) without the hidden files (start with '.') 
+    # and returned as absolute paths
+    found = [f for f in glob.glob(os.path.join(folder, '*')) if (f.find(sensor) > -1)]
 
     if len(found) > 1:
-        return []
-        raise ValueError("More than one csv-file found for sensor {}.\nRun fluksoapi.consolidate() first".format(sensor))
-    elif len(found) ==0:
-        return []
+        return consolidate_sensor(folder, sensor, dt_day=None, remove_temp=False)
+    elif len(found) == 0:
         raise ValueError("No file found for this sensor {} ".format(sensor))		
     else:
-        return os.path.join(folder, found[0])
+        return found[0]
     
     
 
@@ -209,23 +221,29 @@ def consolidate_sensor(folder, sensor, dt_day=None, remove_temp=False):
     remove_temp : (optional) Boolean, default=False
         If True, only the resulting consolidated csv is kept, the files that
         have been consolidated are deleted.
+        
+    Returns
+    -------
+    csv : path of the resulting csv file
+    
     """
     if dt_day is not None:    
         dt_day_string = dt_day.strftime(format="%Y-%m-%d")     
     
-    # List all files for the given sensor in the given path & withouth hidden ones:			
-	# glob.glob checks for hidden files 'start with '.' and then does os.listdir(folder).
+    # List all files (ABSPATH) for the given sensor in the given path, without hidden files			
+    # glob.glob() is equivalent to os.listdir(folder) without the hidden files (start with '.') 
+    # and returned as absolute paths
     files = [f for f in glob.glob(os.path.join(folder, '*')) if (f.find(sensor) > -1)]
 		
     if dt_day is not None:
         files = [f for f in files if f.find(dt_day_string) > -1]
 
     if files == []:
-        print 'No (unhidden) files found for sensor '+sensor+' in '+folder 
-        # Changed from valueerror to print, since else valueerror is raised if hidden files present.
+        # if no valid (unhidden) files are found, raise a ValueError.  
+        raise ValueError('No files found for sensor {} in {}'.format(sensor, folder))
     if (len(files) > 1 ): # If multiple (unhidden) files for one sensor are present, then consolidate
         print("About to consolidate {} files for sensor {}".format(len(files), sensor))
-        timeseries = [load_csv(os.path.join(folder, f)) for f in files]
+        timeseries = [load_csv(f) for f in files]
         combination = timeseries[0]    
         for ts in timeseries[1:]:
             combination = combination.combine_first(ts)
@@ -247,13 +265,10 @@ def consolidate_sensor(folder, sensor, dt_day=None, remove_temp=False):
         print('Saved ', csv)
         return csv
 		
-    else: # If just one file to consolidate, then give message and stop
+    else: # If just one file to consolidate, then return that filename
         print("No files consolidated for {} (only 1 present).".format(sensor))
+        return files[0]
     
-
-
-    
-
 
 def consolidate_folder(folder):
     
