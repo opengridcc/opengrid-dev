@@ -3,6 +3,7 @@
 Created on Mon Jan 21 15:31:36 2013 by Carlos Dierckxsens
 
 """
+import sys
 import datetime as dt
 import pandas as pd
 import requests
@@ -432,16 +433,18 @@ def update_tmpo(tmposession, hp):
     return tmposession
     
     
-def load_tmpo(sensors, start=None, end=None):
+def load_tmpo(tmposession, sensors, start=None, end=None):
     """
     Load data from one or more sensors into a pandas DataFrame
     
     Parameters
     ----------
+    tmposession : tmpo.Session object
+        tmpo session
     sensors : Str or List
         String: single sensor to be loaded
         List: list of sensors to be loaded
-    start, end : Datetime, string or pandas Timestamp (default=None)
+    start, end : Datetime, float, int, string or pandas Timestamp (default=None)
         Anything that can be parsed into a pandas.Timestamp
         If start is None, load all available data
         If end is None, end is the current time
@@ -458,7 +461,35 @@ def load_tmpo(sensors, start=None, end=None):
     a ValueError.
     
     """
-    pass
+
+    # if called with a single sensor, call again with a list     
+    if isinstance(sensors, str):
+        return load_tmpo([sensors], start, end)
+    
+    # convert start and end to epoch
+    if start is None:
+        startepoch = 0
+    else:
+        # use parse_date to convert to pd.Timestamp and from there to POSIX
+        startepoch = _parse_date(start).value/1e9
+        
+        # convert start and end to epoch
+    if end is None:
+        endepoch = sys.maxint
+    else:
+        # use parse_date to convert to pd.Timestamp and from there to POSIX
+        endepoch = _parse_date(end).value/1e9
+
+    # get list of timeseries    
+    dfs = []    
+    for s in sensors:
+        dfs.append(tmposession.series(sid=s, head=startepoch, tail=endepoch))
+    
+    df = pd.concat(dfs, axis=1)
+    return df
+    
+        
+        
 
     
 def load(sensors, start=None, end=None):
@@ -470,7 +501,7 @@ def load(sensors, start=None, end=None):
     sensors : Str or List
         String: single sensor to be loaded
         List: list of sensors to be loaded
-    start, end : Datetime, string or pandas Timestamp (default=None)
+    start, end : Datetime, float, int, string or pandas Timestamp (default=None)
         Anything that can be parsed into a pandas.Timestamp
         If start is None, load all available data
         If end is None, end is the current time
@@ -503,7 +534,7 @@ def _parse_date(d):
     
     Parameters
     ----------
-    d : Datetime, string or pandas Timestamp
+    d : Datetime, float, int, string or pandas Timestamp
         Anything that can be parsed into a pandas.Timestamp
         
     Returns
@@ -515,6 +546,11 @@ def _parse_date(d):
     ValueError if it was not possible to create a pandas.Timestamp
     """
     
+    if isinstance(d, float) or isinstance(d, int):
+        # we have a POSIX timestamp IN SECONDS.
+        pts = pd.Timestamp(d, unit='s')
+        return pts
+        
     try:
         pts = pd.Timestamp(d)
     except:

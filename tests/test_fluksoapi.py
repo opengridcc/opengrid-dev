@@ -131,28 +131,51 @@ class FluksoapiTest(unittest.TestCase):
         self.assertListEqual(df.columns.tolist(), ['sensorD'])
 
 
-    def parse_date_from_datetime(self):
+    def test_parse_date_from_datetime(self):
         """Parsing a datetime into a pandas.Timestamp"""
         
         BXL = pytz.timezone('Europe/Brussels')
         dt_ = BXL.localize(dt.datetime(2014,11,23,1,2,3))
-        epoch = pytz.UTC.localize(1970,1,1,0,0,0)
+        epoch = pytz.UTC.localize(dt.datetime(1970,1,1,0,0,0))
         epoch_expected = (dt_ - epoch).total_seconds()
         
         pts = fluksoapi._parse_date(dt_)
         self.assertEqual(pts.value/1e9, epoch_expected)
         
     
-    def parse_date_from_datetime_naive(self):
+    def test_parse_date_from_datetime_naive(self):
         """Parsing a naïve datetime into a pandas.Timestamp makes it UTC"""
         
         dt_ = pytz.UTC.localize(dt.datetime(2014,11,23,1,2,3))
-        epoch = pytz.UTC.localize(1970,1,1,0,0,0)
+        epoch = pytz.UTC.localize(dt.datetime(1970,1,1,0,0,0))
         epoch_expected = (dt_ - epoch).total_seconds()
         
         pts = fluksoapi._parse_date(dt.datetime(2014,11,23,1,2,3))
         self.assertEqual(pts.value/1e9, epoch_expected)
         
+        
+    def test_parse_date_from_posix(self):
+        """Parsing a float"""
+        
+        pts = fluksoapi._parse_date(1416778251.460574)
+        self.assertEqual(1416778251.460574, pts.value/1e9)
+        
+    def test_pars_date_from_string(self):
+        """Parsing some commong types of strings"""
+        
+        dt_ = pytz.UTC.localize(dt.datetime(2014,11,23,1,2,3))
+        epoch = pytz.UTC.localize(dt.datetime(1970,1,1,0,0,0))
+        epoch_expected = (dt_ - epoch).total_seconds()
+        
+        pts = fluksoapi._parse_date('20141123 01:02:03')
+        self.assertEqual(pts.value/1e9, epoch_expected)   
+        
+        pts = fluksoapi._parse_date('2014-11-23 01:02:03')
+        self.assertEqual(pts.value/1e9, epoch_expected)   
+
+        pts = fluksoapi._parse_date('2014-11-23T010203')
+        self.assertEqual(pts.value/1e9, epoch_expected)   
+
 
 if __name__ == '__main__':
     
