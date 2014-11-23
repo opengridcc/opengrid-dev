@@ -408,6 +408,27 @@ def _unzip(folder, files='all', consolidate=True):
         consolidate_folder(csvfolder)            
   
     
-
- 
+def update_tmpo(tmposession, hp):
+    """
+    Update the tmpo database with all sensors from a houseprint object.
+    This does NOT synchronize the data, only loads the sensors.  
     
+    Parameters
+    ----------
+    tmposession : tmpo.Session object
+    hp : a Houseprint object
+    
+    Returns
+    -------
+    tmposession : return the tmpo.Session
+    """
+    
+    # get a list of all sensors in the hp.  The list contains tuples (sensor,token)
+    sensors_tokens = hp.get_all_sensors(tokens=True)
+    for s,t in sensors_tokens:
+        tmposession.add(s,t)
+
+    print("This tmpo session was updated with in total {} sensors".format(len(sensors_tokens)))
+    return tmposession
+
+

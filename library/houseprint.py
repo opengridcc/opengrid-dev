@@ -176,14 +176,20 @@ class Houseprint(object):
         return res
         
 
-    def get_all_sensors(self):
+    def get_all_sensors(self, tokens=False):
         """
-        Return a list with all sensor ids in the houseprint object.
-        
-        
+        Return a list with all sensors in the houseprint object.
+
+        Parameters
+        ----------
+        tokens : Boolean (default=False)
+            If True, return a list with (sensor,token) tuples
+                
         Returns
         --------
-        List with all sensor ids.
+        List with all sensors.  
+        ==> if tokens==False, the list contains sensor ids
+        ==> if tokens==True, the list contains tuples (sensor,token)
         """
         
         if not hasattr(self, 'fluksosensors'):
@@ -193,7 +199,10 @@ class Houseprint(object):
         for flukso, sensors in self.fluksosensors.items():
             for int_sensor,sensordic in sensors.items():
                 try:
-                    res.append(sensordic['Sensor'])
+                    if tokens:
+                        res.append((sensordic['Sensor'], sensordic['Token']))
+                    else:
+                        res.append(sensordic['Sensor'])
                 except TypeError:
                     pass
                 
