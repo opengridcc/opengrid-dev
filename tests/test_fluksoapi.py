@@ -134,13 +134,24 @@ class FluksoapiTest(unittest.TestCase):
     def parse_date_from_datetime(self):
         """Parsing a datetime into a pandas.Timestamp"""
         
-        dt_ = pytz.UTC.localize(dt.datetime(2014,11,23,1,2,3))
+        BXL = pytz.timezone('Europe/Brussels')
+        dt_ = BXL.localize(dt.datetime(2014,11,23,1,2,3))
         epoch = pytz.UTC.localize(1970,1,1,0,0,0)
         epoch_expected = (dt_ - epoch).total_seconds()
         
         pts = fluksoapi._parse_date(dt_)
         self.assertEqual(pts.value/1e9, epoch_expected)
-
+        
+    
+    def parse_date_from_datetime_naive(self):
+        """Parsing a naïve datetime into a pandas.Timestamp makes it UTC"""
+        
+        dt_ = pytz.UTC.localize(dt.datetime(2014,11,23,1,2,3))
+        epoch = pytz.UTC.localize(1970,1,1,0,0,0)
+        epoch_expected = (dt_ - epoch).total_seconds()
+        
+        pts = fluksoapi._parse_date(dt.datetime(2014,11,23,1,2,3))
+        self.assertEqual(pts.value/1e9, epoch_expected)
         
 
 if __name__ == '__main__':
