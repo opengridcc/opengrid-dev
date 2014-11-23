@@ -20,3 +20,6 @@ password: CHANGE_ME
 
 [Wunderground]
 apikey: CHANGE_ME
+
+[tmpo]
+folder: path_to_folder_containing_tmpo.py

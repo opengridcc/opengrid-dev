@@ -46,13 +46,21 @@ class HouseprintTest(unittest.TestCase):
         self.assertDictEqual(s4, expected)
         
 
-    def test_get_all_sensors(self):
-        """Test getting all sensors for a given row"""
+    def test_get_all_sensors_without_tokens(self):
+        """Test getting all sensors as a list"""
         
-        allsensors = self.hp.get_all_sensors(7)
+        allsensors = self.hp.get_all_sensors()
         
-        self.assertListEqual(sorted(allsensors.keys()), range(1,7))
-        self.assertIsNone(allsensors[5])
+        self.assertEqual(len(allsensors), 17)
+        self.assertEqual(allsensors[1], '53b1eb0479c83dee927fff10b0cb0fe6')
+
+    def test_get_all_sensors_with_tokens(self):
+        """Test getting all sensors as a list"""
+        
+        allsensors = self.hp.get_all_sensors(tokens=True)
+        
+        self.assertEqual(len(allsensors), 17)
+        self.assertEqual(allsensors[1], ('53b1eb0479c83dee927fff10b0cb0fe6', '8bf357390aa2c340075d9cf51e0c78e8'))
 
 
     def test_identify_fluksos(self):
