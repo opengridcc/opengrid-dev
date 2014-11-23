@@ -131,6 +131,18 @@ class FluksoapiTest(unittest.TestCase):
         self.assertListEqual(df.columns.tolist(), ['sensorD'])
 
 
+    def parse_date_from_datetime(self):
+        """Parsing a datetime into a pandas.Timestamp"""
+        
+        dt_ = pytz.UTC.localize(dt.datetime(2014,11,23,1,2,3))
+        epoch = pytz.UTC.localize(1970,1,1,0,0,0)
+        epoch_expected = (dt_ - epoch).total_seconds()
+        
+        pts = fluksoapi._parse_date(dt_)
+        self.assertEqual(pts.value/1e9, epoch_expected)
+
+        
+
 if __name__ == '__main__':
     
     #http://stackoverflow.com/questions/4005695/changing-order-of-unit-tests-in-python    

@@ -430,5 +430,99 @@ def update_tmpo(tmposession, hp):
 
     print("This tmpo session was updated with in total {} sensors".format(len(sensors_tokens)))
     return tmposession
+    
+    
+def load_tmpo(sensors, start=None, end=None):
+    """
+    Load data from one or more sensors into a pandas DataFrame
+    
+    Parameters
+    ----------
+    sensors : Str or List
+        String: single sensor to be loaded
+        List: list of sensors to be loaded
+    start, end : Datetime, string or pandas Timestamp (default=None)
+        Anything that can be parsed into a pandas.Timestamp
+        If start is None, load all available data
+        If end is None, end is the current time
+    
+    Returns
+    -------
+    df : pandas DataFrame
+        DataFrame with DatetimeIndex and sensor-ids as columname.  If only a 
+        single sensor is given, return a DataFrame instead of a Timeseries.
+
+    Raises
+    ------
+    If no data is found, do not return an empty dataframe but raise
+    a ValueError.
+    
+    """
+    pass
+
+    
+def load(sensors, start=None, end=None):
+    """
+    Load data from one or more sensors into a pandas DataFrame.  
+    
+    Parameters
+    ----------
+    sensors : Str or List
+        String: single sensor to be loaded
+        List: list of sensors to be loaded
+    start, end : Datetime, string or pandas Timestamp (default=None)
+        Anything that can be parsed into a pandas.Timestamp
+        If start is None, load all available data
+        If end is None, end is the current time
+    
+    Returns
+    -------
+    df : pandas DataFrame
+        DataFrame with DatetimeIndex and sensor-ids as columname.  If only a 
+        single sensor is given, return a DataFrame instead of a Timeseries.
+
+    Raises
+    ------
+    If no single sensor is found, do not return an empty dataframe but raise
+    a ValueError.
+    
+    Notes
+    -----
+    This function is the ultimate high-level function to load opengrid data into
+    a DataFrame.  It will first call ``load_tmpo`` and if the tmpo database does
+    not contain all historic data (depending on start), it will also call 
+    ``load_csv`` (for each sensor).
+    
+    """
+    pass
 
 
+def _parse_date(d):
+    """
+    Return a pandas.Timestamp if possible.  
+    
+    Parameters
+    ----------
+    d : Datetime, string or pandas Timestamp
+        Anything that can be parsed into a pandas.Timestamp
+        
+    Returns
+    -------
+    pts : pandas.Timestamp
+    
+    Raises
+    ------
+    ValueError if it was not possible to create a pandas.Timestamp
+    """
+    
+    try:
+        pts = pd.Timestamp(d)
+    except:
+        raise ValueError("{} cannot be parsed into a pandas.Timestamp".format(d))
+    else:
+        return pts
+        
+    
+    
+    
+    
