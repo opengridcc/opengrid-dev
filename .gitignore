@@ -4,3 +4,4 @@ tests/test_saved_hp.hp
 **opengrid.cfg
 **.ipynb_checkpoints
 *.pkl
+tests/data_backup/
