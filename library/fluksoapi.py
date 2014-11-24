@@ -483,9 +483,17 @@ def load_tmpo(tmposession, sensors, start=None, end=None):
     # get list of timeseries    
     dfs = []    
     for s in sensors:
-        dfs.append(tmposession.series(sid=s, head=startepoch, tail=endepoch))
+        try:        
+            ts = tmposession.series(sid=s, head=startepoch, tail=endepoch)
+        except Exception as e:
+            print("No tmpo data for sensor {}".format(s))
+        else:
+            if len(ts) > 0:
+                dfs.append(ts)
     
     df = pd.concat(dfs, axis=1)
+    # convert POSIX timestamp (seconds since epoch) to DatetimeIndex    
+    df.index = pd.to_datetime((df.index.values*1e9).astype(int))    
     return df
     
         
