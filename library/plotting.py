@@ -25,38 +25,41 @@ def carpet(timeseries, vmin=None, vmax=None, zlabel=None, title=None):
     title. If None, the name of the timeseries is used if defined.
     """
     fig, ax = plt.subplots()
-    
+
     #prepare data
     ts = timeseries.resample('min', how='mean', label='left',closed='left')
     ts.index = pd.MultiIndex.from_arrays([ts.index.hour + ts.index.minute/60., date2num(ts.index.date)])
-    df = ts.unstack()
-    mcolumns, mrows = np.meshgrid(df.columns, df.index)
+    df = ts.unstack().T
+    extent = [df.columns[0], df.columns[-1], df.index[-1] + 0.5, df.index[0] - 0.5]
 
     #scale z axis
     if vmin is None:
         vmin = ts.min()
+    vmin = max(vmin, 1.)
     if vmax is None:
-        vmax = ts.max()
-    scale = np.linspace(vmin, vmax)
+        vmax = max(vmin, ts.max())
 
-    #plot data
-    plt.contourf(mrows, mcolumns, df, scale, cmap=cm.coolwarm, norm=LogNorm())
-    
-    #format y axis
+    plt.imshow(df, cmap=cm.coolwarm, aspect='auto', extent=extent, vmin=vmin, vmax=vmax, norm=LogNorm(), interpolation='nearest')
+
+    #scale x axis
+    plt.xlim(extent[0],extent[1])
+    ax.xaxis.set_ticks(np.arange(0., 25., 1.))
+
+    #scale y axis
+    plt.ylim(extent[2],extent[3])
     ax.yaxis_date()
-    ax.invert_yaxis()
-    #ax.invert_yaxis() with a datetime axis obliterates the ticklocator and formatting settings
-    #solution: see http://stackoverflow.com/questions/5804969/displaying-an-inverted-vertical-date-axis
     date_locator = DayLocator(interval=1)
     date_formatter = AutoDateFormatter(date_locator)
     ax.yaxis.set_major_locator(date_locator)
     ax.yaxis.set_major_formatter(date_formatter)
 
-    #plot x, y, z labels and title
+    #plot colorbar
+    vticks = np.logspace(np.log10(vmin), np.log10(vmax), 11, endpoint=True)
+    cb = plt.colorbar(format='%.2f', ticks=vticks)
+
+    #plot axis labels and title
     plt.xlabel('Hour of the day')
     plt.ylabel('Day of the year')
-    ticks = np.linspace(scale[0], scale[-1], 11, endpoint=True)
-    cb = plt.colorbar(format='%.2f', ticks=ticks)
     if zlabel is not None:
         cb.set_label(zlabel)
     elif timeseries.name:
