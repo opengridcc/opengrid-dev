@@ -26,10 +26,12 @@ def carpet(timeseries, vmin=None, vmax=None, zlabel=None, title=None):
     """
     fig, ax = plt.subplots()
 
-    #prepare data
-    ts = timeseries.resample('min', how='mean', label='left',closed='left')
-    ts.index = pd.MultiIndex.from_arrays([ts.index.hour + ts.index.minute/60., date2num(ts.index.date)])
-    df = ts.unstack().T
+    #resample data to minutes
+    ts = timeseries.resample('min', how='mean', label='left', closed='left')
+    #create MultiIndex with date and time in separate levels
+    ts.index = pd.MultiIndex.from_arrays([date2num(ts.index.date), ts.index.hour + ts.index.minute/60.])
+    #convert to dataframe with date as index and time as columns
+    df = ts.unstack()
     extent = [df.columns[0], df.columns[-1], df.index[-1] + 0.5, df.index[0] - 0.5]
 
     #scale z axis
@@ -41,12 +43,12 @@ def carpet(timeseries, vmin=None, vmax=None, zlabel=None, title=None):
 
     plt.imshow(df, cmap=cm.coolwarm, aspect='auto', extent=extent, vmin=vmin, vmax=vmax, norm=LogNorm(), interpolation='nearest')
 
-    #scale x axis
-    plt.xlim(extent[0],extent[1])
+    #scale and tick x axis
+    plt.xlim(extent[0], extent[1])
     ax.xaxis.set_ticks(np.arange(0., 25., 1.))
 
-    #scale y axis
-    plt.ylim(extent[2],extent[3])
+    #scale and tick y axis
+    plt.ylim(extent[2], extent[3])
     ax.yaxis_date()
     date_locator = DayLocator(interval=1)
     date_formatter = AutoDateFormatter(date_locator)
