@@ -40,8 +40,8 @@ def carpet(timeseries, **kwargs):
     ts = timeseries.resample('min', how='mean', label='left', closed='left')
     #convert to dataframe with date as index and time as columns by
     #first replacing the index by a MultiIndex
-    ts.index = date2num(ts.index.astype(dt.datetime))  #date2num is timezone aware and uses the underlying utc time!!!
-    ts.index = pd.MultiIndex.from_arrays([np.floor(ts.index), 2 + ts.index % 1]) #'2 +': matplotlib bug workaround.
+    mpldatetimes = date2num(ts.index.astype(dt.datetime))  #date2num is timezone aware and uses the underlying utc time!!!
+    ts.index = pd.MultiIndex.from_arrays([np.floor(mpldatetimes), 2 + mpldatetimes % 1]) #'2 +': matplotlib bug workaround.
     #and then unstacking the second index level to columns
     df = ts.unstack()
 
