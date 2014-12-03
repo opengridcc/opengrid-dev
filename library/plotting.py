@@ -9,7 +9,7 @@ import pandas as pd
 import datetime as dt
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from matplotlib.dates import DayLocator, HourLocator, DateFormatter, date2num
+from matplotlib.dates import date2num, HourLocator, AutoDateLocator, DateFormatter
 from matplotlib.colors import LogNorm
 
 def carpet(timeseries, **kwargs):
@@ -31,13 +31,23 @@ def carpet(timeseries, **kwargs):
     of the (resampled) timeseries.
     zlabel, title : If not None, these determine the labels of z axis and/or
     title. If None, the name of the timeseries is used if defined.
-    cmap: matplotlib.cm instance, default coolwarm
+    cmap : matplotlib.cm instance, default coolwarm
     """
 
     #data preparation
 
     #resample data to minutes
     ts = timeseries.resample('min', how='mean', label='left', closed='left')
+
+    #define optional input parameters
+    vmin = max(1., kwargs.pop('vmin', ts[ts>0].min()))
+    vmax = max(vmin, kwargs.pop('vmax', ts.quantile(.999)))
+    cmap = kwargs.pop('cmap', cm.coolwarm)
+    norm = kwargs.pop('norm', LogNorm())
+    interpolation = kwargs.pop('interpolation', 'nearest')
+    cblabel = kwargs.pop('zlabel', timeseries.name if timeseries.name else '')
+    title = kwargs.pop('title', 'carpet plot: ' + timeseries.name if timeseries.name else '')
+
     #convert to dataframe with date as index and time as columns by
     #first replacing the index by a MultiIndex
     mpldatetimes = date2num(ts.index.astype(dt.datetime))  #date2num is timezone aware and uses the underlying utc time!!!
@@ -50,10 +60,7 @@ def carpet(timeseries, **kwargs):
     fig, ax = plt.subplots()
     #define the extent of the axes (remark the +- 0.5  for the y axis in order to obtain aligned date ticks)
     extent = [df.columns[0], df.columns[-1], df.index[-1] + 0.5, df.index[0] - 0.5]
-    vmin = max(1., kwargs.pop('vmin', ts[ts>0].min()))
-    vmax = max(vmin, kwargs.pop('vmax', ts.quantile(.999)))
-    cmap = kwargs.pop('cmap', cm.coolwarm)
-    plt.imshow(df, vmin=vmin, vmax=vmax, extent=extent, cmap=cmap, aspect='auto', norm=LogNorm(), interpolation='nearest')
+    plt.imshow(df, vmin=vmin, vmax=vmax, extent=extent, cmap=cmap, aspect='auto', norm=norm, interpolation=interpolation, **kwargs)
 
     #figure formatting
 
@@ -66,15 +73,13 @@ def carpet(timeseries, **kwargs):
 
     #y axis
     ax.yaxis_date()
-    ax.yaxis.set_major_locator(DayLocator())
+    ax.yaxis.set_major_locator(AutoDateLocator(maxticks=35))
     ax.yaxis.set_major_formatter(DateFormatter("%a, %d %b %Y"))
 
     #plot colorbar
     cbticks = np.logspace(np.log10(vmin), np.log10(vmax), 11, endpoint=True)
-    cblabel = kwargs.pop('zlabel', timeseries.name if timeseries.name else '')
     cb = plt.colorbar(format='%.0f', ticks=cbticks)
     cb.set_label(cblabel)
 
     #plot title
-    title = kwargs.pop('title', 'carpet plot: ' + timeseries.name if timeseries.name else '')
     plt.title(title)
