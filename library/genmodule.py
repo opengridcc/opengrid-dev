@@ -38,16 +38,20 @@ def __init__(self,**kwargs ):
 #  base SI units, FL units, and plotting units  for water. SI units always based per second.
 wsib  = {'str':'m³_w/s' ,'cf':1./(1. ),None:'Unknown'}
 wflb = {'str':'l_w/day ' ,'cf':1/(1000.*24.*3600.),None:'Unknown' }
+wtmb = {'str':'l_w/h' ,'cf':1/(1000.*3600.),None:'Unknown' }
 wplb  = {'str':'l_w/min' ,'cf':1/(1000.*60. ),None:'Unknown'}
 
 #  base SI units, FL units, and plotting units  for gas
 gsib  = {'str':'m³_g/s' ,'cf':1 ,None:'Unknown'}
 gflb = {'str':'l_g/day' ,'cf':1/(1*1000.*24.*3600.) ,None:'Unknown'}
+gtmb = {'str':'l_g/h' ,'cf':1/(1000.*3600.),None:'Unknown' }
 gplb  = {'str':'kW_aver_g(/min)(@11kWh/m³)' ,'cf':1/(11*60.) ,None:'Unknown'}
 
 #  base SI units, FL units,and plotting units  for electricity
-esib  = {'str':'J_e/s' ,'cf':1 ,None:'Unknown'}
-eflb = {'str':'W_aver_e (/s)' ,'cf':1/(1.) ,'info':'base flukso unit. CF to SI units',None:'Unknown'}
+esib  = {'str':'J_e/s' ,'cf':1./1. ,None:'Unknown'}
+eflb = {'str':'W_aver_e (/s)' ,'cf':1./(1.) ,'info':'base flukso unit. CF to SI units',None:'Unknown'}
+etmb = {'str':'W_aver_e (/)' ,'cf':1./(1.) ,'info':'base flukso unit. CF to SI units',None:'Unknown'}
+
 eplb  = {'str':'kW_aver_e(/s)' ,'cf':1/(1000.),None:'Unknown'}
 
 #  Base costs of unit quantities for water, gas, elec
@@ -65,22 +69,25 @@ esii = {'str':'kWh_e','cf':(1/3600.),None:'Unknown'} # integrated  SI Base units
 wfl = {'base': wflb,'int':wsii,'cost': wsic} 
 wsi ={'base': wsib ,'int':wsii,'cost': wsic}
 wpl = {'base':wplb,'int':wsii,'cost': wsic}
+wtm = {'base':wtmb,'int':wsii,'cost': wsic}
 
 gfl = {'base': gflb,'int':gsii,'cost': gsic}
 gsi ={'base': gsib ,'int':gsii,'cost': gsic}
 gpl = {'base':gplb,'int':gsii,'cost': gsic}
+gtm = {'base':gtmb,'int':gsii,'cost': gsic}
 
 efl = {'base': eflb,'int':esii,'cost': esic}
 esi ={'base': esib ,'int':esii,'cost': esic}
 epl = {'base':eplb,'int':esii,'cost': esic}
+etm = {'base':etmb,'int':esii,'cost': esic}
 
 #Optional totos:
 #add [der: for e.g temperature sensors (°Caverage/min),
 #add other [timebase ='s','min', 'hr', '']
 
-wdict ={'fl':wfl,'SI':wsi,'pl':wpl}
-gdict ={'fl':gfl,'SI':gsi,'pl':gpl}
-edict ={'fl':efl,'SI':esi,'pl':epl}
+wdict ={'fl':wfl,'SI':wsi,'pl':wpl,'tm':wtm}
+gdict ={'fl':gfl,'SI':gsi,'pl':gpl,'tm':gtm}
+edict ={'fl':efl,'SI':esi,'pl':epl,'tm':etm}
 
 UNITS = {'water':wdict, 'gas':gdict,'electricity':edict}
 
