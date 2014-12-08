@@ -9,8 +9,9 @@ import pandas as pd
 import datetime as dt
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from matplotlib.dates import date2num, HourLocator, AutoDateLocator, DateFormatter
+from matplotlib.dates import date2num, num2date, HourLocator, DayLocator, AutoDateLocator, DateFormatter
 from matplotlib.colors import LogNorm
+from dateutil.relativedelta import relativedelta
 
 def carpet(timeseries, **kwargs):
     """
@@ -34,23 +35,25 @@ def carpet(timeseries, **kwargs):
     cmap : matplotlib.cm instance, default coolwarm
     """
 
-    #data preparation
-
-    #resample data to minutes
-    ts = timeseries.resample('min', how='mean', label='left', closed='left')
-
     #define optional input parameters
-    vmin = max(1., kwargs.pop('vmin', ts[ts>0].min()))
-    vmax = max(vmin, kwargs.pop('vmax', ts.quantile(.999)))
     cmap = kwargs.pop('cmap', cm.coolwarm)
     norm = kwargs.pop('norm', LogNorm())
     interpolation = kwargs.pop('interpolation', 'nearest')
     cblabel = kwargs.pop('zlabel', timeseries.name if timeseries.name else '')
     title = kwargs.pop('title', 'carpet plot: ' + timeseries.name if timeseries.name else '')
 
+    #data preparation
+    if timeseries.dropna().empty:
+        print 'skipped {} - no data'.format(title)
+        return
+    ts = timeseries.resample('min', how='mean', label='left', closed='left')
+    vmin = max(1., kwargs.pop('vmin', ts[ts>0].min()))
+    vmax = max(vmin, kwargs.pop('vmax', ts.quantile(.999)))
+
     #convert to dataframe with date as index and time as columns by
     #first replacing the index by a MultiIndex
-    mpldatetimes = date2num(ts.index.astype(dt.datetime))  #date2num is timezone aware and uses the underlying utc time!!!
+    #tz_convert('UTC'): workaround for https://github.com/matplotlib/matplotlib/issues/3896
+    mpldatetimes = date2num(ts.index.tz_convert('UTC').astype(dt.datetime))
     ts.index = pd.MultiIndex.from_arrays([np.floor(mpldatetimes), 2 + mpldatetimes % 1]) #'2 +': matplotlib bug workaround.
     #and then unstacking the second index level to columns
     df = ts.unstack()
@@ -60,7 +63,7 @@ def carpet(timeseries, **kwargs):
     fig, ax = plt.subplots()
     #define the extent of the axes (remark the +- 0.5  for the y axis in order to obtain aligned date ticks)
     extent = [df.columns[0], df.columns[-1], df.index[-1] + 0.5, df.index[0] - 0.5]
-    plt.imshow(df, vmin=vmin, vmax=vmax, extent=extent, cmap=cmap, aspect='auto', norm=norm, interpolation=interpolation, **kwargs)
+    im = plt.imshow(df, vmin=vmin, vmax=vmax, extent=extent, cmap=cmap, aspect='auto', norm=norm, interpolation=interpolation, **kwargs)
 
     #figure formatting
 
@@ -73,7 +76,13 @@ def carpet(timeseries, **kwargs):
 
     #y axis
     ax.yaxis_date()
-    ax.yaxis.set_major_locator(AutoDateLocator(maxticks=35))
+    dmin, dmax = ax.yaxis.get_data_interval()
+    number_of_days = abs(relativedelta(num2date(dmin), num2date(dmax)).days)
+    #AutoDateLocator is not suited in case few data is available
+    if number_of_days <= 35:
+        ax.yaxis.set_major_locator(DayLocator())
+    else:
+        ax.yaxis.set_major_locator(AutoDateLocator())
     ax.yaxis.set_major_formatter(DateFormatter("%a, %d %b %Y"))
 
     #plot colorbar
@@ -83,3 +92,5 @@ def carpet(timeseries, **kwargs):
 
     #plot title
     plt.title(title)
+
+    return im
