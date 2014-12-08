@@ -8,14 +8,13 @@
 	Format of directory: 
 	UNITS
 	[utility= 'water', 'gas', 'electricity']
-	[ref = 'base','int','cost']
-	[usage= 'fl','SI','pl']
+	[ref = 'base','int','diff']
+	[usage= 'fl','si','pl', 'tm','cost']
 	[what= 'str','cf']
 # 'cf' returns conversion factor, to go TO this unit from SI base units.
 # 'str' returns a string with units of this combination utility/ref/usage. 
 
-# See demo notebook for more examples)
-    
+# See demo notebook for more examples!
 """
 
 
@@ -37,57 +36,76 @@ def __init__(self,**kwargs ):
 
 #  base SI units, FL units, and plotting units  for water. SI units always based per second.
 wsib  = {'str':'m³_w/s' ,'cf':1./(1. ),None:'Unknown'}
-wflb = {'str':'l_w/day ' ,'cf':1/(1000.*24.*3600.),None:'Unknown' }
-wtmb = {'str':'l_w/h' ,'cf':1/(1000.*3600.),None:'Unknown' }
-wplb  = {'str':'l_w/min' ,'cf':1/(1000.*60. ),None:'Unknown'}
+wflb = {'str':'l_w/day ' ,'cf':1/(1/1000.*24.*3600.),None:'Unknown' }
+wtmb = {'str':'l_w/h' ,'cf':1/(1/1000.*3600.),None:'Unknown' }
+wplb  = {'str':'l_w/min' ,'cf':1/(1/1000.*60. ),None:'Unknown'}
 
 #  base SI units, FL units, and plotting units  for gas
-gsib  = {'str':'m³_g/s' ,'cf':1 ,None:'Unknown'}
-gflb = {'str':'l_g/day' ,'cf':1/(1*1000.*24.*3600.) ,None:'Unknown'}
-gtmb = {'str':'l_g/h' ,'cf':1/(1000.*3600.),None:'Unknown' }
+gsib  = {'str':'m³_g/s' ,'cf':1./1. ,None:'Unknown'}
+gflb = {'str':'l_g/day' ,'cf':1/(1./1000.*24.*3600.) ,None:'Unknown'}
+gtmb = {'str':'l_g/h' ,'cf':1/(1/1000.*3600.),None:'Unknown' }
 gplb  = {'str':'kW_aver_g(/min)(@11kWh/m³)' ,'cf':1/(11*60.) ,None:'Unknown'}
 
-#  base SI units, FL units,and plotting units  for electricity
+#  base SI units, FL units,and plotting units for electricity
 esib  = {'str':'J_e/s' ,'cf':1./1. ,None:'Unknown'}
 eflb = {'str':'W_aver_e (/s)' ,'cf':1./(1.) ,'info':'base flukso unit. CF to SI units',None:'Unknown'}
 etmb = {'str':'W_aver_e (/)' ,'cf':1./(1.) ,'info':'base flukso unit. CF to SI units',None:'Unknown'}
-
 eplb  = {'str':'kW_aver_e(/s)' ,'cf':1/(1000.),None:'Unknown'}
 
-#  Base costs of unit quantities for water, gas, elec
-wsic = {'str':'€/m³_w','cf':35.,'info':'cost estimate of integrated utility',None:'Unknown'}
-gsic = {'str':'€/m³_g ','cf':0.05,None:'Unknown'}
-esic = {'str':'€/J','cf':0.15/3600.,None:'Unknown'}
+int_timebase = 's'
 #  integrated SI units (cf for integration per second)
-wsii = {'str':'m³_w','cf':(1),'info':'Integrated per second; against base SI units (per seconds) integrated over time',None:'Unknown'}
+wsii = {'str':'m³_w','cf':(1),'info':'Integrated per second; against base SI units (m³/s) integrated over time',None:'Unknown'}
 gsii = {'str':'m³_g','cf':(1),None:'Unknown'} # integrated SI Base units per SEC = consumption per sec * cf
-esii = {'str':'kWh_e','cf':(1/3600.),None:'Unknown'} # integrated  SI Base units per SEC = average per  * cf
+esii = {'str':'J_e','cf':(1),None:'Unknown'} # integrated  SI Base units per SEC = average per  * cf
+
+#  differentiated SI units (not really usefull for base sensors)
+wsid = {'str':'m³_w*s','cf':(1),'info':'Differentated water usage per second; against base SI units (m³/s) (not really usefull for base sensors)',None:'Unknown'}
+gsid = {'str':'m³_g*s','cf':(1),'info':'Differentated gas usage per second; against base SI units (m³/s) (not really usefull for base sensors)',None:'Unknown'} # integrated SI Base units per SEC = consumption per sec * cf
+esid = {'str':'J*s','cf':(1),'info':'Differentated electricity  per second; against base SI units (m³/s) (not really usefull for base sensors)',None:'Unknown'} # integrated  SI Base units per SEC = average per  * cf
+
+#  Base cost for unit quantities for water, gas, elec
+wcob = {'str':'€/m³_e','cf':35.,'info':'cost estimate of integrated utility',None:'Unknown'}
+gcob = {'str':'€/m³_g','cf':0.05,None:'Unknown'}
+ecob = {'str':'€/J_e','cf':0.15/3600.,None:'Unknown'}
+
+
+#integrated and diff costs derived from base si costs (*sic)
+
+
+
 
 #constructors of nested dictionary
-#Note: cost and int based solely on SI units! Thus, for integrated CF, first convert to SI factors!!
+#Note: diff and int based solely on SI units! 
+#Thus, if unavailable, first convert to SI factors, and convert to other base
+def dict_add_int_diff(basedict=None,si_dict=None):
+    """output: gfl dictionary, based on base and si int/diff conversion. """
+    return {'base':basedict,'int':{'cf': basedict['cf']*si_dict['int']['cf'] , 'str':"".join([basedict['str'],'/s'])},'diff':{'cf': basedict['cf']*si_dict['diff']['cf'] , 'str':"".join([basedict['str'],'*s'])}}
 
-wfl = {'base': wflb,'int':wsii,'cost': wsic} 
-wsi ={'base': wsib ,'int':wsii,'cost': wsic}
-wpl = {'base':wplb,'int':wsii,'cost': wsic}
-wtm = {'base':wtmb,'int':wsii,'cost': wsic}
+wsi ={'base': wsib ,'int':wsii,'diff': wsid}
+wfl = dict_add_int_diff(wflb,wsi)
+wpl = dict_add_int_diff(wplb,wsi)
+wtm = dict_add_int_diff(wtmb,wsi)
+wco =  dict_add_int_diff(wcob,wsi)
 
-gfl = {'base': gflb,'int':gsii,'cost': gsic}
-gsi ={'base': gsib ,'int':gsii,'cost': gsic}
-gpl = {'base':gplb,'int':gsii,'cost': gsic}
-gtm = {'base':gtmb,'int':gsii,'cost': gsic}
+gsi ={'base': gsib ,'int':gsii,'diff': gsid}
+gfl = dict_add_int_diff(gflb,gsi)
+gpl = dict_add_int_diff(gplb,gsi)
+gtm = dict_add_int_diff(gtmb,gsi)
+gco = dict_add_int_diff(gcob,gsi)
 
-efl = {'base': eflb,'int':esii,'cost': esic}
-esi ={'base': esib ,'int':esii,'cost': esic}
-epl = {'base':eplb,'int':esii,'cost': esic}
-etm = {'base':etmb,'int':esii,'cost': esic}
+esi ={'base': esib ,'int':esii,'diff': esid}
+efl = dict_add_int_diff(eflb,esi)
+epl = dict_add_int_diff(eplb,esi)
+etm = dict_add_int_diff(etmb,esi)
+eco =  dict_add_int_diff(ecob,esi) 
 
 #Optional totos:
 #add [der: for e.g temperature sensors (°Caverage/min),
 #add other [timebase ='s','min', 'hr', '']
 
-wdict ={'fl':wfl,'SI':wsi,'pl':wpl,'tm':wtm}
-gdict ={'fl':gfl,'SI':gsi,'pl':gpl,'tm':gtm}
-edict ={'fl':efl,'SI':esi,'pl':epl,'tm':etm}
+wdict ={'fl':wfl,'si':wsi,'pl':wpl,'tm':wtm,'cost':wco}
+gdict ={'fl':gfl,'si':gsi,'pl':gpl,'tm':gtm,'cost':gco}
+edict ={'fl':efl,'si':esi,'pl':epl,'tm':etm,'cost':eco}
 
 UNITS = {'water':wdict, 'gas':gdict,'electricity':edict}
 
@@ -101,10 +119,7 @@ utilitytypebynr_dict = dict(zip(chosen_types,UtilityTypes))
 def get_unitdict(**kwargs ):
     return UNITS
 
-
-#Some helper functions for dict calls:
-
-def query_utility(util = ' '):
+def query_utility(util = ' '): #get_units(self,util,usage = 'fl',ref='base', what= 'str'):
     '''
     Syntax:
     get_units(self,util,usage = 'fl',ref='base', what= 'str'):
@@ -136,17 +151,18 @@ def query_utility(util = ' '):
 
 
 
-def get_units(util,usage = 'fl',ref='base', what= 'str'):
+def get_units(util,usage = 'fl',ref='base', what= 'str'): #get_units(util,usage = 'fl',ref='base', what= 'str',qty = 1)
     '''
     Purpose:
     Return units and conversion factors (TO a unit) for Opengrid.
     
     Input options: 
     [utility= 'water', 'gas', 'electricity']. Obligatory input.
-    [ref = 'base','int','cost'] . Default: 'base'
-    [usage= 'fl','SI','pl']. Default: 'fl'
+    [ref = 'base','int','diff'] . Default: 'base'
+    [usage= 'fl','si','pl','tm','cost']. Default: 'fl'
     [what= 'str','cf']; Default: 'str'
-    Utility is obligatory  
+	qty = default 1. Multiplier to units
+	
     
     Outputs: 
     If what= 'str' (default), then string of default units
@@ -156,23 +172,28 @@ def get_units(util,usage = 'fl',ref='base', what= 'str'):
     return UNITS[utility][usage][ref][what]
 
 #Some examples:
-#print  get_units('electricity',ref='base',usage='SI', what= 'str')
+#print  get_units('electricity',ref='base',usage='si', what= 'str')
 #print get_units('water',ref='cost', what= 'cf') , get_units('water',ref='cost', what= 'str')
 #print get_units(2)
 
 
-def get_conversionfactor(util,fromusage = 'fl',fromref='base',tousage = None,toref=None,str_incl_units =False):
-    '''
+def get_conversionfactor(util,fromusage = 'fl',fromref='base',tousage = None,toref=None,what='cf',str_incl_units =False,qty=1): # get_conversionfactor(util,fromusage = 'fl',fromref='base',tousage = None,toref=None,what='cf',str_incl_units =False,qty=1)
+    '''    
+	Syntax:
+    get_conversionfactor(util,fromusage = 'fl',fromref='base',tousage = None,toref=None,what='cf',str_incl_units =False,qty=1):
+    
     Purpose:
-    Return conversion factors from one unitbase to another for Opengrid.
+    Return conversion factors and/or units from one unitbase to another for Opengrid.
     
     Input options: 
-    [utility= 'water', 'gas', 'electricity']. Obligatory input.
-    [fromref = 'base','int','cost'] . Default: 'base'
-    [toref = 'base','int','cost'] . Default: fromref
-    [fromusage= 'fl','SI','pl']. Default: 'fl'
-    [tousage= 'fl','SI','pl']. Default:fromusage
-    str_incl_units. If true, ouput is string Default False
+    utility= ['water', 'gas', 'electricity']. Obligatory input.
+    fromref = ['base','int','diff'] . Default: 'base'
+    toref = ['base','int','diff'] . Default: fromref
+    fromusage= ['fl','SI','pl','cost','tm']. Default: 'fl'
+    tousage= '[fl','SI','pl','cost', 'tm']. Default:fromusage
+    what=['cf','str',info']. Default= 'cf'
+    str_incl_units. [True, False] If true, ouput is (human readable) string with CF and units. Default False
+    qty = 1 multiplication factor
         
     Outputs: 
     If str_incl_units = false (default), output is conversion factor FROM unit (utility fromref, fromsage) 1 
@@ -181,47 +202,47 @@ def get_conversionfactor(util,fromusage = 'fl',fromref='base',tousage = None,tor
     If str_incl_units = true, output is converion factor, and FROM and TO units, in str format.
     '''
     utility= query_utility(util)
+    if what=='str':
+        unitsa = get_units(utility, usage = fromusage,ref=fromref, what='str')   
+        unitsb = get_units(utility, usage = tousage,ref=toref,what='str')
+        return "".join([unitsb, ' ',unitsa])
     if tousage == None:
         tousage = fromusage
     if toref == None:
         toref = fromref
-    if (toref == 'int') | (fromref == 'int') | (toref == 'cost') |(fromref == 'cost') :
-        SI_cost = get_units(utility,usage ='SI',ref='cost',what='cf')
-        SI_int = get_units(utility,usage ='SI',ref='cost',what='cf')
-         # since unitcost or int based on SI units: convert to base SI between A and B first
-        A_to_SI_CF =  get_units(utility, usage = 'SI',ref=fromref,what='cf')/ get_units(utility, usage = fromusage,ref=fromref,what='cf')
-        SI_to_B_CF =  get_units(utility, usage = 'SI',ref=toref,what='cf')/get_units(utility, usage = tousage,ref=toref,what='cf')
-        if (toref == 'int'):
-            SI_int = 1/get_units(utility,usage ='SI',ref='int',what='cf')
-        if (fromref == 'int'):
-            SI_int = get_units(utility,usage ='SI',ref='int',what='cf')
-        if (toref == 'cost'):
-            SI_cost = 1/get_units(utility,usage ='SI',ref='cost',what='cf')
-        if (fromref == 'cost'):
-            SI_cost = get_units(utility,usage ='SI',ref='cost',what='cf')
-
-        CF =  A_to_SI_CF *SI_to_B_CF* SI_cost *SI_int
-    else: # direct one step convers
+    if ((toref == 'base') & (fromref == 'base')):
         cftoA = get_units(utility, usage = fromusage,ref=fromref, what='cf')   
         cftoB = get_units(utility, usage = tousage,ref=toref,what='cf')
         CF =  cftoB / cftoA
-    
+    else: # at least one diff or int => go trhough SI units
+         # since unitcost and int are based on SI units: convert to usage: SI and ref:base between A and B first
+        SI_int = 1
+        A_to_SI_CF =  get_units(utility, usage = 'si',ref='base',what='cf')/get_units(utility, usage = fromusage,ref=fromref,what='cf')
+        SI_to_B_CF =  get_units(utility, usage = tousage,ref=toref,what='cf')/get_units(utility, usage = 'si',ref='base',what='cf')
+        if not(toref == 'base'):
+            SI_int = SI_int*get_units(utility,usage ='si',ref=toref,what='cf')
+        if not (fromref == 'base'): #int or diff
+            SI_int = SI_int/ get_units(utility,usage ='si',ref=fromref,what='cf')
+        CF =  A_to_SI_CF *SI_to_B_CF *SI_int
+
     if str_incl_units  == False:
-        return CF
+        return CF*qty
     else:
         unitsa = get_units(utility, usage = fromusage,ref=fromref, what='str')   
         unitsb = get_units(utility, usage = tousage,ref=toref,what='str')
         if toref == 'int': 
-            persec = '(integrated)'
+            timebase = '(integrated over time)'
+        elif toref == 'diff':
+            timebase = '(differentiated over time)'
         else:
-            persec = ''
-        return " ".join([str(CF), unitsa,'corresponds to 1',unitsb,persec])
+            timebase = '' #base
+        return " ".join([str(qty), unitsa,'corresponds to', str(CF*qty),unitsb,timebase])
 #some tests
 #print get_conversionfactor(2), 'convert to itself  (should be 1)'
-#print get_conversionfactor(1,fromusage = 'SI', fromref='base',toref='cost') , get_units(1,ref='cost'), ' (Should return 0.15€/kWhe)'
+#print get_conversionfactor(1,fromusage = 'si', fromref='base',toref='cost') , get_units(1,ref='cost'), ' (Should return 0.15€/kWhe)'
 
 #examples
-#print get_conversionfactor(1,fromusage ='fl', tousage='SI',toref='int',str_incl_units =True)
+#print get_conversionfactor(1,fromusage ='fl', tousage='si',toref='int',str_incl_units =True)
 
 #print 'A gas consumption of 1000*24*60*60',get_units(2,usage='fl'), 'during one second equals ',
 #print 1000*24*60*60*get_conversionfactor(2,fromusage ='fl',toref='int'),get_units(2,usage='fl',ref='int')
@@ -230,26 +251,3 @@ def get_conversionfactor(util,fromusage = 'fl',fromref='base',tousage = None,tor
 #print get_conversionfactor(0,fromusage ='pl',toref='cost', str_incl_units=False)*60, '€'
 
 
-def sensortype(var = []):
-    '''
-    Used to find (full) name of sensortype, either from number or from partial name.
-    Input:
-    * var: input string, or a number (0 to 2) 
-    OUTPUT:
-    * utility: returns string of utility type.
-    If unknown, returns valueerror or keyerror
-    '''
-    for utility in utilitytypes_dict:
-        if utility == var:
-            #self.utility = utility
-            chosen_type = utilitytypes_dict[utility]
-            return utility
-        elif chosen_type == var:
-            #self.utility = utility
-            return utility  
-    #if all else fails: (no match)
-    return KeyError(" ".join([var, 'unknown']))
-
-#examples        
-#print sensortype(0) , sensortype('electricity')
-#sensortype('somethingelse')
