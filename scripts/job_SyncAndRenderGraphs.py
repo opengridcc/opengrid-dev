@@ -13,6 +13,8 @@ script_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 # add the path to opengrid to sys.path
 sys.path.append(os.path.join(script_dir, os.pardir, os.pardir))
 from opengrid.library.houseprint import Houseprint
+from opengrid.library import config
+c = config.Config()
 
 
 # Sync houseprint ###################################################################
@@ -26,7 +28,7 @@ hp.save('/var/www/private/hp_anonymous.pkl')
 
 # Sync Tmpo ########################################################################
 
-sys.path.append('/usr/local/src/tmpo-py')
+sys.path.append(c.get('tmpo', 'folder'))
 from opengrid.library import fluksoapi
 import tmpo
 
