@@ -64,7 +64,7 @@ gsid = {'str':'m³_g*s','cf':(1),'info':'Differentated gas usage per second; aga
 esid = {'str':'J*s','cf':(1),'info':'Differentated electricity  per second; against base SI units (m³/s) (not really usefull for base sensors)',None:'Unknown'} # integrated  SI Base units per SEC = average per  * cf
 
 #  Base cost for unit quantities for water, gas, elec
-wcob = {'str':'€/s','cf':35.,'info':'cost estimate of integrated utility in SI units (€/m³ *m³/s',None:'Unknown'}
+wcob = {'str':'€/s','cf':3.5,'info':'cost estimate of integrated utility in SI units (€/m³ *m³/s',None:'Unknown'}
 gcob = {'str':'€/s','cf':0.05,None:'Unknown'}
 ecob = {'str':'€/s','cf':0.15/3600./1000.,None:'Unknown'}
 
