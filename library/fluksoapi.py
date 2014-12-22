@@ -8,10 +8,7 @@ import datetime as dt
 import pandas as pd
 import requests
 import os
-from time import mktime,strftime
-import pdb
-import inspect
-import requests
+import pytz
 import re
 import zipfile
 import glob
@@ -228,16 +225,19 @@ def consolidate_sensor(folder, sensor, dt_day=None, remove_temp=False):
     csv : path of the resulting csv file
     
     """
-    if dt_day is not None:    
-        dt_day_string = dt_day.strftime(format="%Y-%m-%d")     
-    
     # List all files (ABSPATH) for the given sensor in the given path, without hidden files			
     # glob.glob() is equivalent to os.listdir(folder) without the hidden files (start with '.') 
     # and returned as absolute paths
     files = [f for f in glob.glob(os.path.join(folder, '*')) if (f.find(sensor) > -1)]
 		
     if dt_day is not None:
+        # only retain data from this day
+        dt_day_string = dt_day.strftime(format="%Y-%m-%d")     
         files = [f for f in files if f.find(dt_day_string) > -1]
+        dt_start = dt.datetime.strptime(dt_day_string, "%Y-%m-%d")
+        dt_end = dt_start + dt.timedelta(days=1)
+    else:
+        dt_start = dt_end = None
 
     if files == []:
         # if no valid (unhidden) files are found, raise a ValueError.  
@@ -245,16 +245,11 @@ def consolidate_sensor(folder, sensor, dt_day=None, remove_temp=False):
     if (len(files) > 1 ): # If multiple (unhidden) files for one sensor are present, then consolidate
         print("About to consolidate {} files for sensor {}".format(len(files), sensor))
         timeseries = [load_csv(f) for f in files]
-        combination = timeseries[0]    
+        combination = timeseries[0]
         for ts in timeseries[1:]:
             combination = combination.combine_first(ts)
-    
-        if dt_day is not None:
-            # only retain data from this day
-            dt_start = dt.datetime.strptime(dt_day_string, "%Y-%m-%d")
-            dt_end = dt_start + dt.timedelta(days=1)
-            combination = combination.ix[dt_start:dt_end]
-        if remove_temp:    
+        combination = combination.ix[dt_start:dt_end]
+        if remove_temp:
             for f in files:
                 os.remove(os.path.join(folder, f))
             print("Removed the {} temporary files".format(len(files)))
@@ -262,7 +257,7 @@ def consolidate_sensor(folder, sensor, dt_day=None, remove_temp=False):
         # the _FROM....csv will be added by the save_csv method
         prefix_end = files[-1].index('_FROM')
         prefix = files[-1][:prefix_end]    
-        csv = save_csv(combination, csvpath = folder, fileNamePrefix=prefix)
+        csv = save_csv(combination, csvpath=folder, fileNamePrefix=prefix)
         print('Saved ', csv)
         return csv
 		
@@ -312,7 +307,6 @@ def synchronize(folder, unzip=True, consolidate=True):
         raise IOError("Provide your path to the data folder where a zip and csv subfolder will be created.")
     from opengrid.library import config
     # Get the pwd; start from the path of this current file 
-    sourcedir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     c = config.Config()
     pwd = c.get('opengrid_server', 'password')
     host = c.get('opengrid_server','host')
@@ -462,9 +456,8 @@ def load_tmpo(tmposession, sensors, start=None, end=None):
     
     """
 
-    # if called with a single sensor, call again with a list     
     if isinstance(sensors, str):
-        return load_tmpo([sensors], start, end)
+        sensors = [sensors]
     
     # convert start and end to epoch
     if start is None:
@@ -496,44 +489,56 @@ def load_tmpo(tmposession, sensors, start=None, end=None):
     df.index = pd.to_datetime((df.index.values*1e9).astype(int))    
     return df
     
-        
-        
-
     
-def load(sensors, start=None, end=None):
+def load(path_csv, sensors, start=None, end=None):
     """
     Load data from one or more sensors into a pandas DataFrame.  
     
     Parameters
     ----------
-    sensors : Str or List
-        String: single sensor to be loaded
-        List: list of sensors to be loaded
-    start, end : Datetime, float, int, string or pandas Timestamp (default=None)
+    path_csv : str
+        Folder containing the csv files with data to be loaded
+    sensors : str or list of str
+        Sensors to be loaded
+    start, end : Datetime, float, int, string or pandas Timestamp, optional
         Anything that can be parsed into a pandas.Timestamp
-        If start is None, load all available data
-        If end is None, end is the current time
+        If start and end are not provided, all available data is loaded.
     
     Returns
     -------
     df : pandas DataFrame
-        DataFrame with DatetimeIndex and sensor-ids as columname.  If only a 
-        single sensor is given, return a DataFrame instead of a Timeseries.
+        DataFrame with DatetimeIndex and sensor ids as column names.
 
     Raises
     ------
     If no single sensor is found, do not return an empty dataframe but raise
-    a ValueError.
+    a ValueError. Not implemented.
     
     Notes
     -----
-    This function is the ultimate high-level function to load opengrid data into
-    a DataFrame.  It will first call ``load_tmpo`` and if the tmpo database does
+    Currently, this function only uses the csv files.
+    Ultimately, it will first call ``load_tmpo`` and if the tmpo database does
     not contain all historic data (depending on start), it will also call 
-    ``load_csv`` (for each sensor).
+    ``load_csv`` (for each sensor). Not implemented.
+    
     
     """
-    pass
+    if isinstance(sensors, str):
+        sensors = [sensors]
+    
+    dataframes = [load_csv(find_csv(path_csv, sensor)) for sensor in sensors]
+    df = pd.concat(dataframes, axis=1)
+    df.index = df.index.tz_convert(pytz.timezone('Europe/Brussels'))
+    
+    print('{} sensors loaded'.format(len(df.columns)))
+    print "Size of dataframe before slicing: {}".format(df.shape)
+    
+    df = df.ix[start:end].dropna(axis=1, how='all')
+    
+    print "Size of dataframe after slicing and dropping empty sensors: {}".format(df.shape)
+    print('{} sensors retained'.format(len(df.columns)))
+
+    return df
 
 
 def _parse_date(d):
