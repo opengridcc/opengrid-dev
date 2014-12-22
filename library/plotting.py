@@ -93,3 +93,66 @@ def carpet(timeseries, **kwargs):
     plt.title(title)
 
     return im
+
+def fanchart(timeseries, **kwargs):
+    """
+    Draw a fan chart of the daily consumption profile.
+    
+    The fan chart shows the different quantiles of the daily consumption, with 
+    the blue line representing the median, and the black line the average.
+    By default, the consumption of the whole day is taken, but one can select 
+    the hours of interest, e.g. night time standby consumption.
+    
+    Parameters
+    ----------
+    timeseries : pandas.Series
+    start_hour, end_hour : int or float, optional
+        Start and end hours of period of interest, default values are 0, 24
+        As of now, ensure that start_hour < end_hour
+    ylabel, title : str
+        If not None, these determine the labels of y axis and/or title.
+        If None, the name of the timeseries is used if defined.
+    """
+
+    start_hour = 2. + kwargs.pop('start_hour', 0.)/24.
+    end_hour = 2. + kwargs.pop('end_hour', 24.)/24.
+    ylabel = kwargs.pop('ylabel', timeseries.name if timeseries.name else '')
+    title = kwargs.pop('title', 'carpet plot: ' + timeseries.name if timeseries.name else '')
+    #data preparation
+    if timeseries.dropna().empty:
+        print 'skipped {} - no data'.format(title)
+        return
+    ts = timeseries.resample('min', how='mean', label='left', closed='left')
+
+    #convert to dataframe with date as index and time as columns by
+    #first replacing the index by a MultiIndex
+    #tz_convert('UTC'): workaround for https://github.com/matplotlib/matplotlib/issues/3896
+    mpldatetimes = date2num(ts.index.tz_convert('UTC').astype(dt.datetime))
+    ts.index = pd.MultiIndex.from_arrays([np.floor(mpldatetimes), 2 + mpldatetimes % 1]) #'2 +': matplotlib bug workaround.
+    #and then unstacking the second index level to columns
+    df = ts.unstack()
+    df = df.T.truncate(start_hour, end_hour)
+    
+    num = 20
+    num_max = 4
+    df_quant = df.quantile(np.linspace(0., 1., 2*num+1))
+    
+    #data plotting
+
+    fig, ax = plt.subplots()
+    im = plt.plot(df.columns, df_quant.iloc[num], 'b', label='median')
+    for i in range(1, num):
+        plt.fill_between(df.columns, df_quant.iloc[num-i], df_quant.iloc[min(num+i, 2*num-num_max)], color='b', alpha=0.05)
+    plt.plot(df.columns, df.mean(), 'k--', label='mean')
+    plt.legend()
+
+    #x axis
+    ax.xaxis_date()
+    plt.xlim(df.columns[0], df.columns[-1])
+    plt.ylabel(ylabel)
+
+    #plot title
+    plt.title(title)
+    plt.grid(True)
+
+    return im
