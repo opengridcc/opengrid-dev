@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib.dates import date2num, num2date, HourLocator, DayLocator, AutoDateLocator, DateFormatter
 from matplotlib.colors import LogNorm
-from dateutil.relativedelta import relativedelta
 
 def carpet(timeseries, **kwargs):
     """
@@ -77,9 +76,9 @@ def carpet(timeseries, **kwargs):
     #y axis
     ax.yaxis_date()
     dmin, dmax = ax.yaxis.get_data_interval()
-    number_of_days = abs(relativedelta(num2date(dmin), num2date(dmax)).days)
+    number_of_days = (num2date(dmax) - num2date(dmin)).days
     #AutoDateLocator is not suited in case few data is available
-    if number_of_days <= 35:
+    if abs(number_of_days) <= 35:
         ax.yaxis.set_major_locator(DayLocator())
     else:
         ax.yaxis.set_major_locator(AutoDateLocator())
