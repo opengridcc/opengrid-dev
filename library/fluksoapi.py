@@ -13,91 +13,6 @@ import re
 import zipfile
 import glob
 
-def pull_api(sensor, token, unit, interval='day', resolution = 'minute'):
-   
-    """     
-   
-    Function for downloading data from fluksometers
-    
-    Parameters
-    ----------
-    - inverval: string specifying the interval (day, month, ...)
-    - sensor :  sensor name (from the flukso.net sensor tab)
-    - token :  sensor token (from the flukso.net sensor tab)
-    - resolution: time resolution (e.g. minute, 15min, hour, day, week, month, 
-      year, decade, night)
-    - unit: unit of measurements (e.g. watt, kwhperyear, lperday)
-
-    Note
-    ----
-    The Flukso Server will automatically restrict the data to what's available
-    
-    
-    Returns
-    -------
-    Resulf of the http request with the raw data.  
-    Use the save2csv function to parse and save.
-    
-    """
-    
-    payload = {'interval'   :   interval,
-               'resolution' :   resolution,
-               'unit'       :   unit}
-               
-    headers = {'Accept'     :   'application/json', 
-               'X-Version'  :   '1.0', 
-               'X-Token'    :   token}  
-               
-    url = 'https://api.flukso.net' + '/sensor/' + sensor 
-    
-    # Send Request
-    try:    
-        s = requests.Session()
-        r = s.get(url, params = payload, headers = headers, verify=False)
-    except:
-        print "-------> Problem with HTTP request to Flukso <-------"
-    
-    # check result
-    
-    if not r.ok:
-        print "The flukso api GET request did not succeed."
-        print "Some details:"
-        print "Request headers:"
-        print r.request.headers
-        print "Request url:"
-        print r.request.url
-        
-        
-    
-    return r
-
-
-def parse(r):
-    """
-    Parse and return a pandas TimeSeries object
-    """
-    
-    
-    # Create TimeSeries   
-    try:
-        d = {}
-        for tup in r.json():
-            d[dt.datetime.fromtimestamp(tup[0])] = tup[1]
-        
-    except:
-        print "-------> Problem with Flukso data parsing <-------"
-        raise
-    
-    #pdb.set_trace()
-    Ts = pd.TimeSeries(data=d)
-    # Convert the index to a pandas DateTimeIndex 
-    Ts.index = pd.to_datetime(Ts.index)
-    # this line gives an error.  Should be checked, but for now I keep the nan's        
-    # Ts = Ts[Ts != 'nan']
-    
-    return Ts
-
-
 def save_csv(Ts, csvpath=None, fileNamePrefix=''):
     """
     Save the TimeSeries or DataFrame to csv with specified name
@@ -130,51 +45,43 @@ def save_csv(Ts, csvpath=None, fileNamePrefix=''):
     return csv    
 
    
-def find_csv(folder, sensor):
+def save_hdf(df, path=None, prefix=''):
     """
-    Find csv file corresponding to sensor in the given folder.  
-    Consolidate all found files when more than one file found.
+    Save the TimeSeries or DataFrame to hdf with specified name
     
     Parameters
     ----------
-    
-    folder : path
-        Folder containing the csv files
-    sensor : hex
-        Sensor for which files are to be consolidated
+    ts : pandas Timeseries or Dataframe
+    path : path, default=None
+        Folder where the hdf will be saved. Defaults to os.getcwd()
+    prefix = string, default=''
+        Name prefix for the hdf, usually FLxxxxxxx_sensorid
         
     Returns
     -------
-    
-    path : absolute pathname to found csv
-    
-    Raises
-    ------
-    ValueError when no file is found
+    hdf : abspath
+        Absolute path to the saved file
     """
     
-    # List all files (ABSPATH) for the given sensor in the given path, without hidden files			
-    # glob.glob() is equivalent to os.listdir(folder) without the hidden files (start with '.') 
-    # and returned as absolute paths
-    found = [f for f in glob.glob(os.path.join(folder, '*')) if (f.find(sensor) > -1)]
-
-    if len(found) > 1:
-        return consolidate_sensor(folder, sensor, dt_day=None, remove_temp=False)
-    elif len(found) == 0:
-        raise ValueError("No file found for this sensor {} ".format(sensor))		
-    else:
-        return found[0]
+   
+    # save to file
+    path = path or os.getcwd()
+    s = df.index[0].strftime(format="%Y-%m-%d_%H-%M-%S")
+    e = df.index[-1].strftime(format="%Y-%m-%d_%H-%M-%S")
+    hdf = os.path.join(path, prefix + '_FROM_' + s + '_TO_' + e + '.hdf')
     
-    
+    df.to_hdf(hdf, 'df', mode='w')
+    return hdf
 
-def load_csv(csv):
+   
+def load_file(path):
     """
-    Load a previously saved csv file into a dataframe and return it.
+    Load a previously saved csv or hdf file into a dataframe and return it.
     
     Parameters
     ----------
-    csv : path
-        Path to a csv file.  Filename should be something like fluksoID_sensor_FROM_x_to_y.csv
+    path : path
+        Path to a csv or hdf file.  Filename should be something like fluksoID_sensor_FROM_x_to_y.csv
 
     Returns
     -------
@@ -183,29 +90,41 @@ def load_csv(csv):
         column will be the sensor-ID, extracted from the csv filename. If invalid filename is given, an empty dataframe will be returned.
     
     """
-    empty = pd.DataFrame()
-    if len(csv) == 0:
-        return empty
-        raise ValueError("Please give valid file name as input")
-    elif  csv.find('FROM')==False:
-        return empty
-        raise ValueError("unable to load file {}. Please give data file as input. Its typically named FL***_sensorID_FROM_DD-MM-YYYY_TO_DD-MM-YYYY.csv".format(csv))
-    else:
-        df = pd.read_csv(csv, index_col = 0, header=None, parse_dates=True)
+    if len(path) == 0 or 'FROM' not in path:
+        return pd.DataFrame()
+    
+    if '.csv' in path:
+        df = pd.read_csv(path, index_col = 0, header=None, parse_dates=True)
         # Convert the index to a pandas DateTimeIndex 
         df.index = pd.to_datetime(df.index)
         df.index = df.index.tz_localize('UTC')
-        df.columns = [csv.split('_')[-7]]
-        return df
+        df.columns = [path.split('_')[-7]]
+    elif '.hdf' in path:
+        df = pd.read_hdf(path, 'df')
+    return df
 
 
-def consolidate_sensor(folder, sensor, dt_day=None, remove_temp=False):
+def load_sensor(folder, sensor, dt_start=None, dt_end=None):
+    files = glob.glob(os.path.join(folder, '*' + sensor + '*'))
+    if len(files) == 0:
+        # if no valid (unhidden) files are found, raise a ValueError.
+        raise ValueError('No files found for sensor {} in {}'.format(sensor, folder))
+    print("About to combine {} files for sensor {}".format(len(files), sensor))
+    dfs = [load_file(f) for f in files]
+    combination = dfs[0]
+    for df in dfs[1:]:
+        combination = combination.combine_first(df)
+    combination = combination.ix[dt_start:dt_end]
+    return combination
+
+
+def consolidate_sensor(folder, sensor, test=False):
     """
-    Merge all csv files for a given sensor into a single csv file
+    Merge all csv and/or hdf files for a given sensor into a single hdf file
     
     - the given sensor
     - and the given day
-    into a single csv file
+    into a single hdf file
     
     Parameters
     ----------
@@ -213,67 +132,48 @@ def consolidate_sensor(folder, sensor, dt_day=None, remove_temp=False):
         Folder containing the csv files
     sensor : hex
         Sensor for which files are to be consolidated
-    dt_day : (optional) datetime
-        If a valid datetime is passed, only files containing data from this day 
-        will be considered
     remove_temp : (optional) Boolean, default=False
-        If True, only the resulting consolidated csv is kept, the files that
+        If True, only the resulting consolidated hdf is kept, the files that
         have been consolidated are deleted.
         
     Returns
     -------
-    csv : path of the resulting csv file
+    hdf : path of the resulting hdf file
     
     """
+		
     # List all files (ABSPATH) for the given sensor in the given path, without hidden files			
     # glob.glob() is equivalent to os.listdir(folder) without the hidden files (start with '.') 
     # and returned as absolute paths
-    files = [f for f in glob.glob(os.path.join(folder, '*')) if (f.find(sensor) > -1)]
-		
-    if dt_day is not None:
-        # only retain data from this day
-        dt_day_string = dt_day.strftime(format="%Y-%m-%d")     
-        files = [f for f in files if f.find(dt_day_string) > -1]
-        dt_start = dt.datetime.strptime(dt_day_string, "%Y-%m-%d")
-        dt_end = dt_start + dt.timedelta(days=1)
-    else:
-        dt_start = dt_end = None
-
-    if files == []:
-        # if no valid (unhidden) files are found, raise a ValueError.  
+    files = glob.glob(os.path.join(folder, '*' + sensor + '*'))
+    if len(files) == 0:
+        # if no valid (unhidden) files are found, raise a ValueError.
         raise ValueError('No files found for sensor {} in {}'.format(sensor, folder))
-    if (len(files) > 1 ): # If multiple (unhidden) files for one sensor are present, then consolidate
-        print("About to consolidate {} files for sensor {}".format(len(files), sensor))
-        timeseries = [load_csv(f) for f in files]
-        combination = timeseries[0]
-        for ts in timeseries[1:]:
-            combination = combination.combine_first(ts)
-        combination = combination.ix[dt_start:dt_end]
-        if remove_temp:
+    elif len(files) == 1:
+        print("One file found and retained for sensor {}".format(sensor))
+        return files[0]
+    else:
+        combination = load_sensor(folder, sensor)
+        if not test:
             for f in files:
                 os.remove(os.path.join(folder, f))
-            print("Removed the {} temporary files".format(len(files)))
-        # Obtain the new filename prefix, something like FX12345678_sensorid_
-        # the _FROM....csv will be added by the save_csv method
-        prefix_end = files[-1].index('_FROM')
-        prefix = files[-1][:prefix_end]    
-        csv = save_csv(combination, csvpath=folder, fileNamePrefix=prefix)
-        print('Saved ', csv)
-        return csv
-		
-    else: # If just one file to consolidate, then return that filename
-        print("No files consolidated for {} (only 1 present).".format(sensor))
-        return files[0]
-    
+        print("Removed the {} temporary files".format(len(files)))
+        
+        # Obtain the new filename prefix, something like FX12345678_sensorid
+        # the _FROM....hdf will be added by the save_hdf method
+        prefix = files[-1].split('_FROM')[0]
+        hdf = save_hdf(combination, path=folder, prefix=prefix)
+        print('Saved ', hdf)
+        return hdf
+
 
 def consolidate_folder(folder):
     
-    sensorlist = [x.split('_')[1] for x in os.listdir(folder)]
-    sensors = set(sensorlist)
+    sensor_set = {x.split('_')[1] for x in glob.glob(os.path.join(folder, '*'))}
+    print 'About to consolidate {} sensors'.format(len(sensor_set))
+    for sensor in sensor_set:
+        consolidate_sensor(folder, sensor)
     
-    for s in sensors:
-        consolidate_sensor(folder, s, remove_temp=True) 
-        
 
 def synchronize(folder, unzip=True, consolidate=True):
     """Download the latest zip-files from the opengrid droplet, unzip and consolidate.
@@ -350,14 +250,16 @@ def synchronize(folder, unzip=True, consolidate=True):
                     handle.write(block)
             downloadfiles.append(f)
             
-    # Now unzip and consolidate the downloaded files only
+    # Now unzip and/or consolidate
     if unzip:
-        _unzip(folder=folder, files=downloadfiles, consolidate=consolidate)
+        _unzip(folder, downloadfiles)
+    if consolidate:
+        consolidate_folder(csvfolder)
         
 
-def _unzip(folder, files='all', consolidate=True):
+def _unzip(folder, files='all'):
     """
-    Unzip zip files from folder/zip to folder/csv and consolidate if wanted
+    Unzip zip files from folder/zip to folder/csv
         
     Parameters
     ----------
@@ -366,9 +268,6 @@ def _unzip(folder, files='all', consolidate=True):
         The *data* folder, containing subfolders *zip* and *csv*
     files = 'all' (default) or list of files
         Unzip only these files
-    consolidate : [True]/False
-        If True, all csv files in folder/csv will be consolidated to a 
-        single file per sensor
     
     """
 
@@ -382,6 +281,7 @@ def _unzip(folder, files='all', consolidate=True):
 
     if files == 'all':
         files = os.listdir(zipfolder)
+    print 'About to unzip {} files'.format(len(files))
     badfiles = []
     
     for f in files:
@@ -397,10 +297,6 @@ def _unzip(folder, files='all', consolidate=True):
         print("Could not unzip these files:")
         for f in badfiles:
             print f
-        
-    if consolidate:
-        # create a set of unique sensor id's in the csv folder        
-        consolidate_folder(csvfolder)            
   
     
 def update_tmpo(tmposession, hp):
@@ -516,27 +412,23 @@ def load(path_csv, sensors, start=None, end=None):
     
     Notes
     -----
-    Currently, this function only uses the csv files.
+    Currently, this function only calls ``load_sensor`` (csv and/or hdf files).
     Ultimately, it will first call ``load_tmpo`` and if the tmpo database does
     not contain all historic data (depending on start), it will also call 
-    ``load_csv`` (for each sensor). Not implemented.
-    
+    ``load_sensor``. Not implemented.
     
     """
     if isinstance(sensors, str):
         sensors = [sensors]
     
-    dataframes = [load_csv(find_csv(path_csv, sensor)) for sensor in sensors]
+    dataframes = [load_sensor(path_csv, sensor, start, end) for sensor in sensors]
     df = pd.concat(dataframes, axis=1)
     df.index = df.index.tz_convert(pytz.timezone('Europe/Brussels'))
     
     print('{} sensors loaded'.format(len(df.columns)))
-    print "Size of dataframe before slicing: {}".format(df.shape)
-    
-    df = df.ix[start:end].dropna(axis=1, how='all')
-    
-    print "Size of dataframe after slicing and dropping empty sensors: {}".format(df.shape)
+    df = df.dropna(axis=1, how='all')
     print('{} sensors retained'.format(len(df.columns)))
+    print "Size of dataframe: {}".format(df.shape)
 
     return df
 
@@ -570,8 +462,3 @@ def _parse_date(d):
         raise ValueError("{} cannot be parsed into a pandas.Timestamp".format(d))
     else:
         return pts
-        
-    
-    
-    
-    
