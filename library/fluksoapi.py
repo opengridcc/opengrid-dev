@@ -4,7 +4,6 @@ Created on Mon Jan 21 15:31:36 2013 by Carlos Dierckxsens
 
 """
 import sys
-import datetime as dt
 import pandas as pd
 import requests
 import os
@@ -12,6 +11,7 @@ import pytz
 import re
 import zipfile
 import glob
+import time
 
 def save_csv(Ts, csvpath=None, fileNamePrefix=''):
     """
@@ -202,7 +202,7 @@ def synchronize(folder, unzip=True, consolidate=True):
     data folder.
         
     """
-    
+    t0 = time.time()
     if not os.path.exists(folder):
         raise IOError("Provide your path to the data folder where a zip and csv subfolder will be created.")
     from opengrid.library import config
@@ -250,11 +250,18 @@ def synchronize(folder, unzip=True, consolidate=True):
                     handle.write(block)
             downloadfiles.append(f)
             
+    t1 = time.time()
     # Now unzip and/or consolidate
     if unzip:
         _unzip(folder, downloadfiles)
+    t2 = time.time()
     if consolidate:
         consolidate_folder(csvfolder)
+    t3 = time.time()
+    print 'Download time: {} s'.format(t1-t0)
+    print 'Unzip time: {} s'.format(t2-t1)
+    print 'Consolidate time: {} s'.format(t3-t1)
+    print 'Total time: {} s'.format(t3-t0)
         
 
 def _unzip(folder, files='all'):
