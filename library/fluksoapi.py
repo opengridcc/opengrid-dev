@@ -260,7 +260,7 @@ def synchronize(folder, unzip=True, consolidate=True):
     t3 = time.time()
     print 'Download time: {} s'.format(t1-t0)
     print 'Unzip time: {} s'.format(t2-t1)
-    print 'Consolidate time: {} s'.format(t3-t1)
+    print 'Consolidate time: {} s'.format(t3-t2)
     print 'Total time: {} s'.format(t3-t0)
         
 
