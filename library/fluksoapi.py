@@ -160,7 +160,7 @@ def load_file(path):
     return df
 
 
-def load_sensor(folder, sensor, dt_start=None, dt_end=None, files=None):
+def load_sensor(folder, sensor, dt_start=None, dt_end=None, files=None, error_no_files=True):
     """
     Load sensor
     
@@ -171,6 +171,10 @@ def load_sensor(folder, sensor, dt_start=None, dt_end=None, files=None):
     sensor : hex
         Sensor for which files are to be consolidated
     dt_start, dt_end: datetime or equivalent, optional
+    files : optional
+        if not provided, sensor files are searched in the folder
+    error_no_files : boolean, default True
+        If True a ValueError is raised, if False an empty dataframe is returned
     
     Returns
     -------
@@ -178,8 +182,12 @@ def load_sensor(folder, sensor, dt_start=None, dt_end=None, files=None):
     """
     files = files or glob.glob(os.path.join(folder, '*' + sensor + '*'))
     if len(files) == 0:
-        # if no valid (unhidden) files are found, raise a ValueError.
-        raise ValueError('No files found for sensor {} in {}'.format(sensor, folder))
+        if error_no_files:
+            # if no valid (unhidden) files are found, raise a ValueError.
+            raise ValueError('No files found for sensor {} in {}'.format(sensor, folder))
+        else:
+            print('No files found for sensor {} in {}'.format(sensor, folder))
+            return pd.DataFrame()
     print("About to combine {} files for sensor {}".format(len(files), sensor))
     dfs = [load_file(f) for f in files]
     combination = dfs[0]
@@ -511,7 +519,7 @@ def load(path_csv, sensors, start=None, end=None):
     if isinstance(sensors, str):
         sensors = [sensors]
     
-    dataframes = [load_sensor(path_csv, sensor, start, end) for sensor in sensors]
+    dataframes = [load_sensor(path_csv, sensor, start, end, error_no_files=False) for sensor in sensors]
     df = pd.concat(dataframes, axis=1)
     df.index = df.index.tz_convert(pytz.timezone('Europe/Brussels'))
     
