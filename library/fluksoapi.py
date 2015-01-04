@@ -123,7 +123,7 @@ def save_file(df, folder=None, file_type='csv', prefix=''):
         path = os.path.join(folder, prefix + '.csv')
         df.to_csv(path, header=False)
     elif file_type == 'hdf':
-        path = os.path.join(folder, prefix + '_FROM_' + s + '_TO_' + e + '.hdf')
+        path = os.path.join(folder, prefix + '.hdf')
         df.to_hdf(path, 'df', mode='w')
     else:
         raise Exception('fluksoapi.load: file_type should be either csv or hdf')
@@ -245,7 +245,7 @@ def consolidate_sensor(folder, sensor, file_type='csv', dt_day=None, remove_temp
         # Obtain the new filename prefix, something like FX12345678_sensorid
         # the _FROM....hdf will be added by the save_hdf method
         prefix = files[-1].split('_FROM')[0]
-        path = save_file(combination, path=folder, file_type=file_type, prefix=prefix)
+        path = save_file(combination, folder, file_type=file_type, prefix=prefix)
         print('Saved ', path)
         return path
 
@@ -255,7 +255,7 @@ def consolidate_folder(folder, file_type='csv'):
     sensor_set = {x.split('_')[1] for x in glob.glob(os.path.join(folder, '*'))}
     print 'About to consolidate {} sensors'.format(len(sensor_set))
     for sensor in sensor_set:
-        consolidate_sensor(folder, sensor, file_type=file_type)
+        consolidate_sensor(folder, sensor, file_type=file_type, remove_temp=True)
     
 
 def synchronize(folder, unzip=True, consolidate=True, file_type='hdf'):

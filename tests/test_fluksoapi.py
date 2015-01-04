@@ -32,7 +32,7 @@ class FluksoapiTest(unittest.TestCase):
         
         csv_expected = os.path.join(datafolder, 'FL12345678_sensorS_FROM_2014-01-07_16-02-00_TO_2014-01-08_16-01-00.csv' )
         self.assertEqual(csv_expected,
-                         fluksoapi.consolidate_sensor(datafolder, 'sensorS', test=True))
+                         fluksoapi.consolidate_sensor(datafolder, 'sensorS'))
                          
         
                          
@@ -40,8 +40,8 @@ class FluksoapiTest(unittest.TestCase):
         """Consolidate and return single filename if more than one file found"""
         
         datafolder = os.path.join(test_dir, 'data')
-        csv_expected = os.path.join(datafolder, 'FL12345678_sensorD_FROM_2014-01-07_08-02-00_TO_2014-01-08_16-01-00.hdf' )
-        self.assertEqual(csv_expected, fluksoapi.consolidate_sensor(datafolder, 'sensorD', test=True))
+        csv_expected = os.path.join(datafolder, 'FL12345678_sensorD_FROM_2014-01-07_08-02-00_TO_2014-01-08_16-01-00.csv' )
+        self.assertEqual(csv_expected, fluksoapi.consolidate_sensor(datafolder, 'sensorD'))
                          
         os.remove(csv_expected)
 
@@ -50,7 +50,7 @@ class FluksoapiTest(unittest.TestCase):
         """Raise ValueError if no file found"""
         
         datafolder = os.path.join(test_dir, 'data')
-        self.assertRaises(ValueError, fluksoapi.consolidate_sensor, datafolder, 'thissensordoesnotexist', test=True)
+        self.assertRaises(ValueError, fluksoapi.consolidate_sensor, datafolder, 'thissensordoesnotexist')
         
 
         
@@ -59,8 +59,7 @@ class FluksoapiTest(unittest.TestCase):
         
         datafolder = os.path.join(test_dir, 'data')        
         new_csv=fluksoapi.consolidate_sensor(folder = datafolder, 
-                                             sensor = 'sensorD',
-                                             test=True)
+                                             sensor = 'sensorD')
               
         ts1 = fluksoapi.load_file(os.path.join(datafolder, 'FL12345678_sensorD_FROM_2014-01-07_08-02-00_TO_2014-01-08_08-01-00.csv'))
         self.assertTrue(np.isnan(ts1['sensorD'].loc[dt.datetime(2014,1,8,8,0,0, tzinfo=pytz.UTC)]))       
@@ -80,8 +79,7 @@ class FluksoapiTest(unittest.TestCase):
         
         datafolder = os.path.join(test_dir, 'data')        
         new_csv=fluksoapi.consolidate_sensor(folder = datafolder, 
-                                             sensor = 'sensorH',
-                                             test=True)
+                                             sensor = 'sensorH')
                                              
         self.assertEqual(new_csv, os.path.join(datafolder, 'FL12345678_sensorH_FROM_2014-01-07_16-02-00_TO_2014-01-08_16-01-00.csv'))
                                                
@@ -91,9 +89,7 @@ class FluksoapiTest(unittest.TestCase):
         
         datafolder = os.path.join(test_dir, 'data')        
         new_csv=fluksoapi.consolidate_sensor(folder = datafolder, 
-                                             sensor = 'sensorS',
-                                             test=True)
-                        
+                                             sensor = 'sensorS')
               
         self.assertEqual(new_csv, os.path.join(datafolder,'FL12345678_sensorS_FROM_2014-01-07_16-02-00_TO_2014-01-08_16-01-00.csv'))
         
