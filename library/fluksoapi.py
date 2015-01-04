@@ -240,7 +240,7 @@ def consolidate_sensor(folder, sensor, file_type='csv', dt_day=None, remove_temp
         if remove_temp:
             for f in files:
                 os.remove(os.path.join(folder, f))
-        print("Removed the {} temporary files".format(len(files)))
+            print("Removed the {} temporary files".format(len(files)))
         
         # Obtain the new filename prefix, something like FX12345678_sensorid
         # the _FROM....hdf will be added by the save_hdf method

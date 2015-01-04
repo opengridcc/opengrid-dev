@@ -74,15 +74,16 @@ class FluksoapiTest(unittest.TestCase):
         os.remove(new_csv)
 
 
-    def test_consolidate_with_hidden_files(self):
-        """Consolidate should skip hidden files"""
+    def test_consolidate_with_hidden_file(self):
+        """Consolidate should skip hidden file"""
         
         datafolder = os.path.join(test_dir, 'data')        
         new_csv=fluksoapi.consolidate_sensor(folder = datafolder, 
                                              sensor = 'sensorH')
                                              
-        self.assertEqual(new_csv, os.path.join(datafolder, 'FL12345678_sensorH_FROM_2014-01-07_16-02-00_TO_2014-01-08_16-01-00.csv'))
-                                               
+        self.assertEqual(new_csv, os.path.join(datafolder, 'FL12345678_sensorH_FROM_2014-01-07_12-02-00_TO_2014-01-08_16-01-00.csv'))
+        os.remove(new_csv)
+        
         
     def test_consolidate_single_file(self):
         """Consolidating a single file should NOT consolidate but should return the file"""
@@ -92,6 +93,24 @@ class FluksoapiTest(unittest.TestCase):
                                              sensor = 'sensorS')
               
         self.assertEqual(new_csv, os.path.join(datafolder,'FL12345678_sensorS_FROM_2014-01-07_16-02-00_TO_2014-01-08_16-01-00.csv'))
+        
+    def test_consolidate_day(self):
+        """Consolidating 2 files for a single day and checking result"""
+        
+        datafolder = os.path.join(test_dir, 'data')        
+        new_csv=fluksoapi.consolidate_sensor(folder = datafolder, 
+                                             sensor = 'sensorD',
+                                             dt_day = dt.datetime(2014,1,7))
+              
+        ts1 = fluksoapi.load_file(os.path.join(datafolder, 'FL12345678_sensorD_FROM_2014-01-07_08-02-00_TO_2014-01-08_08-01-00.csv'))
+        self.assertTrue(np.isnan(ts1['sensorD'].loc[dt.datetime(2014,1,8,8,0,0, tzinfo=pytz.UTC)]))       
+        ts2 = fluksoapi.load_file(os.path.join(datafolder, 'FL12345678_sensorD_FROM_2014-01-07_16-02-00_TO_2014-01-08_16-01-00.csv'))
+
+        ts = fluksoapi.load_file(new_csv)
+        self.assertEqual(ts.index[0], ts1.index[0])
+        self.assertEqual(ts.index[-1], dt.datetime(2014,1,8,0,0,0, tzinfo=pytz.UTC))
+        
+        os.remove(new_csv)
         
     def test_load_file(self):
         """load_file should return a pandas dataframe with localized index (UTC)"""
@@ -132,7 +151,7 @@ class FluksoapiTest(unittest.TestCase):
         pts = fluksoapi._parse_date(1416778251.460574)
         self.assertEqual(1416778251.460574, pts.value/1e9)
         
-    def test_pars_date_from_string(self):
+    def test_parse_date_from_string(self):
         """Parsing some commong types of strings"""
         
         dt_ = pytz.UTC.localize(dt.datetime(2014,11,23,1,2,3))
