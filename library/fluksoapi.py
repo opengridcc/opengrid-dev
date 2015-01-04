@@ -4,6 +4,7 @@ Created on Mon Jan 21 15:31:36 2013 by Carlos Dierckxsens
 
 """
 import sys
+import datetime as dt
 import pandas as pd
 import requests
 import os
@@ -13,65 +14,120 @@ import zipfile
 import glob
 import time
 
-def save_csv(Ts, csvpath=None, fileNamePrefix=''):
-    """
-    Save the TimeSeries or DataFrame to csv with specified name
+def pull_api(sensor, token, unit, interval='day', resolution='minute'):
+   
+    """     
+   
+    Function for downloading data from fluksometers
     
     Parameters
     ----------
-    Ts : pandas Timeseries or Dataframe
-    csvpath : path, default=None
-        Folder where the csv will be saved. Defaults to os.getcwd()
-    fileNamePrefix = string, default=''
-        Name prefix for the csv, usually FLxxxxxxx_sensorid
-        
-    Returns
-    -------
-    csv : abspath
-        Absolute path to the saved file
-    """
-    
-   
-    # save to file
-    if csvpath is None:
-        csvpath = os.getcwd()
-    s = Ts.index[0].strftime(format="%Y-%m-%d_%H-%M-%S")
-    e = Ts.index[-1].strftime(format="%Y-%m-%d_%H-%M-%S")
-        
-    csv = os.path.join(csvpath, fileNamePrefix + '_FROM_' + s + 
-                                    '_TO_' + e + '.csv')
-    
-    Ts.to_csv(csv, header=False)
-    return csv    
+    - interval : string specifying the interval (day, month, ...)
+    - sensor :  sensor name (from the flukso.net sensor tab)
+    - token :  sensor token (from the flukso.net sensor tab)
+    - resolution : time resolution (e.g. minute, 15min, hour, day, week, month, 
+      year, decade, night)
+    - unit : unit of measurements (e.g. watt, kwhperyear, lperday)
 
-   
-def save_hdf(df, path=None, prefix=''):
+    Note
+    ----
+    The Flukso Server will automatically restrict the data to what's available
+    
+    
+    Returns
+    -------
+    Result of the http request with the raw data.  
+    Use the save2csv function to parse and save.
     """
-    Save the TimeSeries or DataFrame to hdf with specified name
+    
+    payload = {'interval'   :   interval,
+               'resolution' :   resolution,
+               'unit'       :   unit}
+               
+    headers = {'Accept'     :   'application/json', 
+               'X-Version'  :   '1.0', 
+               'X-Token'    :   token}  
+               
+    url = 'https://api.flukso.net' + '/sensor/' + sensor 
+    
+    # Send Request
+    try:    
+        s = requests.Session()
+        r = s.get(url, params=payload, headers=headers, verify=False)
+    except:
+        print "-------> Problem with HTTP request to Flukso <-------"
+    
+    # check result
+    if not r.ok:
+        print "The flukso api GET request did not succeed."
+        print "Some details:"
+        print "Request headers:"
+        print r.request.headers
+        print "Request url:"
+        print r.request.url
+    
+    return r
+
+
+def parse(r):
+    """
+    Parse and return a pandas TimeSeries object
+    """
+    
+    
+    # Create TimeSeries   
+    try:
+        d = {}
+        for tup in r.json():
+            d[dt.datetime.fromtimestamp(tup[0])] = tup[1]
+        
+    except:
+        print "-------> Problem with Flukso data parsing <-------"
+        raise
+    
+    #pdb.set_trace()
+    ts = pd.TimeSeries(data=d)
+    # Convert the index to a pandas DateTimeIndex 
+    ts.index = pd.to_datetime(ts.index)
+    
+    return ts
+
+
+def save_file(df, folder=None, file_type='csv', prefix=''):
+    """
+    Save the TimeSeries or DataFrame to csv or hdf with specified name
     
     Parameters
     ----------
-    ts : pandas Timeseries or Dataframe
-    path : path, default=None
-        Folder where the hdf will be saved. Defaults to os.getcwd()
+    df : pandas Timeseries or Dataframe
+    folder : folder, default=None
+        Folder where the file will be saved. Defaults to os.getcwd()
+    file_type : {'csv', 'hdf'}, default='csv'
+        File type of the saved file.
     prefix = string, default=''
-        Name prefix for the hdf, usually FLxxxxxxx_sensorid
+        Name prefix for the file name, usually FLxxxxxxx_sensorid
         
     Returns
     -------
-    hdf : abspath
+    path : abspath
         Absolute path to the saved file
     """
     
    
     # save to file
-    path = path or os.getcwd()
+    folder = folder or os.getcwd()
     s = df.index[0].strftime(format="%Y-%m-%d_%H-%M-%S")
     e = df.index[-1].strftime(format="%Y-%m-%d_%H-%M-%S")
-    hdf = os.path.join(path, prefix + '_FROM_' + s + '_TO_' + e + '.hdf')
-    
-    df.to_hdf(hdf, 'df', mode='w')
-    return hdf
+    prefix = prefix + '_FROM_' + s + '_TO_' + e
+    if file_type == 'csv':
+        path = os.path.join(folder, prefix + '.csv')
+        df.to_csv(path, header=False)
+    elif file_type == 'hdf':
+        path = os.path.join(folder, prefix + '_FROM_' + s + '_TO_' + e + '.hdf')
+        df.to_hdf(path, 'df', mode='w')
+    else:
+        raise Exception('fluksoapi.load: file_type should be either csv or hdf')
+    return path
 
    
 def load_file(path):
@@ -104,8 +160,23 @@ def load_file(path):
     return df
 
 
-def load_sensor(folder, sensor, dt_start=None, dt_end=None):
-    files = glob.glob(os.path.join(folder, '*' + sensor + '*'))
+def load_sensor(folder, sensor, dt_start=None, dt_end=None, files=None):
+    """
+    Load sensor
+    
+    Parameters
+    ----------
+    folder : path
+        Folder containing the hdf and/or csv files
+    sensor : hex
+        Sensor for which files are to be consolidated
+    dt_start, dt_end: datetime or equivalent, optional
+    
+    Returns
+    -------
+    combination: dataframe
+    """
+    files = files or glob.glob(os.path.join(folder, '*' + sensor + '*'))
     if len(files) == 0:
         # if no valid (unhidden) files are found, raise a ValueError.
         raise ValueError('No files found for sensor {} in {}'.format(sensor, folder))
@@ -118,34 +189,46 @@ def load_sensor(folder, sensor, dt_start=None, dt_end=None):
     return combination
 
 
-def consolidate_sensor(folder, sensor, test=False):
+def consolidate_sensor(folder, sensor, file_type='csv', dt_day=None, remove_temp=False):
     """
-    Merge all csv and/or hdf files for a given sensor into a single hdf file
-    
+    Merge all csv and/or hdf files for     
     - the given sensor
     - and the given day
-    into a single hdf file
+    into a single csv or hdf file
     
     Parameters
     ----------
     folder : path
-        Folder containing the csv files
+        Folder containing the csv and/or hdf files
     sensor : hex
         Sensor for which files are to be consolidated
+    file_type : {'csv', 'hdf'}, default='csv'
+        File type of the saved file.
+    dt_day : (optional) datetime
+        If a valid datetime is passed, only files containing data from this day
+        will be considered
     remove_temp : (optional) Boolean, default=False
-        If True, only the resulting consolidated hdf is kept, the files that
+        If True, only the resulting consolidated file is kept, the files that
         have been consolidated are deleted.
         
     Returns
     -------
-    hdf : path of the resulting hdf file
+    path : path of the consolidated csv or hdf file
     
     """
-		
+    
     # List all files (ABSPATH) for the given sensor in the given path, without hidden files			
     # glob.glob() is equivalent to os.listdir(folder) without the hidden files (start with '.') 
     # and returned as absolute paths
     files = glob.glob(os.path.join(folder, '*' + sensor + '*'))
+    if dt_day is not None:
+        #only retain data from this day
+        dt_day_string = dt_day.strftime(format="%Y-%m-%d")
+        files = [f for f in files if dt_day_string in f]
+        dt_start = dt.datetime.strptime(dt_day_string, "%Y-%m-%d")
+        dt_end = dt_start + dt.timedelta(days=1)
+    else:
+        dt_start = dt_end = None
     if len(files) == 0:
         # if no valid (unhidden) files are found, raise a ValueError.
         raise ValueError('No files found for sensor {} in {}'.format(sensor, folder))
@@ -153,8 +236,8 @@ def consolidate_sensor(folder, sensor, test=False):
         print("One file found and retained for sensor {}".format(sensor))
         return files[0]
     else:
-        combination = load_sensor(folder, sensor)
-        if not test:
+        combination = load_sensor(folder, sensor, dt_start, dt_end, files)
+        if remove_temp:
             for f in files:
                 os.remove(os.path.join(folder, f))
         print("Removed the {} temporary files".format(len(files)))
@@ -162,20 +245,20 @@ def consolidate_sensor(folder, sensor, test=False):
         # Obtain the new filename prefix, something like FX12345678_sensorid
         # the _FROM....hdf will be added by the save_hdf method
         prefix = files[-1].split('_FROM')[0]
-        hdf = save_hdf(combination, path=folder, prefix=prefix)
-        print('Saved ', hdf)
-        return hdf
+        path = save_file(combination, path=folder, file_type=file_type, prefix=prefix)
+        print('Saved ', path)
+        return path
 
 
-def consolidate_folder(folder):
+def consolidate_folder(folder, file_type='csv'):
     
     sensor_set = {x.split('_')[1] for x in glob.glob(os.path.join(folder, '*'))}
     print 'About to consolidate {} sensors'.format(len(sensor_set))
     for sensor in sensor_set:
-        consolidate_sensor(folder, sensor)
+        consolidate_sensor(folder, sensor, file_type=file_type)
     
 
-def synchronize(folder, unzip=True, consolidate=True):
+def synchronize(folder, unzip=True, consolidate=True, file_type='hdf'):
     """Download the latest zip-files from the opengrid droplet, unzip and consolidate.
     
     The files will be stored in folder/zip and unzipped and 
@@ -256,7 +339,7 @@ def synchronize(folder, unzip=True, consolidate=True):
         _unzip(folder, downloadfiles)
     t2 = time.time()
     if consolidate:
-        consolidate_folder(csvfolder)
+        consolidate_folder(csvfolder, file_type=file_type)
     t3 = time.time()
     print 'Download time: {} s'.format(t1-t0)
     print 'Unzip time: {} s'.format(t2-t1)
