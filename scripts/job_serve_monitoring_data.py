@@ -50,7 +50,7 @@ zipfilename = date.strftime(format="%Y%m%d")
 with zipfile.ZipFile(os.path.join(path_to_webserver, zipfilename+'.zip'), 'w') as myzip:
     for sensor in sensors:
         # create a csv with the data of the given day
-        csv=fluksoapi.consolidate(folder=path_to_data, sensor=sensor, dt_day=date)
+        csv=fluksoapi.consolidate_sensor(folder=path_to_data, sensor=sensor, dt_day=date)
         # add to myzip
         myzip.write(csv, arcname=os.path.split(csv)[-1])
         # and remove the file.  original files are kept
