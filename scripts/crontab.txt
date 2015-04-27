@@ -22,5 +22,6 @@
 # m h  dom mon dow   command
 
 0 */8 * * * cd /usr/local/data; python /usr/local/src/opengrid/scripts/extract_flukso_api.py
-*/5 * * * * cd /usr/local/data; python /usr/local/src/opengrid/scripts/job_SyncAndRenderGraphs.py
+#*/5 * * * * cd /usr/local/data; python /usr/local/src/opengrid/scripts/job_SyncAndRenderGraphs.py
+* * * * * cd /usr/local/data; python /usr/local/src/opengrid/scripts/job_synctmpo.py > ./logs/job_synctmpo.log 2>&1
 20 1 * * * cd /usr/local/data; python /usr/local/src/opengrid/scripts/job_serve_monitoring_data.py
