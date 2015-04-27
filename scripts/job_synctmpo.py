@@ -20,8 +20,10 @@ import tmpo
 
 tmpos = tmpo.Session()
 tmpos.debug = True
-hp = houseprint.load_houseprint_from_file('hp_anonymous.pkl')
 
+# read houseprint from previously pickled anonymous hp.
+# the file hp_anonymous.pkl is stored in the script folder
+hp = houseprint.load_houseprint_from_file(os.path.join(script_dir, 'hp_anonymous.pkl'))
 
 tmpos = fluksoapi.update_tmpo(tmposession = tmpos, hp=hp)
 tmpos.sync()
