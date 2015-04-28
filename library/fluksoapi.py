@@ -260,7 +260,7 @@ def consolidate_sensor(folder, sensor, file_type='csv', dt_day=None, remove_temp
 
 def consolidate_folder(folder, file_type='csv'):
     
-    sensor_set = {x.split('_')[1] for x in glob.glob(os.path.join(folder, '*'))}
+    sensor_set = {x.split('_')[-7] for x in glob.glob(os.path.join(folder, '*'))}
     print 'About to consolidate {} sensors'.format(len(sensor_set))
     for sensor in sensor_set:
         consolidate_sensor(folder, sensor, file_type=file_type, remove_temp=True)
