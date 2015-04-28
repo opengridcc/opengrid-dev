@@ -14,6 +14,11 @@ import os, sys
 import gspread
 import inspect
 import cPickle as pickle
+import config
+import json
+from oauth2client.client import SignedJwtAssertionCredentials
+
+c = config.Config()
 
 class Houseprint(object):
     """
@@ -32,14 +37,14 @@ class Houseprint(object):
         """
         self.sensoramount=6
         
-        # Get the path of this current file 
-        self.sourcedir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-        
-        pwdfile = file(os.path.join(self.sourcedir, 'og.txt'))
-        pwd = pwdfile.readlines()[0].rstrip()
+        gjson = c.get('houseprint','json')
+        json_key = json.load(open(gjson))
+        scope = ['https://spreadsheets.google.com/feeds']
+        credentials = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'], scope)
         
         # open spreadsheet, store main sheet in self.sheet
-        self.gc = gspread.login('opengridcc@gmail.com', pwd)
+        self.gc = gspread.authorize(credentials)
+        self.gc.login()
         self.sheet = self.gc.open(houseprint).sheet1
         self.cellvalues=self.sheet.get_all_values()
                 
@@ -55,6 +60,43 @@ class Houseprint(object):
         print houseprint + " successfully opened."
          
     
+    def get_sensors(self, sensortype=None, flukso_id=None, tokens=False):
+        """
+        Return a list with sensor ids for the given sensortype and/or 
+        flukso_id.
+        
+        Parameters
+        ----------
+        
+        sensortype = {None, 'gas', 'electricity', 'water'}, optional
+        flukso_id : string, optional
+        tokens : bool, optional
+            If True, return a list with (sensor,token) tuples
+        
+        Returns
+        --------
+        List with sensors.  
+        ==> if tokens==False, the list contains sensor ids
+        ==> if tokens==True, the list contains tuples (sensor,token)
+        """
+        
+        if not hasattr(self, 'fluksosensors'):
+            self.get_all_fluksosensors()
+        
+        res = []
+        for flukso, sensors in self.fluksosensors.items():
+            if flukso_id in (None, flukso):
+                for int_sensor, sensordic in sensors.items():
+                    if (sensordic is not None
+                    and sensortype in (None, sensordic['Type'])):
+                        if tokens:
+                            res.append((sensordic['Sensor'], sensordic['Token']))
+                        else:
+                            res.append(sensordic['Sensor'])
+        
+        return res
+
+
     def get_sensor(self, int_row, int_sensor):
         """
         Return dictionary with all sensor specifications for sensor y in row x.
@@ -161,19 +203,7 @@ class Houseprint(object):
         List with all sensor numbers of the given sensortype.
         """
         
-        if not hasattr(self, 'fluksosensors'):
-            self.get_all_fluksosensors()
-        
-        res = [] 
-        for flukso, sensors in self.fluksosensors.items():
-            for int_sensor,sensordic in sensors.items():
-                try:
-                    if sensordic['Type'] == sensortype:
-                        res.append(sensordic['Sensor'])
-                except TypeError:
-                    pass
-                
-        return res
+        return self.get_sensors(sensortype=sensortype)
         
 
     def get_all_sensors(self, tokens=False):
@@ -192,21 +222,7 @@ class Houseprint(object):
         ==> if tokens==True, the list contains tuples (sensor,token)
         """
         
-        if not hasattr(self, 'fluksosensors'):
-            self.get_all_fluksosensors()
-        
-        res = [] 
-        for flukso, sensors in self.fluksosensors.items():
-            for int_sensor,sensordic in sensors.items():
-                try:
-                    if tokens:
-                        res.append((sensordic['Sensor'], sensordic['Token']))
-                    else:
-                        res.append(sensordic['Sensor'])
-                except TypeError:
-                    pass
-                
-        return res
+        return self.get_sensors(tokens=tokens)
 
 
     def get_flukso_from_sensor(self, sensor):
