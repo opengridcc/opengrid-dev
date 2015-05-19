@@ -21,6 +21,8 @@ apikey: CHANGE_ME
 [tmpo]
 # specify the location of tmpo-py
 folder: path_to_folder_containing_tmpo.py
+# data: only specify the path to the tmpo-data if different from the default
+# data: path_to_tmpo_data
 
 [env]
 # type can be dev or prod.  
