@@ -2,7 +2,7 @@ FROM ubuntu:14.04
 
 RUN apt-get update
 RUN apt-get -y install python-numpy python-scipy python-matplotlib python-pandas ipython ipython-notebook python-pip
-RUN pip install gspread requests requests_futures
+RUN pip install gspread requests requests_futures oauth2client
 
 VOLUME /usr/local/opengrid
 
