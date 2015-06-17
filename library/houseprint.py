@@ -14,6 +14,11 @@ import os, sys
 import gspread
 import inspect
 import cPickle as pickle
+import config
+import json
+from oauth2client.client import SignedJwtAssertionCredentials
+
+c = config.Config()
 
 class Houseprint(object):
     """
@@ -32,14 +37,14 @@ class Houseprint(object):
         """
         self.sensoramount=6
         
-        # Get the path of this current file 
-        self.sourcedir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-        
-        pwdfile = file(os.path.join(self.sourcedir, 'og.txt'))
-        pwd = pwdfile.readlines()[0].rstrip()
+        gjson = c.get('houseprint','json')
+        json_key = json.load(open(gjson))
+        scope = ['https://spreadsheets.google.com/feeds']
+        credentials = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'], scope)
         
         # open spreadsheet, store main sheet in self.sheet
-        self.gc = gspread.login('opengridcc@gmail.com', pwd)
+        self.gc = gspread.authorize(credentials)
+        self.gc.login()
         self.sheet = self.gc.open(houseprint).sheet1
         self.cellvalues=self.sheet.get_all_values()
                 
