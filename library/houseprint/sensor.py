@@ -31,7 +31,7 @@ class Sensor(object):
                self.type
               )
 
-    def get_data(self, head = None, tail = None):
+    def get_data(self, head = None, tail = None, resample = 's'):
         """
             Return a Pandas Series with measurement data
 
