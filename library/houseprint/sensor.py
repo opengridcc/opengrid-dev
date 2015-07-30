@@ -68,7 +68,7 @@ class Fluksosensor(Sensor):
         if token != '':
             self.token = token
         else:
-            self.token = parent.mastertoken
+            self.token = device.mastertoken
 
     # @Override :-D
     def get_data(self, head = None, tail = None, resample = 's'):
