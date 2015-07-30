@@ -48,7 +48,7 @@ class Site(object):
         """
         return [sensor for sensor in self.sensors if sensor.type == sensortype or sensortype is None]
 
-    def get_data(self, sensortype = None, head = None, tail = None, resample='s'):
+    def get_data(self, sensortype = None, head = None, tail = None, resample='min'):
         """
             Return a Pandas Dataframe with joined data for all sensors in this Site
 

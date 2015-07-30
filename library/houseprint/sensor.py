@@ -31,7 +31,7 @@ class Sensor(object):
                self.type
               )
 
-    def get_data(self, head = None, tail = None, resample = 's'):
+    def get_data(self, head = None, tail = None, resample = 'min'):
         """
             Return a Pandas Series with measurement data
 
@@ -71,7 +71,7 @@ class Fluksosensor(Sensor):
             self.token = device.mastertoken
 
     # @Override :-D
-    def get_data(self, head = None, tail = None, resample = 's'):
+    def get_data(self, head = None, tail = None, resample = 'min'):
         '''
             Connect to tmpo and fetch a data series
 

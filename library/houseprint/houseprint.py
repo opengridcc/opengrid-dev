@@ -327,7 +327,7 @@ class Houseprint(object):
 
         tmpos.sync()
 
-    def get_data(self, sensortype = None, head = None, tail = None, resample = 's'):
+    def get_data(self, sensortype = None, head = None, tail = None, resample = 'min'):
         """
             Return a Pandas Dataframe with joined data for all sensors in the houseprint
 
