@@ -37,7 +37,7 @@ class Device(object):
         """
         return [sensor for sensor in self.sensors if sensor.type == sensortype or sensortype is None]
 
-    def get_data(self, sensortype = None, head = None, tail = None):
+    def get_data(self, sensortype = None, head = None, tail = None, resample = 's'):
         """
             Return a Pandas Dataframe with the joined data for all sensors in this device
 
@@ -52,7 +52,7 @@ class Device(object):
         """
 
         sensors = self.get_sensors(sensortype)
-        series = [sensor.get_data(head=head,tail=tail) for sensor in sensors]
+        series = [sensor.get_data(head=head,tail=tail,resample=resample) for sensor in sensors]
         return pd.concat(series, axis=1)
 
 class Fluksometer(Device):

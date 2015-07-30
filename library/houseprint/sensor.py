@@ -71,7 +71,7 @@ class Fluksosensor(Sensor):
             self.token = parent.mastertoken
 
     # @Override :-D
-    def get_data(self, head = None, tail = None):
+    def get_data(self, head = None, tail = None, resample = 's'):
         '''
             Connect to tmpo and fetch a data series
 
@@ -89,10 +89,21 @@ class Fluksosensor(Sensor):
         if head is None:
             head = 0
         if tail is None:
-            tail = tmpo.EPOCHS_MAX
+            tail = 2147483647 #tmpo epochs max
 
         data = tmpos.series(sid = self.key,
                            head = head,
                            tail = tail)
+
+        if not data.dropna().empty:
+
+            #interpolate on seconds
+            newindex = data.resample('s').index
+            data = data.reindex(data.index + newindex)
+            data = data.interpolate(method='time')
+            data = data.reindex(newindex)
+
+            #resample as requested
+            data = data.resample(resample)
 
         return data
