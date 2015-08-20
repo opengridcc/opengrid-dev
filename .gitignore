@@ -10,3 +10,4 @@ test_scripts/
 library/houseprint-d74f58100c93.json
 *.csv
 .idea/*
+*.json
