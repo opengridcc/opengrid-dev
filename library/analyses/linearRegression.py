@@ -104,7 +104,7 @@ class LinearRegression(Analysis):
         x = self._getPlotX()
 
         ax1.plot(x, self.getY(x), '-', label=label)
-        plt.legend()
+        plt.legend(loc='upper left')
 
         if forceOrigin:
             x1,x2,y1,y2 = plt.axis()
