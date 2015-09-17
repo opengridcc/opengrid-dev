@@ -8,3 +8,7 @@ tests/data_backup/
 data/
 test_scripts/
 library/houseprint-d74f58100c93.json
+
+.idea/*
+scripts/*.json
+scripts/*.csv
