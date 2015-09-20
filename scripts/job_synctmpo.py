@@ -13,15 +13,19 @@ script_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 # add the path to opengrid to sys.path
 sys.path.append(os.path.join(script_dir, os.pardir, os.pardir))
 
-from opengrid.library import fluksoapi
-from opengrid.library import houseprint
 sys.path.append('/usr/local/src/tmpo-py')
 import tmpo
 
+from opengrid.library.houseprint import houseprint
+
+try:
+    if os.path.exists(c.get('tmpo', 'data')):
+        path_to_tmpo_data = c.get('tmpo', 'data')
+except:
+    path_to_tmpo_data = None
+
 tmpos = tmpo.Session()
 tmpos.debug = True
-hp = houseprint.load_houseprint_from_file('hp_anonymous.pkl')
-
-
-tmpos = fluksoapi.update_tmpo(tmposession = tmpos, hp=hp)
-tmpos.sync()
+hp = houseprint.load_houseprint_from_file('new_houseprint.pkl')
+hp.init_tmpo(tmpos)
+hp.sync_tmpo()
