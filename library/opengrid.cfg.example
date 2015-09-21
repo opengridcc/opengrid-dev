@@ -18,6 +18,9 @@ json: /path/to/google/oAuth2/file.json
 [Wunderground]
 apikey: CHANGE_ME
 
+[Forecast.io]
+apikey: CHANGE_ME
+
 [tmpo]
 # specify the location of tmpo-py
 folder: path_to_folder_containing_tmpo.py
