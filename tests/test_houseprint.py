@@ -26,7 +26,7 @@ class HouseprintTest(unittest.TestCase):
         All tests can use self.hp as the houseprint object
         """
         
-        cls.hp = Houseprint(houseprint = "test Opengrid houseprint (Responses)")
+        cls.hp = Houseprint(houseprint = "test Opengrid houseprint (Responses) (old)")
         
     @classmethod    
     def tearDownClass(cls):
