@@ -18,7 +18,7 @@ It can be pickled, saved and passed around
 """
 
 class Houseprint(object):
-    def __init__(self, gjson, spreadsheet = "Opengrid houseprint (Responses)"):
+    def __init__(self, gjson, spreadsheet="Opengrid houseprint (Responses)"):
         """
             Parameters
             ---------
@@ -79,7 +79,7 @@ class Houseprint(object):
 
         print 'Houseprint parsing complete'
 
-    def _parse_sites(self,sheet):
+    def _parse_sites(self, sheet):
         """
             Submethod of _parse_sheet() that parses only the 'sites' sheet
 
@@ -106,7 +106,7 @@ class Houseprint(object):
 
         print '{} Sites created'.format(len(self.sites))
 
-    def _parse_devices(self,sheet):
+    def _parse_devices(self, sheet):
         """
             Submethod of _parse_sheet() that parses only the 'devices' sheet
 
@@ -137,7 +137,7 @@ class Houseprint(object):
 
         print '{} Devices created'.format(sum([len(site.devices) for site in self.sites]))
 
-    def _parse_sensors(self,sheet):
+    def _parse_sensors(self, sheet):
         """
             Submethod of _parse_sheet() that parses only the 'sensors' sheet
 
@@ -184,7 +184,7 @@ class Houseprint(object):
 
         print '{} sensors created'.format(sum([len(site.sensors) for site in self.sites]))
 
-    def get_sensors(self, sensortype = None):
+    def get_sensors(self, sensortype=None):
         """
             Return a list with all sensors
 
@@ -327,7 +327,7 @@ class Houseprint(object):
 
         tmpos.sync()
 
-    def get_data(self, sensortype = None, head = None, tail = None, resample = 'min'):
+    def get_data(self, sensortype=None, head=None, tail=None, resample='min'):
         """
             Return a Pandas Dataframe with joined data for all sensors in the houseprint
 
