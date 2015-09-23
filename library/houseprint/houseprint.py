@@ -4,7 +4,8 @@ import json, gspread, datetime, os, sys
 from oauth2client.client import SignedJwtAssertionCredentials
 import pandas as pd
 
-if sys.version_info[0] == 3:
+#compatibility with py3
+if sys.version_info.major == 3:
     import pickle
 else:
     import cPickle as pickle
@@ -12,9 +13,15 @@ else:
 #The invoking script should have added the path to the tmpo library
 import tmpo
 
-from site import Site
-from device import Fluksometer
-from sensor import Fluksosensor
+#compatibility with py3
+if sys.version_info.major == 3:
+    from .site import Site
+    from .device import Fluksometer
+    from .sensor import Fluksosensor
+else:
+    from site import Site
+    from device import Fluksometer
+    from sensor import Fluksosensor
 
 """
 The Houseprint is a Singleton object which contains all metadata for sites, devices and sensors.
