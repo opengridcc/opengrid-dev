@@ -69,7 +69,7 @@ class Houseprint(object):
         #fetch credentials
         json_key = json.load(open(gjson))
         scope = ['https://spreadsheets.google.com/feeds']
-        credentials = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'], scope)
+        credentials = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'].encode('ascii'), scope)
 
         #authorize and login
         gc = gspread.authorize(credentials)
