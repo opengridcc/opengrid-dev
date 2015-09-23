@@ -12,7 +12,9 @@ import inspect
 test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 # add the path to opengrid to sys.path
 sys.path.append(os.path.join(test_dir, os.pardir, os.pardir))
-from opengrid.library.houseprint import Houseprint, load_houseprint_from_file
+from opengrid.library.houseprint import houseprint
+from opengrid.library import config
+c = config.Config()
 
 class HouseprintTest(unittest.TestCase):
     """
@@ -23,17 +25,20 @@ class HouseprintTest(unittest.TestCase):
     def setUpClass(cls):
         """
         Make the connection to the google drive spreadsheet only once.
+        This makes the test rather an integration than a unitttest.
+        
         All tests can use self.hp as the houseprint object
         """
         
-        cls.hp = Houseprint(houseprint = "test Opengrid houseprint (Responses)")
+        cls.hp = houseprint.Houseprint(gjson=c.get('houseprint','json'), 
+                                       spreadsheet="unit and integration test houseprint")
         
     @classmethod    
     def tearDownClass(cls):
         
         pass
     
-
+    
     def test_get_sensor(self):
         """Test getting an individual sensor"""
         
