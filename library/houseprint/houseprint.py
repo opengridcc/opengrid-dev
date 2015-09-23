@@ -54,7 +54,7 @@ class Houseprint(object):
                 Name of the spreadsheet to connect to.
         """
 
-        print 'Opening connection to Houseprint sheet'
+        print('Opening connection to Houseprint sheet')
         #fetch credentials
         json_key = json.load(open(gjson))
         scope = ['https://spreadsheets.google.com/feeds']
@@ -65,19 +65,19 @@ class Houseprint(object):
         gc.login()
 
         #open sheets
-        print "Opening spreadsheets"
+        print("Opening spreadsheets")
         sheet = gc.open(spreadsheet)
         sites_sheet = sheet.worksheet('Accounts')
         devices_sheet = sheet.worksheet('Devices')
         sensors_sheet = sheet.worksheet('Sensors')
 
-        print 'Parsing spreadsheets'
+        print('Parsing spreadsheets')
         #3 sub-methods that parse the different sheets
         self._parse_sites(sites_sheet)
         self._parse_devices(devices_sheet)
         self._parse_sensors(sensors_sheet)
 
-        print 'Houseprint parsing complete'
+        print('Houseprint parsing complete')
 
     def _parse_sites(self, sheet):
         """
@@ -104,7 +104,7 @@ class Houseprint(object):
                            epc_cert = r['EPC certificate'])
             self.sites.append(new_site)
 
-        print '{} Sites created'.format(len(self.sites))
+        print('{} Sites created'.format(len(self.sites)))
 
     def _parse_devices(self, sheet):
         """
@@ -135,7 +135,7 @@ class Houseprint(object):
             #add new device to parent site
             site.devices.append(new_device)
 
-        print '{} Devices created'.format(sum([len(site.devices) for site in self.sites]))
+        print('{} Devices created'.format(sum([len(site.devices) for site in self.sites])))
 
     def _parse_sensors(self, sheet):
         """
@@ -182,7 +182,7 @@ class Houseprint(object):
                 new_sensor.device.sensors.append(new_sensor)
             new_sensor.site.sensors.append(new_sensor)
 
-        print '{} sensors created'.format(sum([len(site.sensors) for site in self.sites]))
+        print('{} sensors created'.format(sum([len(site.sensors) for site in self.sites])))
 
     def get_sensors(self, sensortype=None):
         """

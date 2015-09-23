@@ -99,11 +99,11 @@ class Wunderground(object):
         """
         
         try:
-            print "These are the known current properties:\n"
+            print("These are the known current properties:\n")
             for prop in self.json_current['current_observation'].keys():
-                print prop
+                print(prop)
         except:
-            print "Problem reading self.json_current"
+            print("Problem reading self.json_current")
             
 
     def get_current(self, prop):
@@ -132,7 +132,7 @@ class Wunderground(object):
         try:
             curr_value = float(self.json_current['current_observation'][prop] )
         except:
-            print "Property not found."            
+            print("Property not found.")            
             self.show_properties()
             raise ValueError('Property {} not found.  See show_properties() to get a list with all possibilities'.format(prop))
         
