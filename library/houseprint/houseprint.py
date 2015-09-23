@@ -1,9 +1,13 @@
 __author__ = 'Jan Pecinovsky'
 
-import json, gspread, datetime, os
+import json, gspread, datetime, os, sys
 from oauth2client.client import SignedJwtAssertionCredentials
-import cPickle as pickle
 import pandas as pd
+
+if sys.version_info[0] == 3:
+    import pickle
+else:
+    import cPickle as pickle
 
 #The invoking script should have added the path to the tmpo library
 import tmpo
