@@ -125,10 +125,10 @@ class Houseprint(object):
             site = self.find_site(r['Parent site'])
             if site is None:
                 raise ValueError('Device {} was given an invalid site key {}'.format(r['Key'], r['Parent site']))
-
+                            
             #create a new device according to its manufacturer
             if r['manufacturer'] == 'Flukso':
-                new_device = Fluksometer(site = site, key = r['Key'])
+                new_device = Fluksometer(site=site, key = r['Key'])
             else:
                 raise NotImplementedError('Devices from {} are not supported'.format(r['manufacturer']))
 
@@ -216,7 +216,60 @@ class Houseprint(object):
                 res.append(device)
         return res
 
-    def find_site(self, key):
+    def search_sites(self, **kwargs):
+        '''
+            Parameters
+            ----------
+            kwargs: any keyword argument, like key=mykey
+
+            Returns
+            -------
+            List of sites satisfying the search criterion or empty list if no
+            result found.
+        '''
+        
+        result = []
+        for site in self.sites:
+            keep = False
+            for keyword, value in kwargs.items():
+                if getattr(site, keyword) == value:
+                    keep = True
+                else:
+                    keep = False
+                    break
+            if keep:
+                result.append(site)
+                
+        return result
+        
+        
+    def search_sensors(self, **kwargs):
+        '''
+            Parameters
+            ----------
+            kwargs: any keyword argument, like key=mykey
+
+            Returns
+            -------
+            List of sensors satisfying the search criterion or empty list if no
+            result found.
+        '''
+        
+        result = []
+        for sensor in self.get_sensors():
+            keep = False
+            for keyword, value in kwargs.items():
+                if getattr(sensor, keyword) == value:
+                    keep = True
+                else:
+                    keep = False
+                    break
+            if keep:
+                result.append(sensor)
+                
+        return result        
+
+    def find_site(self, key): 
         '''
             Parameters
             ----------
@@ -225,12 +278,14 @@ class Houseprint(object):
             Returns
             -------
             Site
-        '''
+        '''    
+    
         for site in self.sites:
             if site.key == key:
                 return site
         return None
-
+        
+        
     def find_device(self, key):
         '''
             Parameters
