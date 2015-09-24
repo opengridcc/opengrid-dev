@@ -18,16 +18,7 @@ import inspect
 test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 # add the path to opengrid to sys.path
 sys.path.append(os.path.join(test_dir, os.pardir, os.pardir))
-from opengrid.library import config
-c = config.Config()
-sys.path.append(c.get('tmpo', 'folder'))
 from opengrid.library.houseprint import houseprint
-
-try:
-    if os.path.exists(c.get('tmpo', 'data')):
-        path_to_tmpo_data = c.get('tmpo', 'data')
-except:
-    path_to_tmpo_data = None
 
 class HouseprintTest(unittest.TestCase):
     """
@@ -43,8 +34,7 @@ class HouseprintTest(unittest.TestCase):
         All tests can use self.hp as the houseprint object
         """
         
-        cls.hp = houseprint.Houseprint(gjson=c.get('houseprint','json'), 
-                                       spreadsheet="unit and integration test houseprint")
+        cls.hp = houseprint.Houseprint(spreadsheet="unit and integration test houseprint")
         
     @classmethod    
     def tearDownClass(cls):
@@ -115,7 +105,7 @@ class HouseprintTest(unittest.TestCase):
     def test_save_and_load(self):
         """Save a HP and load it back"""
         
-        self.hp.init_tmpo(path_to_tmpo_data=path_to_tmpo_data)
+        self.hp.init_tmpo()
         self.hp.save('test_saved_hp.hp')
         hp2 = houseprint.load_houseprint_from_file('test_saved_hp.hp')
         
