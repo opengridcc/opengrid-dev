@@ -1,16 +1,27 @@
 __author__ = 'Jan Pecinovsky'
 
-import json, gspread, datetime, os
+import json, gspread, datetime, os, sys
 from oauth2client.client import SignedJwtAssertionCredentials
-import cPickle as pickle
 import pandas as pd
+
+#compatibility with py3
+if sys.version_info.major == 3:
+    import pickle
+else:
+    import cPickle as pickle
 
 #The invoking script should have added the path to the tmpo library
 import tmpo
 
-from site import Site
-from device import Fluksometer
-from sensor import Fluksosensor
+#compatibility with py3
+if sys.version_info.major == 3:
+    from .site import Site
+    from .device import Fluksometer
+    from .sensor import Fluksosensor
+else:
+    from site import Site
+    from device import Fluksometer
+    from sensor import Fluksosensor
 
 """
 The Houseprint is a Singleton object which contains all metadata for sites, devices and sensors.
@@ -54,30 +65,30 @@ class Houseprint(object):
                 Name of the spreadsheet to connect to.
         """
 
-        print 'Opening connection to Houseprint sheet'
+        print('Opening connection to Houseprint sheet')
         #fetch credentials
         json_key = json.load(open(gjson))
         scope = ['https://spreadsheets.google.com/feeds']
-        credentials = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'], scope)
+        credentials = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'].encode('ascii'), scope)
 
         #authorize and login
         gc = gspread.authorize(credentials)
         gc.login()
 
         #open sheets
-        print "Opening spreadsheets"
+        print("Opening spreadsheets")
         sheet = gc.open(spreadsheet)
         sites_sheet = sheet.worksheet('Accounts')
         devices_sheet = sheet.worksheet('Devices')
         sensors_sheet = sheet.worksheet('Sensors')
 
-        print 'Parsing spreadsheets'
+        print('Parsing spreadsheets')
         #3 sub-methods that parse the different sheets
         self._parse_sites(sites_sheet)
         self._parse_devices(devices_sheet)
         self._parse_sensors(sensors_sheet)
 
-        print 'Houseprint parsing complete'
+        print('Houseprint parsing complete')
 
     def _parse_sites(self, sheet):
         """
@@ -104,7 +115,7 @@ class Houseprint(object):
                            epc_cert = r['EPC certificate'])
             self.sites.append(new_site)
 
-        print '{} Sites created'.format(len(self.sites))
+        print('{} Sites created'.format(len(self.sites)))
 
     def _parse_devices(self, sheet):
         """
@@ -135,7 +146,7 @@ class Houseprint(object):
             #add new device to parent site
             site.devices.append(new_device)
 
-        print '{} Devices created'.format(sum([len(site.devices) for site in self.sites]))
+        print('{} Devices created'.format(sum([len(site.devices) for site in self.sites])))
 
     def _parse_sensors(self, sheet):
         """
@@ -182,7 +193,7 @@ class Houseprint(object):
                 new_sensor.device.sensors.append(new_sensor)
             new_sensor.site.sensors.append(new_sensor)
 
-        print '{} sensors created'.format(sum([len(site.sensors) for site in self.sites]))
+        print('{} sensors created'.format(sum([len(site.sensors) for site in self.sites])))
 
     def get_sensors(self, sensortype=None):
         """
@@ -278,9 +289,8 @@ class Houseprint(object):
             self._tmpos = None
 
         abspath = os.path.join(os.getcwd(), filename)
-        f=file(abspath, 'w')
-        pickle.dump(self, f)
-        f.close()
+        with open(abspath, 'wb') as f:
+            pickle.dump(self, f)
 
         print("Saved houseprint to {}".format(abspath))
 
@@ -343,7 +353,6 @@ class Houseprint(object):
 def load_houseprint_from_file(filename):
     """Return a static (=anonymous) houseprint object"""
 
-    f = open(filename, 'r')
-    hp = pickle.load(f)
-    f.close()
+    with open(filename, 'rb') as f:
+        hp = pickle.load(f)
     return hp
