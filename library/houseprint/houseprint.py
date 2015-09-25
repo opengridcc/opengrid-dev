@@ -1,6 +1,13 @@
 __author__ = 'Jan Pecinovsky'
 
-import json, gspread, datetime, os, sys
+from opengrid.library.config import Config
+config = Config()
+
+import os
+import sys
+import json
+import gspread
+import datetime as dt
 from oauth2client.client import SignedJwtAssertionCredentials
 import pandas as pd
 
@@ -10,7 +17,7 @@ if sys.version_info.major == 3:
 else:
     import cPickle as pickle
 
-#The invoking script should have added the path to the tmpo library
+sys.path.append(config.get('tmpo', 'folder'))
 import tmpo
 
 #compatibility with py3
@@ -29,7 +36,7 @@ It can be pickled, saved and passed around
 """
 
 class Houseprint(object):
-    def __init__(self, gjson, spreadsheet="Opengrid houseprint (Responses)"):
+    def __init__(self, gjson=config.get('houseprint','json'), spreadsheet="Opengrid houseprint (Responses)"):
         """
             Parameters
             ---------
@@ -39,7 +46,7 @@ class Houseprint(object):
 
         self.sites = []
         self._parse_sheet(gjson, spreadsheet)
-        self.timestamp = datetime.datetime.utcnow() #Add a timestamp upon creation
+        self.timestamp = dt.datetime.utcnow() #Add a timestamp upon creation
 
     def __repr__(self):
         return """
@@ -136,10 +143,10 @@ class Houseprint(object):
             site = self.find_site(r['Parent site'])
             if site is None:
                 raise ValueError('Device {} was given an invalid site key {}'.format(r['Key'], r['Parent site']))
-
+                            
             #create a new device according to its manufacturer
             if r['manufacturer'] == 'Flukso':
-                new_device = Fluksometer(site = site, key = r['Key'])
+                new_device = Fluksometer(site=site, key = r['Key'])
             else:
                 raise NotImplementedError('Devices from {} are not supported'.format(r['manufacturer']))
 
@@ -227,7 +234,60 @@ class Houseprint(object):
                 res.append(device)
         return res
 
-    def find_site(self, key):
+    def search_sites(self, **kwargs):
+        '''
+            Parameters
+            ----------
+            kwargs: any keyword argument, like key=mykey
+
+            Returns
+            -------
+            List of sites satisfying the search criterion or empty list if no
+            result found.
+        '''
+        
+        result = []
+        for site in self.sites:
+            keep = False
+            for keyword, value in kwargs.items():
+                if getattr(site, keyword) == value:
+                    keep = True
+                else:
+                    keep = False
+                    break
+            if keep:
+                result.append(site)
+                
+        return result
+        
+        
+    def search_sensors(self, **kwargs):
+        '''
+            Parameters
+            ----------
+            kwargs: any keyword argument, like key=mykey
+
+            Returns
+            -------
+            List of sensors satisfying the search criterion or empty list if no
+            result found.
+        '''
+        
+        result = []
+        for sensor in self.get_sensors():
+            keep = False
+            for keyword, value in kwargs.items():
+                if getattr(sensor, keyword) == value:
+                    keep = True
+                else:
+                    keep = False
+                    break
+            if keep:
+                result.append(sensor)
+                
+        return result        
+
+    def find_site(self, key): 
         '''
             Parameters
             ----------
@@ -236,12 +296,14 @@ class Houseprint(object):
             Returns
             -------
             Site
-        '''
+        '''    
+    
         for site in self.sites:
             if site.key == key:
                 return site
         return None
-
+        
+        
     def find_device(self, key):
         '''
             Parameters
@@ -312,6 +374,11 @@ class Houseprint(object):
         if tmpos is not None:
             self._tmpos = tmpos
         else:
+            try:
+                path_to_tmpo_data = config.get('tmpo', 'data')
+            except:
+                path_to_tmpo_data = None            
+            
             self._tmpos = tmpo.Session(path_to_tmpo_data)
 
     def get_tmpos(self):
@@ -323,7 +390,9 @@ class Houseprint(object):
         if hasattr(self,'_tmpos'):
             return self._tmpos
         else:
-            raise RuntimeError('No TMPO session was set, use the init_tmpo method to add or create a TMPO Session')
+            self.init_tmpo()
+            return self._tmpos
+            #raise RuntimeError('No TMPO session was set, use the init_tmpo method to add or create a TMPO Session')
 
     def sync_tmpos(self):
         """
@@ -337,16 +406,23 @@ class Houseprint(object):
 
         tmpos.sync()
 
-    def get_data(self, sensortype=None, head=None, tail=None, resample='min'):
+    def get_data(self, sensors=None, sensortype=None, head=None, tail=None, resample='min'):
         """
-            Return a Pandas Dataframe with joined data for all sensors in the houseprint
+        Return a Pandas Dataframe with joined data for the given sensors
 
-            Parameters
-            ----------
-            sensortype: gas, water, electricity: optional
-            head, tail: timestamps
+        Parameters
+        ----------
+        sensors : list of Sensor objects
+            If None, use sensortype to make a selection
+        sensortype : string (optional)
+            gas, water, electricity. If None, and Sensors = None,
+            all available sensors in the houseprint are fetched
+
+        head, tail: timestamps
+        
         """
-        sensors = self.get_sensors(sensortype)
+        if sensors is None:        
+            sensors = self.get_sensors(sensortype)
         series = [sensor.get_data(head=head,tail=tail,resample=resample) for sensor in sensors]
         return pd.concat(series, axis=1)
 
