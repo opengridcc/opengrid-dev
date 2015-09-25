@@ -57,7 +57,7 @@ class HouseprintTest(unittest.TestCase):
         
         # check the site keys
         sitekeys = [x.key for x in self.hp.sites]
-        self.assertListEqual(sitekeys, range(1,8))
+        self.assertListEqual(sitekeys, list(range(1,8)))
         
         # some random attribute tests
         self.assertEqual(self.hp.sites[6].size, 180)
@@ -156,9 +156,14 @@ class HouseprintTest(unittest.TestCase):
         
 if __name__ == '__main__':
     
-    # http://stackoverflow.com/questions/4005695/changing-order-of-unit-tests-in-python    
-    ln = lambda f: getattr(HouseprintTest, f).im_func.func_code.co_firstlineno
-    lncmp = lambda _, a, b: cmp(ln(a), ln(b))
+    # http://stackoverflow.com/questions/4005695/changing-order-of-unit-tests-in-python
+    if sys.version_info.major == 3: #compatibility python 3
+        ln = lambda f: getattr(HouseprintTest, f).__code__.co_firstlineno #functions have renamed attributes
+        lncmp = lambda _, a, b: (ln(a) > ln(b)) - (ln(a) < ln(b)) #cmp() was deprecated, see https://docs.python.org/3.0/whatsnew/3.0.html
+    else:
+        ln = lambda f: getattr(HouseprintTest, f).im_func.func_code.co_firstlineno
+        lncmp = lambda _, a, b: cmp(ln(a), ln(b))
+
     unittest.TestLoader.sortTestMethodsUsing = lncmp
         
     #unittest.main()
