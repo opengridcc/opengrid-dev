@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 __author__ = 'Jan'
 
 import datetime, forecastio
@@ -15,7 +17,7 @@ class Weather(object):
 
         NOTE: Forecast.io allows 1000 requests per day, after that you have to pay. Each requested day is 1 request.
     """
-    def __init__(self, api_key, location, start, end=datetime.datetime.now(), tz=None):
+    def __init__(self, api_key, location, start, end=None, tz=None):
         """
             Constructor
 
@@ -25,15 +27,17 @@ class Weather(object):
                 Forecast.io API Key
             location: string
                 City, address, POI
-            start: datetime object
+            start: datetime-like object
                 start of the interval to be searched
-            end: datetime object (optional, default=datetime.now())
-                end of the interval to be searched
+            end: datetime-like object (optional, default=None)
+                end of the interval to be searched, if None, use current time
             tz: timezone string (optional)
                 The lookup always happens in the timezone of the location
                 tz specifies the timezone of the response.
                 If none, tz is the timezone of the location
         """
+        if end is None:
+            end = pd.Timestamp('now', tz=tz)
 
         self.api_key = api_key
 
@@ -51,13 +55,14 @@ class Weather(object):
 
             Parameters
             ----------
-            start: datetime object
-            end: datetime object
+            start: datetime-like object
+            end: datetime-like object 
 
             Returns
             -------
             set of datetime objects
         """
+        
         res = []
         for dt in rrule.rrule(rrule.DAILY, dtstart=start, until=end):
             res.append(dt)
@@ -69,12 +74,11 @@ class Weather(object):
 
             Parameters
             ----------
-            start: datetime object
-            end: datetime object
+            start: datetime-like object
+            end: datetime-like object 
             tz: timezone string (optional)
                 default response is in the timezone of the weather location
         """
-
         #create list of time series per day
         dayList = [self.get_weather_ts(day) for day in self._dayset(start, end)]
 
@@ -112,14 +116,30 @@ class Weather(object):
 
 class Weather_Days(Weather):
     """
-        Weather_Days object contains a Pandas DataFrame with all weather data per day from Forecast.io
-        + average temperature and 8 different types of degreedays are calculated
-
-        NOTE: Forecast.io allows 1000 requests per day, after that you have to pay. Each requested day is 1 request.
+        Weather_Days object contains a Pandas DataFrame with all weather data 
+        at daily resolution from Forecast.io.
+        Additionally, heating degreedays are added by default for a base
+        temperature of 16.5 degC. Different base temperature can be provided and 
+        also cooling degreedays can be added
+        
+        NOTE
+        ====
+        Forecast.io allows 1000 requests per day for a free account. 
+        Each requested day is 1 request. Paid accounts are available. 
 
     """
 
-    def __init__(self, api_key, location, start, end=datetime.datetime.now(), tz=None):
+    def __init__(self,
+                 api_key,
+                 location,
+                 start,
+                 end = None,
+                 tz = None,
+                 heatingDegreeDays = True,
+                 heatingBaseTemps = [16.5],
+                 coolingDegreeDays = False,
+                 coolingBaseTemps = [18]
+                 ):
         """
             Constructor
 
@@ -131,22 +151,32 @@ class Weather_Days(Weather):
                 City, address, POI
             start: datetime object
                 start of the interval to be searched
-            end: datetime object (optional, default=datetime.now())
-                end of the interval to be searched
+            end: datetime object (optional, default=None)
+                end of the interval to be searched, if None, use current time.
             tz: timezone string (optional)
                 The lookup always happens in the timezone of the location
                 tz specifies the timezone of the response.
                 If none, tz is the timezone of the location
+            heatingDegreeDays: bool (optional, default: True)
+                Add heating degree days to the dataframe
+            heatingBaseTemps: list of numbers (optional, default 16.5)
+                List of possible base temperatures for which to calculate heating degree days
+            coolingDegreeDays: bool (optional, default: False)
+                Add cooling degree days to the dataframe
+            coolingBaseTemps: list of numbers (optional, default 18)
+                List of possible base temperatures for which to calculate cooling degree days
         """
 
         #we need data from 2 days earlier to calculate degree days
-        start = start - datetime.timedelta(days = 2)
+        if heatingDegreeDays or coolingDegreeDays:
+            start = start - pd.Timedelta(days = 2)
 
         #init the superclass
         super(Weather_Days, self).__init__(api_key, location, start, end, tz)
 
         #add degree days to dataframe
-        self.df = self._addDegreeDays(self.df)
+        if heatingDegreeDays or coolingDegreeDays:
+            self.df = self._addDegreeDays(self.df, heatingDegreeDays, heatingBaseTemps, coolingDegreeDays, coolingBaseTemps)
 
     def get_weather_ts(self, date):
         """
@@ -191,19 +221,25 @@ class Weather_Days(Weather):
         #calculate the mean, round to 2 significant figures and return
         return round(np.mean(values),2)
 
-    def _addDegreeDays(self, df):
+    def _addDegreeDays(self, df, heatingDegreeDays, heatingBaseTemps, coolingDegreeDays, coolingBaseTemps):
         """
             Takes a dataframe of daily values and adds degree days.
             Degree days are calculated from a temperature equivalent: 0.6 * tempDay0 + 0.3 * tempDay-1 + 0.1 * tempDay-2
             Because we need the two previous days to calculate day0, the resulting dataframe will be 2 days shorter
                 (you should pass dataframes that have two days more than you want)
 
-            4 types of Heating Degree Days are calculated with baselines on 0, 15, 16.5 and 18
-            4 types of Cooling Degree Days are calculated with baselines on 15, 16.5, 18 and 24
-
             Parameters
             ----------
             df: Pandas Dataframe
+                should contain a column named 'temperature'
+            heatingDegreeDays: bool
+                add heating degree days
+            heatingBaseTemps: list of numbers
+                base temperatures to be used to calculate heating degree days
+            coolingDegreeDays: bool
+                add cooling degree days
+            coolingBaseTemps: list of numbers
+                base temperatures to be used to calculate cooling degree days
 
             Returns
             -------
@@ -218,15 +254,12 @@ class Weather_Days(Weather):
         res = copy(df[2:])
 
         #add degree days to response
-        res['heatingDegreeDays0'] = [max(0, 0 - val) for val in temp_equiv]
-        res['heatingDegreeDays15'] = [max(0, 15 - val) for val in temp_equiv]
-        res['heatingDegreeDays16.5'] = [max(0, 16.5 - val) for val in temp_equiv]
-        res['heatingDegreeDays18'] = [max(0, 18 - val) for val in temp_equiv]
-
-        res['coolingDegreeDays15'] = [max(0, val - 15) for val in temp_equiv]
-        res['coolingDegreeDays16.5'] = [max(0, val - 16.5) for val in temp_equiv]
-        res['coolingDegreeDays18'] = [max(0, val - 18) for val in temp_equiv]
-        res['coolingDegreeDays24'] = [max(0, val - 24) for val in temp_equiv]
+        if heatingDegreeDays:
+            for baseTemp in heatingBaseTemps:
+                res['heatingDegreeDays{}'.format(baseTemp)] = [max(0, baseTemp - val) for val in temp_equiv]
+        if coolingDegreeDays:
+            for baseTemp in coolingBaseTemps:
+                res['coolingDegreeDays{}'.format(baseTemp)] = [max(0, val - baseTemp) for val in temp_equiv]
 
         return res
 
@@ -237,7 +270,7 @@ class Weather_Hours(Weather):
         NOTE: Forecast.io allows 1000 requests per day, after that you have to pay. Each requested day is 1 request.
 
     """
-    def __init__(self, api_key, location, start, end=datetime.datetime.now(), tz=None):
+    def __init__(self, api_key, location, start, end=None, tz=None):
         """
             Constructor
 
@@ -249,8 +282,8 @@ class Weather_Hours(Weather):
                 City, address, POI
             start: datetime object
                 start of the interval to be searched
-            end: datetime object (optional, default=datetime.now())
-                end of the interval to be searched
+            end: datetime object (optional, default=None)
+                end of the interval to be searched, if None, use current time
             tz: timezone string (optional)
                 The lookup always happens in the timezone of the location
                 tz specifies the timezone of the response.
@@ -265,7 +298,7 @@ class Weather_Hours(Weather):
 
             Parameters
             ----------
-            date: datetime object
+            date: datetime-like object
 
             Returns
             -------
