@@ -1,16 +1,34 @@
 __author__ = 'Jan Pecinovsky'
 
-import json, gspread, datetime, os
+from opengrid.library.config import Config
+config = Config()
+
+import os
+import sys
+import json
+import gspread
+import datetime as dt
 from oauth2client.client import SignedJwtAssertionCredentials
-import cPickle as pickle
 import pandas as pd
 
-#The invoking script should have added the path to the tmpo library
+#compatibility with py3
+if sys.version_info.major == 3:
+    import pickle
+else:
+    import cPickle as pickle
+
+sys.path.append(config.get('tmpo', 'folder'))
 import tmpo
 
-from site import Site
-from device import Fluksometer
-from sensor import Fluksosensor
+#compatibility with py3
+if sys.version_info.major == 3:
+    from .site import Site
+    from .device import Fluksometer
+    from .sensor import Fluksosensor
+else:
+    from site import Site
+    from device import Fluksometer
+    from sensor import Fluksosensor
 
 """
 The Houseprint is a Singleton object which contains all metadata for sites, devices and sensors.
@@ -18,7 +36,7 @@ It can be pickled, saved and passed around
 """
 
 class Houseprint(object):
-    def __init__(self, gjson, spreadsheet="Opengrid houseprint (Responses)"):
+    def __init__(self, gjson=config.get('houseprint','json'), spreadsheet="Opengrid houseprint (Responses)"):
         """
             Parameters
             ---------
@@ -28,7 +46,7 @@ class Houseprint(object):
 
         self.sites = []
         self._parse_sheet(gjson, spreadsheet)
-        self.timestamp = datetime.datetime.utcnow() #Add a timestamp upon creation
+        self.timestamp = dt.datetime.utcnow() #Add a timestamp upon creation
 
     def __repr__(self):
         return """
@@ -54,30 +72,30 @@ class Houseprint(object):
                 Name of the spreadsheet to connect to.
         """
 
-        print 'Opening connection to Houseprint sheet'
+        print('Opening connection to Houseprint sheet')
         #fetch credentials
         json_key = json.load(open(gjson))
         scope = ['https://spreadsheets.google.com/feeds']
-        credentials = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'], scope)
+        credentials = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'].encode('ascii'), scope)
 
         #authorize and login
         gc = gspread.authorize(credentials)
         gc.login()
 
         #open sheets
-        print "Opening spreadsheets"
+        print("Opening spreadsheets")
         sheet = gc.open(spreadsheet)
         sites_sheet = sheet.worksheet('Accounts')
         devices_sheet = sheet.worksheet('Devices')
         sensors_sheet = sheet.worksheet('Sensors')
 
-        print 'Parsing spreadsheets'
+        print('Parsing spreadsheets')
         #3 sub-methods that parse the different sheets
         self._parse_sites(sites_sheet)
         self._parse_devices(devices_sheet)
         self._parse_sensors(sensors_sheet)
 
-        print 'Houseprint parsing complete'
+        print('Houseprint parsing complete')
 
     def _parse_sites(self, sheet):
         """
@@ -104,7 +122,7 @@ class Houseprint(object):
                            epc_cert = r['EPC certificate'])
             self.sites.append(new_site)
 
-        print '{} Sites created'.format(len(self.sites))
+        print('{} Sites created'.format(len(self.sites)))
 
     def _parse_devices(self, sheet):
         """
@@ -125,17 +143,17 @@ class Houseprint(object):
             site = self.find_site(r['Parent site'])
             if site is None:
                 raise ValueError('Device {} was given an invalid site key {}'.format(r['Key'], r['Parent site']))
-
+                            
             #create a new device according to its manufacturer
             if r['manufacturer'] == 'Flukso':
-                new_device = Fluksometer(site = site, key = r['Key'])
+                new_device = Fluksometer(site=site, key = r['Key'])
             else:
                 raise NotImplementedError('Devices from {} are not supported'.format(r['manufacturer']))
 
             #add new device to parent site
             site.devices.append(new_device)
 
-        print '{} Devices created'.format(sum([len(site.devices) for site in self.sites]))
+        print('{} Devices created'.format(sum([len(site.devices) for site in self.sites])))
 
     def _parse_sensors(self, sheet):
         """
@@ -182,7 +200,7 @@ class Houseprint(object):
                 new_sensor.device.sensors.append(new_sensor)
             new_sensor.site.sensors.append(new_sensor)
 
-        print '{} sensors created'.format(sum([len(site.sensors) for site in self.sites]))
+        print('{} sensors created'.format(sum([len(site.sensors) for site in self.sites])))
 
     def get_sensors(self, sensortype=None):
         """
@@ -216,7 +234,60 @@ class Houseprint(object):
                 res.append(device)
         return res
 
-    def find_site(self, key):
+    def search_sites(self, **kwargs):
+        '''
+            Parameters
+            ----------
+            kwargs: any keyword argument, like key=mykey
+
+            Returns
+            -------
+            List of sites satisfying the search criterion or empty list if no
+            result found.
+        '''
+        
+        result = []
+        for site in self.sites:
+            keep = False
+            for keyword, value in kwargs.items():
+                if getattr(site, keyword) == value:
+                    keep = True
+                else:
+                    keep = False
+                    break
+            if keep:
+                result.append(site)
+                
+        return result
+        
+        
+    def search_sensors(self, **kwargs):
+        '''
+            Parameters
+            ----------
+            kwargs: any keyword argument, like key=mykey
+
+            Returns
+            -------
+            List of sensors satisfying the search criterion or empty list if no
+            result found.
+        '''
+        
+        result = []
+        for sensor in self.get_sensors():
+            keep = False
+            for keyword, value in kwargs.items():
+                if getattr(sensor, keyword) == value:
+                    keep = True
+                else:
+                    keep = False
+                    break
+            if keep:
+                result.append(sensor)
+                
+        return result        
+
+    def find_site(self, key): 
         '''
             Parameters
             ----------
@@ -225,12 +296,14 @@ class Houseprint(object):
             Returns
             -------
             Site
-        '''
+        '''    
+    
         for site in self.sites:
             if site.key == key:
                 return site
         return None
-
+        
+        
     def find_device(self, key):
         '''
             Parameters
@@ -278,9 +351,8 @@ class Houseprint(object):
             self._tmpos = None
 
         abspath = os.path.join(os.getcwd(), filename)
-        f=file(abspath, 'w')
-        pickle.dump(self, f)
-        f.close()
+        with open(abspath, 'wb') as f:
+            pickle.dump(self, f)
 
         print("Saved houseprint to {}".format(abspath))
 
@@ -302,6 +374,11 @@ class Houseprint(object):
         if tmpos is not None:
             self._tmpos = tmpos
         else:
+            try:
+                path_to_tmpo_data = config.get('tmpo', 'data')
+            except:
+                path_to_tmpo_data = None            
+            
             self._tmpos = tmpo.Session(path_to_tmpo_data)
 
     def get_tmpos(self):
@@ -313,7 +390,9 @@ class Houseprint(object):
         if hasattr(self,'_tmpos'):
             return self._tmpos
         else:
-            raise RuntimeError('No TMPO session was set, use the init_tmpo method to add or create a TMPO Session')
+            self.init_tmpo()
+            return self._tmpos
+            #raise RuntimeError('No TMPO session was set, use the init_tmpo method to add or create a TMPO Session')
 
     def sync_tmpos(self):
         """
@@ -327,23 +406,29 @@ class Houseprint(object):
 
         tmpos.sync()
 
-    def get_data(self, sensortype=None, head=None, tail=None, resample='min'):
+    def get_data(self, sensors=None, sensortype=None, head=None, tail=None, resample='min'):
         """
-            Return a Pandas Dataframe with joined data for all sensors in the houseprint
+        Return a Pandas Dataframe with joined data for the given sensors
 
-            Parameters
-            ----------
-            sensortype: gas, water, electricity: optional
-            head, tail: timestamps
+        Parameters
+        ----------
+        sensors : list of Sensor objects
+            If None, use sensortype to make a selection
+        sensortype : string (optional)
+            gas, water, electricity. If None, and Sensors = None,
+            all available sensors in the houseprint are fetched
+
+        head, tail: timestamps
+        
         """
-        sensors = self.get_sensors(sensortype)
+        if sensors is None:        
+            sensors = self.get_sensors(sensortype)
         series = [sensor.get_data(head=head,tail=tail,resample=resample) for sensor in sensors]
         return pd.concat(series, axis=1)
 
 def load_houseprint_from_file(filename):
     """Return a static (=anonymous) houseprint object"""
 
-    f = open(filename, 'r')
-    hp = pickle.load(f)
-    f.close()
+    with open(filename, 'rb') as f:
+        hp = pickle.load(f)
     return hp

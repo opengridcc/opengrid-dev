@@ -19,10 +19,16 @@ Not all files must contain all configuration properties. A
 configuration file can also overwrite only a subset of the
 configuration properties.
 """
-
-from ConfigParser import SafeConfigParser
-import inspect
 import os, sys
+
+#configparser changed name in Python3
+if sys.version_info[0] == 3:
+    from configparser import SafeConfigParser
+else:
+    from ConfigParser import SafeConfigParser
+
+import inspect
+
 
 class Config(SafeConfigParser):
     """

@@ -43,7 +43,7 @@ def carpet(timeseries, **kwargs):
 
     #data preparation
     if timeseries.dropna().empty:
-        print 'skipped {} - no data'.format(title)
+        print('skipped {} - no data'.format(title))
         return
     ts = timeseries.resample('min', how='mean', label='left', closed='left')
     vmin = max(1., kwargs.pop('vmin', ts[ts>0].min()))
@@ -120,7 +120,7 @@ def fanchart(timeseries, **kwargs):
     title = kwargs.pop('title', 'carpet plot: ' + timeseries.name if timeseries.name else '')
     #data preparation
     if timeseries.dropna().empty:
-        print 'skipped {} - no data'.format(title)
+        print('skipped {} - no data'.format(title))
         return
     ts = timeseries.resample('min', how='mean', label='left', closed='left')
 
