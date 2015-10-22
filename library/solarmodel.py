@@ -52,7 +52,7 @@ class SolarInsolation():
             -------
             float
         """
-        angleFromVertical = math.radians(90) - self.solarElevation(datetime)
+        angleFromVertical = (math.pi/2) - self.solarElevation(datetime)
         return self._airMass(angleFromVertical)
 
     def _directIntensity(self, elevation, airMass):
@@ -62,15 +62,17 @@ class SolarInsolation():
             Parameters
             ---------
             elevation: float
-                in kilometers
+                in meters
             airMass: float
 
             Returns
             -------
             float
-                in kW/m**2
+                in W/m**2
         """
-        return 1.353 * ((1 - 0.14*elevation) * 0.7**airMass**0.678 + 0.14*elevation)
+        elevation = elevation / 1000 #formula uses km
+        di = 1.353 * ((1 - 0.14*elevation) * 0.7**airMass**0.678 + 0.14*elevation)
+        return di*1000
 
     def directIntensity(self, datetime):
         """
@@ -83,9 +85,9 @@ class SolarInsolation():
             Returns
             -------
             float
-                in kW/m**2
+                in W/m**2
         """
-        elevation = self.elevation / 1000 #convert m to km
+        elevation = self.elevation
         airMass = self.airMass(datetime)
         if airMass == -1:
             return 0
@@ -98,12 +100,12 @@ class SolarInsolation():
             Parameters
             ----------
             directIntensity: float
-                in kW/m**2
+                in W/m**2
 
             Returns
             -------
             float
-                in kW/m**2
+                in W/m**2
         """
         return 1.1 * directIntensity
 
@@ -118,7 +120,7 @@ class SolarInsolation():
             Returns
             -------
             float
-                in kW/m**2
+                in W/m**2
         """
         directIntensity = self.directIntensity(datetime)
         return self._globalIrradiance(directIntensity)
@@ -143,7 +145,7 @@ class SolarInsolation():
 
     def df(self, start, end):
         """
-            Creates a dataframe with the insolation in kW/m**2 in hourly resolution
+            Creates a dataframe with the insolation in W/m**2 in hourly resolution
 
             Parameters
             ----------
