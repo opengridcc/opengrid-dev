@@ -92,6 +92,15 @@ class SolarInsolation():
             return 0
         return self._directIntensity(self.elevation, airMass)
 
+    def _backgroundIrradiance(self, directIntensity):
+        """
+        Calculate the background irradiance, which is 10% of the direct intensity
+        :param directIntensity: float
+        :return: float
+        """
+
+        return 0.1 * directIntensity
+
     def _globalIrradiance(self, directIntensity):
         """
             Raw formula to calculate global solar irradiance
@@ -106,7 +115,7 @@ class SolarInsolation():
             float
                 in W/m**2
         """
-        return 1.1 * directIntensity
+        return directIntensity + self._backgroundIrradiance(directIntensity)
 
     def globalIrradiance(self, datetime):
         """
@@ -162,3 +171,83 @@ class SolarInsolation():
 
         df = pd.DataFrame(gis, index=hours, columns = ['insolation'])
         return df.tz_localize('UTC')
+
+    def solarAzimuth(self, datetime):
+        """
+        Calculate the azimuth of the sun
+
+        :param datetime: datetime.datetime
+        :return: float
+            in radians
+        """
+
+        deg = self.astral.solar_azimuth(dateandtime=datetime,
+                                        latitude=self.location.lat,
+                                        longitude=self.location.lng)
+        return math.radians(deg)
+
+class PVModel(SolarInsolation):
+    """
+        Module that models a theoretically perfect PV installation,
+        extending the Solar Insolation Model, but adding PV orientation and tilt.
+    """
+
+    def __init__(self, location, orient=180, tilt=35):
+        """
+            Parameters
+            ----------
+            location: String
+            orient: number (optional, default=180 (south))
+                degrees (0-360)
+            tilt: number (optional, default=35)
+                degrees
+        """
+
+        super(PVModel, self).__init__(location = location)
+        self.orient = math.radians(orient)
+        self.tilt = math.radians(tilt)
+
+    def directIntensity(self, datetime):
+        """
+            Calculate the direct solar beam intensity for a given date and time,
+            but compensate for the PV orientation and tilt
+
+            Parameters
+            ----------
+            datetime: datetime.datetime
+
+            Returns
+            -------
+            float
+                in W/m**2
+        """
+        di = super(PVModel, self).directIntensity(datetime)
+        a = self.solarElevation(datetime)
+        b = self.tilt
+        c = self.orient
+        d = self.solarAzimuth(datetime)
+
+        PVdi = di * (math.cos(a)*math.sin(b)*math.cos(c-d) + math.sin(a)*math.cos(b))
+
+        #PVdi cannot be negative
+        return max(0, PVdi)
+
+    def globalIrradiance(self, datetime):
+        """
+            Calculate global solar irradiance for a given date and time
+            needed to override, because background irradiance is not influenced by PV orientation and tilt
+
+            Parameters
+            ----------
+            datetime: datetime.datetime
+
+            Returns
+            -------
+            float
+                in W/m**2
+        """
+        #calculate the direct intensity without influence of tilt and orientation
+        di = super(PVModel, self).directIntensity(datetime)
+
+        #add the tilted and oriented direct intensity to the background irradiance
+        return self.directIntensity(datetime) + self._backgroundIrradiance(di)
