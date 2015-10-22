@@ -72,7 +72,7 @@ class SolarInsolation():
         """
         elevation = elevation / 1000 #formula uses km
         di = 1.353 * ((1 - 0.14*elevation) * 0.7**airMass**0.678 + 0.14*elevation)
-        return di*1000
+        return di*1000 #formula output is kW/m**2
 
     def directIntensity(self, datetime):
         """
@@ -87,11 +87,10 @@ class SolarInsolation():
             float
                 in W/m**2
         """
-        elevation = self.elevation
         airMass = self.airMass(datetime)
         if airMass == -1:
             return 0
-        return self._directIntensity(elevation, airMass)
+        return self._directIntensity(self.elevation, airMass)
 
     def _globalIrradiance(self, directIntensity):
         """
