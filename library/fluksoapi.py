@@ -55,16 +55,16 @@ def pull_api(sensor, token, unit, interval='day', resolution='minute'):
         s = requests.Session()
         r = s.get(url, params=payload, headers=headers, verify=False)
     except:
-        print "-------> Problem with HTTP request to Flukso <-------"
+        print("-------> Problem with HTTP request to Flukso <-------")
     
     # check result
     if not r.ok:
-        print "The flukso api GET request did not succeed."
-        print "Some details:"
-        print "Request headers:"
-        print r.request.headers
-        print "Request url:"
-        print r.request.url
+        print("The flukso api GET request did not succeed.")
+        print("Some details:")
+        print("Request headers:")
+        print(r.request.headers)
+        print("Request url:")
+        print(r.request.url)
     
     return r
 
@@ -82,7 +82,7 @@ def parse(r):
             d[dt.datetime.fromtimestamp(tup[0])] = tup[1]
         
     except:
-        print "-------> Problem with Flukso data parsing <-------"
+        print("-------> Problem with Flukso data parsing <-------")
         raise
     
     #pdb.set_trace()
@@ -349,10 +349,10 @@ def synchronize(folder, unzip=True, consolidate=True, file_type='hdf'):
     if consolidate:
         consolidate_folder(csvfolder, file_type=file_type)
     t3 = time.time()
-    print 'Download time: {} s'.format(t1-t0)
-    print 'Unzip time: {} s'.format(t2-t1)
-    print 'Consolidate time: {} s'.format(t3-t2)
-    print 'Total time: {} s'.format(t3-t0)
+    print('Download time: {} s'.format(t1-t0))
+    print('Unzip time: {} s'.format(t2-t1))
+    print('Consolidate time: {} s'.format(t3-t2))
+    print('Total time: {} s'.format(t3-t0))
         
 
 def _unzip(folder, files='all'):
@@ -379,7 +379,7 @@ def _unzip(folder, files='all'):
 
     if files == 'all':
         files = os.listdir(zipfolder)
-    print 'About to unzip {} files'.format(len(files))
+    print('About to unzip {} files'.format(len(files)))
     badfiles = []
     
     for f in files:
@@ -394,7 +394,7 @@ def _unzip(folder, files='all'):
     if badfiles:
         print("Could not unzip these files:")
         for f in badfiles:
-            print f
+            print(f)
   
     
 def update_tmpo(tmposession, hp):
@@ -526,7 +526,7 @@ def load(path_csv, sensors, start=None, end=None):
     print('{} sensors loaded'.format(len(df.columns)))
     df = df.dropna(axis=1, how='all')
     print('{} sensors retained'.format(len(df.columns)))
-    print "Size of dataframe: {}".format(df.shape)
+    print("Size of dataframe: {}".format(df.shape))
 
     return df
 

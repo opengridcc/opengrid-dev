@@ -29,7 +29,7 @@ def storeTimeSeriesData(data, sensor, token, unit):
         if metadata['sensor'] != sensor or metadata['token'] != token or metadata['unit'] != unit or metadata['datalength'] != datalength:
             raise ValueError('Argument is inconsistent with its stored value')
         if (data[0][0]- metadata['starttime']) % 60 != 0:
-            print "Timestamp does not have the correct spacing compared to the initial timestamp! Storage cancelled."
+            print("Timestamp does not have the correct spacing compared to the initial timestamp! Storage cancelled.")
             return
     else:
         #create new meta file
