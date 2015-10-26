@@ -2,7 +2,8 @@
 
 __author__ = 'Jan'
 
-import datetime, forecastio
+import forecastio
+import datetime as dt
 from geopy import GoogleV3
 from dateutil import rrule
 import numpy as np
@@ -138,7 +139,8 @@ class Weather_Days(Weather):
                  heatingDegreeDays = True,
                  heatingBaseTemps = [16.5],
                  coolingDegreeDays = False,
-                 coolingBaseTemps = [18]
+                 coolingBaseTemps = [18],
+                 daytimeCloudCover = True
                  ):
         """
             Constructor
@@ -165,11 +167,15 @@ class Weather_Days(Weather):
                 Add cooling degree days to the dataframe
             coolingBaseTemps: list of numbers (optional, default 18)
                 List of possible base temperatures for which to calculate cooling degree days
+            daytimeCloudCover: bool (optional, default: True)
+                Include average Cloud Cover during daytime hours (from sunrise to sunset)
         """
 
         #we need data from 2 days earlier to calculate degree days
         if heatingDegreeDays or coolingDegreeDays:
             start = start - pd.Timedelta(days = 2)
+
+        self.daytimeCloudCover = daytimeCloudCover
 
         #init the superclass
         super(Weather_Days, self).__init__(api_key, location, start, end, tz)
@@ -198,9 +204,41 @@ class Weather_Days(Weather):
         avg_temp = self._get_daily_avg(forecast = forecast, key = 'temperature')
         day_data.update({'temperature':avg_temp})
 
+        #add daytime Cloud Cover
+        if self.daytimeCloudCover:
+            dtcc = self._get_daytimeCloudCover(forecast = forecast)
+            day_data.update({'daytimeCloudCover':dtcc})
+
         #convert to a single row in a dataframe and return
         daylist = [pd.Series(day_data)]
         return pd.concat(daylist,axis=1).T
+
+    def _get_daytimeCloudCover(self, forecast):
+        """
+        Calculate the average CloudCover during daytime hours (from sunrise to sunset)
+        :param forecast: Forecast object
+        :return: float
+        """
+        #extract values from forecast
+        try: #sometimes there is no cloudcover number
+            values = [hour.d['cloudCover'] for hour in forecast.hourly().data]
+        except KeyError:
+            return None
+
+        #make a time series
+        time = [hour.d['time'] for hour in forecast.hourly().data]
+        ts = pd.Series(data = values, index=time)
+        ts.index = pd.DatetimeIndex(ts.index.astype('datetime64[s]'))
+
+        #get sunrise and sunset
+        sunrise = dt.datetime.utcfromtimestamp(forecast.daily().data[0].d['sunriseTime'])
+        sunset = dt.datetime.utcfromtimestamp(forecast.daily().data[0].d['sunsetTime'])
+
+        #truncate timeseries
+        ts = ts.truncate(before=sunrise, after=sunset)
+
+        #return mean of truncated timeseries
+        return(ts.mean())
 
     def _get_daily_avg(self, forecast, key):
         """
