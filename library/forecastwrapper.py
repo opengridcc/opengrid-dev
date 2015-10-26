@@ -140,7 +140,8 @@ class Weather_Days(Weather):
                  heatingBaseTemps = [16.5],
                  coolingDegreeDays = False,
                  coolingBaseTemps = [18],
-                 daytimeCloudCover = True
+                 daytimeCloudCover = True,
+                 daytimeTemperature = True
                  ):
         """
             Constructor
@@ -169,6 +170,8 @@ class Weather_Days(Weather):
                 List of possible base temperatures for which to calculate cooling degree days
             daytimeCloudCover: bool (optional, default: True)
                 Include average Cloud Cover during daytime hours (from sunrise to sunset)
+            daytimeTemperature: bool (optional, default: True)
+                Include average Temperature during daytime hours (from sunrise to sunset)
         """
 
         #we need data from 2 days earlier to calculate degree days
@@ -176,6 +179,7 @@ class Weather_Days(Weather):
             start = start - pd.Timedelta(days = 2)
 
         self.daytimeCloudCover = daytimeCloudCover
+        self.daytimeTemperature = daytimeTemperature
 
         #init the superclass
         super(Weather_Days, self).__init__(api_key, location, start, end, tz)
@@ -208,6 +212,10 @@ class Weather_Days(Weather):
         if self.daytimeCloudCover:
             dtcc = self._get_daytime_avg(forecast = forecast, key= 'cloudCover')
             day_data.update({'daytimeCloudCover':dtcc})
+        #add daytime Temperature
+        if self.daytimeTemperature:
+            dtt = self._get_daytime_avg(forecast = forecast, key='temperature')
+            day_data.update({'daytimeTemperature':dtt})
 
         #convert to a single row in a dataframe and return
         daylist = [pd.Series(day_data)]
