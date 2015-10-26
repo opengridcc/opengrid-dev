@@ -238,7 +238,7 @@ class Weather_Days(Weather):
         ts = ts.truncate(before=sunrise, after=sunset)
 
         #return mean of truncated timeseries
-        return(ts.mean())
+        return round(ts.mean(), 2)
 
     def _get_daily_avg(self, forecast, key):
         """
