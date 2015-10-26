@@ -206,22 +206,24 @@ class Weather_Days(Weather):
 
         #add daytime Cloud Cover
         if self.daytimeCloudCover:
-            dtcc = self._get_daytimeCloudCover(forecast = forecast)
+            dtcc = self._get_daytime_avg(forecast = forecast, key= 'cloudCover')
             day_data.update({'daytimeCloudCover':dtcc})
 
         #convert to a single row in a dataframe and return
         daylist = [pd.Series(day_data)]
         return pd.concat(daylist,axis=1).T
 
-    def _get_daytimeCloudCover(self, forecast):
+    def _get_daytime_avg(self, forecast, key):
         """
-        Calculate the average CloudCover during daytime hours (from sunrise to sunset)
+        Calculate the average for a given value during daytime hours (from sunrise to sunset)
         :param forecast: Forecast object
+        :param key: String
+            parameter to average (eg. 'cloudCover')
         :return: float
         """
         #extract values from forecast
-        try: #sometimes there is no cloudcover number
-            values = [hour.d['cloudCover'] for hour in forecast.hourly().data]
+        try:
+            values = [hour.d[key] for hour in forecast.hourly().data]
         except KeyError:
             return None
 
