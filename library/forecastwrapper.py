@@ -145,6 +145,7 @@ class Weather_Days(Weather):
                  start,
                  end = None,
                  tz = None,
+                 averageTemperature = True,
                  heatingDegreeDays = True,
                  heatingBaseTemps = [16.5],
                  coolingDegreeDays = False,
@@ -167,6 +168,8 @@ class Weather_Days(Weather):
                 The lookup always happens in the timezone of the location
                 tz specifies the timezone of the response.
                 If none, tz is the timezone of the location
+            averageTemperature: bool (optional, default: True)
+                Include automatic calculation of average temperature from hourly data
             heatingDegreeDays: bool (optional, default: True)
                 Add heating degree days to the dataframe
             heatingBaseTemps: list of numbers (optional, default 16.5)
@@ -176,6 +179,8 @@ class Weather_Days(Weather):
             coolingBaseTemps: list of numbers (optional, default 18)
                 List of possible base temperatures for which to calculate cooling degree days
         """
+
+        self.averageTemperature = averageTemperature
 
         #we need data from 2 days earlier to calculate degree days
         if heatingDegreeDays or coolingDegreeDays:
@@ -208,9 +213,10 @@ class Weather_Days(Weather):
         forecast = forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
         day_data = forecast.daily().data[0].d
 
-        #calculate average temperature and add to day_data
-        avg_temp = self._get_daily_avg(forecast = forecast, key = 'temperature')
-        day_data.update({'temperature':avg_temp})
+        if self.averageTemperature:
+            #calculate average temperature and add to day_data
+            avg_temp = self._get_daily_avg(forecast = forecast, key = 'temperature')
+            day_data.update({'temperature':avg_temp})
 
         #convert to a single row in a dataframe and return
         daylist = [pd.Series(day_data)]
