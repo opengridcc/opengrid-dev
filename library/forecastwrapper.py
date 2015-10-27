@@ -121,6 +121,15 @@ class Weather(object):
         tz = self.geolocator.timezone((self.location.latitude,self.location.longitude))
         return tz.zone
 
+    def get_weather_ts(self, date):
+        """
+        Abstract
+        Get one single row of the final dataframe, representing data from a single day.
+        :param date: datetime-like object
+        :return: Pandas DataFrame
+        """
+        raise NotImplementedError('Method should be implemented by subclass')
+
 class Weather_Days(Weather):
     """
         Weather_Days object contains a Pandas DataFrame with all weather data 
@@ -313,7 +322,7 @@ class Weather_Hours(Weather):
         """
         #get forecast
         forecast = self._get_forecast(date=date)
-        
+
         #create a Pandas Series per hour
         day_data = forecast.hourly().data
         hourlist = [pd.Series(hour.d) for hour in day_data]
