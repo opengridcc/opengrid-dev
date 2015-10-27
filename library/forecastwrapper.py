@@ -11,7 +11,6 @@ from copy import copy
 
 class Weather(object):
     """
-        Abstract Class
         Object that contains Weather Data from Forecast.io for multiple days as a Pandas Dataframe.
         Use Weather_Days and Weather_Hours for different resolutions.
 
@@ -48,6 +47,14 @@ class Weather(object):
         self.location = self.geolocator.geocode(self._location)
 
         self.df = self.get_weather_df(start, end, tz)
+
+    def _get_forecast(self, date):
+        """
+        Get the raw forecast object for a given date
+        :param date: datetime-like object
+        :return: forecastio forecast
+        """
+        return forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
 
     def _dayset(self, start, end):
         """
@@ -191,7 +198,7 @@ class Weather_Days(Weather):
             Pandas Dataframe
         """
         #get forecast
-        forecast = forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
+        forecast = self._get_forecast(date=date)
         day_data = forecast.daily().data[0].d
 
         #calculate average temperature and add to day_data
@@ -305,8 +312,8 @@ class Weather_Hours(Weather):
             Pandas Dataframe
         """
         #get forecast
-        forecast = forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
-
+        forecast = self._get_forecast(date=date)
+        
         #create a Pandas Series per hour
         day_data = forecast.hourly().data
         hourlist = [pd.Series(hour.d) for hour in day_data]
