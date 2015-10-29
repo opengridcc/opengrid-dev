@@ -4,7 +4,8 @@ __author__ = 'Jan'
 
 import forecastio
 import datetime as dt
-from geopy import GoogleV3
+import geopy
+
 from dateutil import rrule
 import numpy as np
 import pandas as pd
@@ -26,8 +27,8 @@ class Weather(object):
             ----------
             api_key: string
                 Forecast.io API Key
-            location: string
-                City, address, POI
+            location: string OR iterable with 2 floats, latitude and longitude
+                String can be City, address, POI. Iterable = [lat,lng]
             start: datetime-like object
                 start of the interval to be searched
             end: datetime-like object (optional, default=None)
@@ -43,12 +44,21 @@ class Weather(object):
         self.api_key = api_key
 
         #input location
-        self._location = location
-        #processed location
-        self.geolocator = GoogleV3()
-        self.location = self.geolocator.geocode(self._location)
+        if isinstance(location, str):
+            self.location = self._getGeolocator().geocode(location)
+        else:
+            self.location = geopy.location.Location(point=geopy.location.Point(latitude=location[0],longitude=location[1]))
 
         self.df = self.get_weather_df(start, end, tz)
+
+    def _getGeolocator(self):
+        """
+        Only create the geolocator if needed
+        :return: geopy.geolocator
+        """
+        if not hasattr(self, 'geolocator'):
+            self.geolocator = geopy.GoogleV3()
+        return self.geolocator
 
     def _dayset(self, start, end):
         """
@@ -112,7 +122,8 @@ class Weather(object):
             -------
             timezone string
         """
-        tz = self.geolocator.timezone((self.location.latitude,self.location.longitude))
+
+        tz = self._getGeolocator().timezone((self.location.latitude,self.location.longitude))
         return tz.zone
 
 class Weather_Days(Weather):
@@ -136,6 +147,7 @@ class Weather_Days(Weather):
                  start,
                  end = None,
                  tz = None,
+                 averageTemperature = True,
                  heatingDegreeDays = True,
                  heatingBaseTemps = [16.5],
                  coolingDegreeDays = False,
@@ -150,8 +162,8 @@ class Weather_Days(Weather):
             ----------
             api_key: string
                 Forecast.io API Key
-            location: string
-                City, address, POI
+            location: string OR iterable with 2 floats, latitude and longitude
+                String can be City, address, POI. Iterable = [lat,lng]
             start: datetime object
                 start of the interval to be searched
             end: datetime object (optional, default=None)
@@ -160,6 +172,8 @@ class Weather_Days(Weather):
                 The lookup always happens in the timezone of the location
                 tz specifies the timezone of the response.
                 If none, tz is the timezone of the location
+            averageTemperature: bool (optional, default: True)
+                Include automatic calculation of average temperature from hourly data
             heatingDegreeDays: bool (optional, default: True)
                 Add heating degree days to the dataframe
             heatingBaseTemps: list of numbers (optional, default 16.5)
@@ -174,6 +188,8 @@ class Weather_Days(Weather):
                 Include average Temperature during daytime hours (from sunrise to sunset)
         """
 
+        self.averageTemperature = averageTemperature
+
         #we need data from 2 days earlier to calculate degree days
         if heatingDegreeDays or coolingDegreeDays:
             start = start - pd.Timedelta(days = 2)
@@ -182,7 +198,11 @@ class Weather_Days(Weather):
         self.daytimeTemperature = daytimeTemperature
 
         #init the superclass
-        super(Weather_Days, self).__init__(api_key, location, start, end, tz)
+        super(Weather_Days, self).__init__(api_key = api_key,
+                                           location=location,
+                                           start = start,
+                                           end = end,
+                                           tz=tz)
 
         #add degree days to dataframe
         if heatingDegreeDays or coolingDegreeDays:
@@ -204,9 +224,10 @@ class Weather_Days(Weather):
         forecast = forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
         day_data = forecast.daily().data[0].d
 
-        #calculate average temperature and add to day_data
-        avg_temp = self._get_daily_avg(forecast = forecast, key = 'temperature')
-        day_data.update({'temperature':avg_temp})
+        if self.averageTemperature:
+            #calculate average temperature and add to day_data
+            avg_temp = self._get_daily_avg(forecast = forecast, key = 'temperature')
+            day_data.update({'temperature':avg_temp})
 
         #add daytime Cloud Cover
         if self.daytimeCloudCover:
@@ -326,8 +347,8 @@ class Weather_Hours(Weather):
             ----------
             api_key: string
                 Forecast.io API Key
-            location: string
-                City, address, POI
+            location: string OR iterable with 2 floats, latitude and longitude
+                String can be City, address, POI. Iterable = [lat,lng]
             start: datetime object
                 start of the interval to be searched
             end: datetime object (optional, default=None)
@@ -338,7 +359,11 @@ class Weather_Hours(Weather):
                 If none, tz is the timezone of the location
         """
 
-        super(Weather_Hours, self).__init__(api_key, location, start, end, tz)
+        super(Weather_Hours, self).__init__(api_key=api_key,
+                                            location=location,
+                                            start=start,
+                                            end=end,
+                                            tz=tz)
 
     def get_weather_ts(self, date):
         """
