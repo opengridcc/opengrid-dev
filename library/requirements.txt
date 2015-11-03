@@ -9,3 +9,4 @@ ipython[notebook]
 charts
 python-forecastio
 geopy
+oauth2client
