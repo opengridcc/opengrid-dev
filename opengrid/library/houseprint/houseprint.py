@@ -1,6 +1,6 @@
 __author__ = 'Jan Pecinovsky'
 
-from opengrid.library.config import Config
+from opengrid.config import Config
 config = Config()
 
 import os

@@ -296,7 +296,7 @@ def synchronize(folder, unzip=True, consolidate=True, file_type='hdf'):
     t0 = time.time()
     if not os.path.exists(folder):
         raise IOError("Provide your path to the data folder where a zip and csv subfolder will be created.")
-    from opengrid.library import config
+    from opengrid import config
     # Get the pwd; start from the path of this current file 
     c = config.Config()
     pwd = c.get('opengrid_server', 'password')
