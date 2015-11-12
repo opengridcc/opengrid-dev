@@ -1,5 +1,5 @@
 *.pyc
-library/og.txt
+opengrid/config/og.txt
 tests/test_saved_hp.hp
 **opengrid.cfg
 **.ipynb_checkpoints
@@ -7,7 +7,7 @@ tests/test_saved_hp.hp
 tests/data_backup/
 data/
 test_scripts/
-library/houseprint-d74f58100c93.json
+opengrid/config/houseprint-d74f58100c93.json
 *.csv
 .idea/*
 scripts/*.json
