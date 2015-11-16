@@ -13,7 +13,6 @@ from copy import copy
 
 class Weather(object):
     """
-        Abstract Class
         Object that contains Weather Data from Forecast.io for multiple days as a Pandas Dataframe.
         Use Weather_Days and Weather_Hours for different resolutions.
 
@@ -50,6 +49,14 @@ class Weather(object):
             self.location = geopy.location.Location(point=geopy.location.Point(latitude=location[0],longitude=location[1]))
 
         self.df = self.get_weather_df(start, end, tz)
+
+    def _get_forecast(self, date):
+        """
+        Get the raw forecast object for a given date
+        :param date: datetime-like object
+        :return: forecastio forecast
+        """
+        return forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
 
     def _getGeolocator(self):
         """
@@ -125,6 +132,15 @@ class Weather(object):
 
         tz = self._getGeolocator().timezone((self.location.latitude,self.location.longitude))
         return tz.zone
+
+    def get_weather_ts(self, date):
+        """
+        Abstract
+        Get one single row of the final dataframe, representing data from a single day.
+        :param date: datetime-like object
+        :return: Pandas DataFrame
+        """
+        raise NotImplementedError('Method should be implemented by subclass')
 
 class Weather_Days(Weather):
     """
@@ -221,7 +237,7 @@ class Weather_Days(Weather):
             Pandas Dataframe
         """
         #get forecast
-        forecast = forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
+        forecast = self._get_forecast(date=date)
         day_data = forecast.daily().data[0].d
 
         if self.averageTemperature:
@@ -378,7 +394,7 @@ class Weather_Hours(Weather):
             Pandas Dataframe
         """
         #get forecast
-        forecast = forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
+        forecast = self._get_forecast(date=date)
 
         #create a Pandas Series per hour
         day_data = forecast.hourly().data
