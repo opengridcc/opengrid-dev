@@ -10,4 +10,4 @@ charts
 python-forecastio
 geopy
 oauth2client
-#tmpo
+tmpo
