@@ -5,9 +5,11 @@ python:
 notifications:
   email: false
 
+sudo: required
+
 # Setup anaconda
 before_install:
-  - apt-get install python-numpy python-scipy python-matplotlib ipython ipython-notebook python-pandas python-sympy python-nose
+  - sudo apt-get install python-numpy python-scipy python-matplotlib ipython ipython-notebook python-pandas python-sympy python-nose
 
 # Run test
 script:
