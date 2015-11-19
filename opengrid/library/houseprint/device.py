@@ -55,10 +55,6 @@ class Device(object):
         series = [sensor.get_data(head=head,tail=tail,resample=resample) for sensor in sensors]
         return pd.concat(series, axis=1)
 
-    def to_JSON(self):
-        return json.dumps(self, default=lambda o: o.__dict__, 
-            sort_keys=True, indent=4)
-
 class Fluksometer(Device):
     def __init__(self, site, key, mastertoken = None):
 
