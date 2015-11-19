@@ -11,10 +11,11 @@ notifications:
 addons:
   apt:
     packages:
+      - gfortran
       - libatlas-dev
       - libblas-dev 
       - liblapack-dev
-      - pyrhon-dev
+      - python-dev
       - python-scipy
 
 install:
