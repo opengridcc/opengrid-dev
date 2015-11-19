@@ -17,7 +17,6 @@ if sys.version_info.major == 3:
 else:
     import cPickle as pickle
 
-sys.path.append(config.get('tmpo', 'folder'))
 import tmpo
 
 #compatibility with py3

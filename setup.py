@@ -75,6 +75,6 @@ setup(
     # Note: for creating the source distribution, they had to be included in the
     # MANIFEST.in as well. 
     package_data={
-        'opengrid': ['LICENSE', 'README.md', 'requirements.txt'],
+        'opengrid': ['LICENSE', 'README.md', 'requirements.txt', 'opengrid/tests/test_saved_hp.hp'],
     },
 )
