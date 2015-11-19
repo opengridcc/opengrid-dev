@@ -4,11 +4,11 @@ opengrid/tests/test_saved_hp.hp
 **opengrid.cfg
 **.ipynb_checkpoints
 *.pkl
-tests/data_backup/
-data/
-test_scripts/
+opengrid/tests/data_backup/
 opengrid/config/houseprint-d74f58100c93.json
-*.csv
 .idea/*
 notebooks/*.json
 notebooks/*.csv
+dist/
+build/
+opengrid.egg-info/
