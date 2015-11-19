@@ -432,5 +432,8 @@ def load_houseprint_from_file(filename):
     """Return a static (=anonymous) houseprint object"""
 
     with open(filename, 'rb') as f:
-        hp = pickle.load(f)
+        if sys.version_info.major == 3:
+            hp = pickle.load(f, encoding='latin1')
+        else:
+            hp = pickle.load(f)
     return hp
