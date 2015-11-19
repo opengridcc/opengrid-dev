@@ -428,6 +428,10 @@ class Houseprint(object):
             sensors = self.get_sensors(sensortype)
         series = [sensor.get_data(head=head,tail=tail,resample=resample) for sensor in sensors]
         return pd.concat(series, axis=1)
+        
+    def to_JSON(self):
+        return json.dumps(self, default=lambda o: o.__dict__, 
+            sort_keys=True, indent=4)
 
 def load_houseprint_from_file(filename):
     """Return a static (=anonymous) houseprint object"""
