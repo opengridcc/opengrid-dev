@@ -35,7 +35,7 @@ It can be pickled, saved and passed around
 """
 
 class Houseprint(object):
-    def __init__(self, gjson=config.get('houseprint','json'), spreadsheet="Opengrid houseprint (Responses)"):
+    def __init__(self, gjson=None, spreadsheet="Opengrid houseprint (Responses)"):
         """
             Parameters
             ---------
@@ -44,6 +44,9 @@ class Houseprint(object):
         """
 
         self.sites = []
+
+        if gjson is None:
+            gjson = config.get('houseprint','json')
         self._parse_sheet(gjson, spreadsheet)
         self.timestamp = dt.datetime.utcnow() #Add a timestamp upon creation
 

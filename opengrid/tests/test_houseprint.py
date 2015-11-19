@@ -31,7 +31,7 @@ class HouseprintTest(unittest.TestCase):
         All tests can use self.hp as the houseprint object
         """
         
-        cls.hp = houseprint.load_houseprint_from_file('test_saved_hp.hp')
+        cls.hp = houseprint.Houseprint(spreadsheet="unit and integration test houseprint")
         
     @classmethod    
     def tearDownClass(cls):
