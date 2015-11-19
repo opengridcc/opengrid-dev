@@ -1,3 +1,5 @@
+https://travis-ci.org/opengridcc/opengrid.svg?branch=develop
+
 opengrid
 ========
 
