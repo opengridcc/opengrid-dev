@@ -31,7 +31,8 @@ class HouseprintTest(unittest.TestCase):
         All tests can use self.hp as the houseprint object
         """
         
-        cls.hp = houseprint.load_houseprint_from_file('test_saved_hp.hp')
+        here = os.path.abspath(os.path.dirname(__file__))
+        cls.hp = houseprint.load_houseprint_from_file(os.path.join(here, 'test_saved_hp.hp')
         
     @classmethod    
     def tearDownClass(cls):
