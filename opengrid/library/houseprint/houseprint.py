@@ -434,7 +434,7 @@ def load_houseprint_from_file(filename):
 
     with open(filename, 'r') as f:
         if sys.version_info.major == 3:
-            hp = pickle.load(f, encoding='latin1')
+            hp = pickle.load(f)
         else:
             hp = pickle.load(f)
     return hp
