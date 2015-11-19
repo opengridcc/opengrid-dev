@@ -261,7 +261,7 @@ def consolidate_sensor(folder, sensor, file_type='csv', dt_day=None, remove_temp
 def consolidate_folder(folder, file_type='csv'):
     
     sensor_set = {x.split('_')[-7] for x in glob.glob(os.path.join(folder, '*'))}
-    print 'About to consolidate {} sensors'.format(len(sensor_set))
+    print('About to consolidate {} sensors'.format(len(sensor_set)))
     for sensor in sensor_set:
         consolidate_sensor(folder, sensor, file_type=file_type, remove_temp=True)
     
@@ -296,7 +296,7 @@ def synchronize(folder, unzip=True, consolidate=True, file_type='hdf'):
     t0 = time.time()
     if not os.path.exists(folder):
         raise IOError("Provide your path to the data folder where a zip and csv subfolder will be created.")
-    from opengrid.library import config
+    from opengrid import config
     # Get the pwd; start from the path of this current file 
     c = config.Config()
     pwd = c.get('opengrid_server', 'password')
