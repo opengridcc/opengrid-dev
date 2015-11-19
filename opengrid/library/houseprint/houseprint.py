@@ -6,9 +6,7 @@ config = Config()
 import os
 import sys
 import json
-import gspread
 import datetime as dt
-from oauth2client.client import SignedJwtAssertionCredentials
 import pandas as pd
 
 #compatibility with py3
@@ -74,6 +72,9 @@ class Houseprint(object):
                 Name of the spreadsheet to connect to.
         """
 
+        import gspread
+        from oauth2client.client import SignedJwtAssertionCredentials
+        
         print('Opening connection to Houseprint sheet')
         #fetch credentials
         json_key = json.load(open(gjson))
@@ -353,7 +354,7 @@ class Houseprint(object):
             self._tmpos = None
 
         abspath = os.path.join(os.getcwd(), filename)
-        with open(abspath, 'wb') as f:
+        with open(abspath, 'w') as f:
             pickle.dump(self, f)
 
         print("Saved houseprint to {}".format(abspath))
@@ -431,9 +432,9 @@ class Houseprint(object):
 def load_houseprint_from_file(filename):
     """Return a static (=anonymous) houseprint object"""
 
-    with open(filename, 'rb') as f:
+    with open(filename, 'r') as f:
         if sys.version_info.major == 3:
-            hp = pickle.load(f, encoding='bytes')
+            hp = pickle.load(f, encoding='latin1')
         else:
             hp = pickle.load(f)
     return hp
