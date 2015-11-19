@@ -12,6 +12,9 @@ addons:
   apt:
     packages:
       - libatlas-dev
+      - libblas-dev 
+      - liblapack-dev
+      - pyrhon-dev
       - python-scipy
 
 install:
