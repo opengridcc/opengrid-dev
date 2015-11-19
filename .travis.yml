@@ -34,4 +34,4 @@ install:
   - python setup.py install
 
 
-script: nosetests --nologcapture -a '!slow'
+script: nosetests --exclude needpassword
