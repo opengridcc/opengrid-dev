@@ -6,6 +6,7 @@ config = Config()
 import os
 import sys
 import json
+import jsonpickle
 import datetime as dt
 import pandas as pd
 
@@ -339,7 +340,7 @@ class Houseprint(object):
 
     def save(self, filename):
         """
-        Pickle the houseprint object
+        Save the houseprint object
 
         Parameters
         ----------
@@ -348,21 +349,27 @@ class Houseprint(object):
             current working directory
 
         """
-        if hasattr(self,'_tmpos'):
-            #temporarily delete tmpo session
-            tmpos_tmp = self._tmpos
-            self._tmpos = None
-
+        #temporarily delete tmpo session        
+        try:
+           tmpos_tmp = self._tmpos
+           delattr(self, '_tmpos')
+        except:
+            pass
+           
+        frozen = jsonpickle.encode(self)        
+        
         abspath = os.path.join(os.getcwd(), filename)
         with open(abspath, 'w') as f:
-            pickle.dump(self, f)
+            f.write(frozen)
 
         print("Saved houseprint to {}".format(abspath))
-
-        if hasattr(self,'_tmpos'):
-            #restore tmpo session
-            self._tmpos = tmpos_tmp
-
+        
+        # restore tmposession if needed
+        try:
+            setattr(self, '_tmpos', tmpos_tmp)
+        except:
+            pass
+        
     def init_tmpo(self, tmpos=None, path_to_tmpo_data=None):
         """
             Fluksosensors need a tmpo session to obtain data.
@@ -433,8 +440,5 @@ def load_houseprint_from_file(filename):
     """Return a static (=anonymous) houseprint object"""
 
     with open(filename, 'r') as f:
-        if sys.version_info.major == 3:
-            hp = pickle.load(f)
-        else:
-            hp = pickle.load(f)
+        hp = jsonpickle.decode(f.read())
     return hp
