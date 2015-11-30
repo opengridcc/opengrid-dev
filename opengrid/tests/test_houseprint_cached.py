@@ -15,19 +15,7 @@ import os, sys
 import unittest
 import inspect
 
-test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-# add the path to opengrid to sys.path
-sys.path.append(os.path.join(test_dir, os.pardir, os.pardir))
-from opengrid.library import config
-c = config.Config()
-sys.path.append(c.get('tmpo', 'folder'))
 from opengrid.library.houseprint import houseprint
-
-try:
-    if os.path.exists(c.get('tmpo', 'data')):
-        path_to_tmpo_data = c.get('tmpo', 'data')
-except:
-    path_to_tmpo_data = None
 
 class HouseprintTest(unittest.TestCase):
     """
@@ -43,8 +31,8 @@ class HouseprintTest(unittest.TestCase):
         All tests can use self.hp as the houseprint object
         """
         
-        cls.hp = houseprint.Houseprint(gjson=c.get('houseprint','json'), 
-                                       spreadsheet="unit and integration test houseprint")
+        here = os.path.abspath(os.path.dirname(__file__))
+        cls.hp = houseprint.load_houseprint_from_file(os.path.join(here, 'test_saved_hp.hp'))
         
     @classmethod    
     def tearDownClass(cls):
@@ -89,55 +77,35 @@ class HouseprintTest(unittest.TestCase):
         self.assertEqual(s12.type, 'water')
         self.assertEqual(s12.description, 'Water house')
         
-#==============================================================================
-#     def test_saving_with_tmpo(self):
-#         """Saving a houseprint should keep the tmpo session alive"""
-#         
-#         self.hp.init_tmpo(path_to_tmpo_data=path_to_tmpo_data)
-#         
-#         self.assertIsNotNone(self.hp.get_tmpos())
-#         self.hp.save('test_saved_hp.hp')
-#         self.assertIsNotNone(self.hp.get_tmpos())
-#==============================================================================
-        
     def test_get_sensors_by_type(self):
         """Searching for sensors by type should return only concerned sensors"""
 
         watersensors = self.hp.get_sensors(sensortype='water')
         self.assertEqual([x.key for x in watersensors], ['s6', 's12', 's13'])        
     
+    def test_search_sites(self):
+        """Searching sites based on site attributes"""
+        
+        self.assertEqual(4, self.hp.search_sites(key=4)[0].key)
+        sites_with_3_inhabitants = self.hp.search_sites(inhabitants=3)
+        self.assertEqual([3,4], [x.key for x in sites_with_3_inhabitants])
 
-#==============================================================================
-#     def test_anonymize(self):
-#         """Test if the hp is truly anonymous after anyonimizing"""
-#         
-#         ### ATTENTION ###
-#         # This test will remove e-mail addresses from the self.hp object.
-#         # If other tests require this information, put them BEFORE this one
-#         # as the tests are executed in order of appearance
-#         #################
-#         
-#         self.hp.anonymize()
-#         # test if there is still an e-mail address somewhere
-#         email = False
-#         for i in self.hp.cellvalues:
-#             for j in i:
-#                 try:
-#                     email = j.find(u'@') > 0
-#                 except:
-#                     pass
-#                 if email:
-#                     self.assertFalse(email, msg=u"'@' found in cell {}".format(j))
-#         for attr in ['gc', 'sheet', 'sourcedir']:
-#             self.assertFalse(hasattr(self.hp, attr), msg="hp should NOT have attribute {}".format(attr))
-#==============================================================================
-            
+    def test_search_sensors(self):
+        """Searching sensors based on sensor attributes"""
+        
+        sensors = self.hp.search_sensors(system='grid')
+        self.assertEqual(['s1', 's2'], [x.key for x in sensors])
+        
+        sensors = self.hp.search_sensors(type='electricity', direction='Import')
+        self.assertEqual(['s2'], [x.key for x in sensors])
+
+
     def test_save_and_load(self):
         """Save a HP and load it back"""
         
-        self.hp.init_tmpo(path_to_tmpo_data=path_to_tmpo_data)
-        self.hp.save('test_saved_hp.hp')
-        hp2 = houseprint.load_houseprint_from_file('test_saved_hp.hp')
+        self.hp.init_tmpo()
+        self.hp.save('temp.hp')
+        hp2 = houseprint.load_houseprint_from_file('temp.hp')
         
         # Just comparing the old and new hp does not work: the sensors have the
         # same attributes, but are different objects (different location in memory)
@@ -150,7 +118,7 @@ class HouseprintTest(unittest.TestCase):
             self.assertEqual(s1_old.__dict__[x], s1_new.__dict__[x])
             
         self.assertIsNotNone(self.hp.get_tmpos())
-        self.hp.save('test_saved_hp.hp')
+        self.hp.save('temp.hp')
         self.assertIsNotNone(self.hp.get_tmpos())
                 
         
