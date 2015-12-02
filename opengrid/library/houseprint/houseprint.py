@@ -1,14 +1,13 @@
 __author__ = 'Jan Pecinovsky'
 
-from opengrid.library.config import Config
+from opengrid.config import Config
 config = Config()
 
 import os
 import sys
 import json
-import gspread
+import jsonpickle
 import datetime as dt
-from oauth2client.client import SignedJwtAssertionCredentials
 import pandas as pd
 
 #compatibility with py3
@@ -17,7 +16,6 @@ if sys.version_info.major == 3:
 else:
     import cPickle as pickle
 
-sys.path.append(config.get('tmpo', 'folder'))
 import tmpo
 
 #compatibility with py3
@@ -36,7 +34,7 @@ It can be pickled, saved and passed around
 """
 
 class Houseprint(object):
-    def __init__(self, gjson=config.get('houseprint','json'), spreadsheet="Opengrid houseprint (Responses)"):
+    def __init__(self, gjson=None, spreadsheet="Opengrid houseprint (Responses)"):
         """
             Parameters
             ---------
@@ -45,6 +43,9 @@ class Houseprint(object):
         """
 
         self.sites = []
+
+        if gjson is None:
+            gjson = config.get('houseprint','json')
         self._parse_sheet(gjson, spreadsheet)
         self.timestamp = dt.datetime.utcnow() #Add a timestamp upon creation
 
@@ -72,6 +73,9 @@ class Houseprint(object):
                 Name of the spreadsheet to connect to.
         """
 
+        import gspread
+        from oauth2client.client import SignedJwtAssertionCredentials
+        
         print('Opening connection to Houseprint sheet')
         #fetch credentials
         json_key = json.load(open(gjson))
@@ -336,7 +340,7 @@ class Houseprint(object):
 
     def save(self, filename):
         """
-        Pickle the houseprint object
+        Save the houseprint object
 
         Parameters
         ----------
@@ -345,21 +349,27 @@ class Houseprint(object):
             current working directory
 
         """
-        if hasattr(self,'_tmpos'):
-            #temporarily delete tmpo session
-            tmpos_tmp = self._tmpos
-            self._tmpos = None
-
+        #temporarily delete tmpo session        
+        try:
+           tmpos_tmp = self._tmpos
+           delattr(self, '_tmpos')
+        except:
+            pass
+           
+        frozen = jsonpickle.encode(self)        
+        
         abspath = os.path.join(os.getcwd(), filename)
-        with open(abspath, 'wb') as f:
-            pickle.dump(self, f)
+        with open(abspath, 'w') as f:
+            f.write(frozen)
 
         print("Saved houseprint to {}".format(abspath))
-
-        if hasattr(self,'_tmpos'):
-            #restore tmpo session
-            self._tmpos = tmpos_tmp
-
+        
+        # restore tmposession if needed
+        try:
+            setattr(self, '_tmpos', tmpos_tmp)
+        except:
+            pass
+        
     def init_tmpo(self, tmpos=None, path_to_tmpo_data=None):
         """
             Fluksosensors need a tmpo session to obtain data.
@@ -429,6 +439,6 @@ class Houseprint(object):
 def load_houseprint_from_file(filename):
     """Return a static (=anonymous) houseprint object"""
 
-    with open(filename, 'rb') as f:
-        hp = pickle.load(f)
+    with open(filename, 'r') as f:
+        hp = jsonpickle.decode(f.read())
     return hp
