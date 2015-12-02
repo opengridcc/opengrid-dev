@@ -15,9 +15,6 @@ import os, sys
 import unittest
 import inspect
 
-test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-# add the path to opengrid to sys.path
-sys.path.append(os.path.join(test_dir, os.pardir, os.pardir))
 from opengrid.library.houseprint import houseprint
 
 class HouseprintTest(unittest.TestCase):
@@ -34,7 +31,8 @@ class HouseprintTest(unittest.TestCase):
         All tests can use self.hp as the houseprint object
         """
         
-        cls.hp = houseprint.Houseprint(spreadsheet="unit and integration test houseprint")
+        here = os.path.abspath(os.path.dirname(__file__))
+        cls.hp = houseprint.load_houseprint_from_file(os.path.join(here, 'test_saved_hp.hp'))
         
     @classmethod    
     def tearDownClass(cls):
@@ -106,8 +104,8 @@ class HouseprintTest(unittest.TestCase):
         """Save a HP and load it back"""
         
         self.hp.init_tmpo()
-        self.hp.save('test_saved_hp.hp')
-        hp2 = houseprint.load_houseprint_from_file('test_saved_hp.hp')
+        self.hp.save('temp.hp')
+        hp2 = houseprint.load_houseprint_from_file('temp.hp')
         
         # Just comparing the old and new hp does not work: the sensors have the
         # same attributes, but are different objects (different location in memory)
@@ -120,7 +118,7 @@ class HouseprintTest(unittest.TestCase):
             self.assertEqual(s1_old.__dict__[x], s1_new.__dict__[x])
             
         self.assertIsNotNone(self.hp.get_tmpos())
-        self.hp.save('test_saved_hp.hp')
+        self.hp.save('temp.hp')
         self.assertIsNotNone(self.hp.get_tmpos())
                 
         
