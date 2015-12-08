@@ -391,6 +391,8 @@ class Houseprint(object):
             
             self._tmpos = tmpo.Session(path_to_tmpo_data)
 
+        print("Using tmpo database from {}".format(self._tmpos.db))
+
     def get_tmpos(self):
         """
             Returns
