@@ -3,5 +3,7 @@
 opengrid
 ========
 
-Open source building monitoring, analysis and control
+Open-source algorithms for data-driven building analysis and control
+
+License: Apache 2.0
 

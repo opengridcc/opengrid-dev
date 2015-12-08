@@ -26,7 +26,7 @@ if subprocess.call(["pip", "install","-r", path.join(here, "requirements.txt"), 
 
 setup(
     name='opengrid',
-    version="0.2.0",
+    version="0.3.0",
     description='Open-source algorithms for data-driven building analysis and control',
     long_description=long_description,
     url='https://github.com/opengridcc/opengrid',
@@ -47,7 +47,7 @@ setup(
         'Topic :: Scientific/Engineering',
 
         # Pick your license as you wish (should match "license" above)
-        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+        'License :: OSI Approved :: Apache Software License',
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
@@ -59,7 +59,7 @@ setup(
         'Programming Language :: Python :: 3.4',
     ],
 
-    keywords='buildings monitoring analysis control',
+    keywords='algorithms buildings monitoring analysis control',
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
