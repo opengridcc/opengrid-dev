@@ -17,8 +17,8 @@ from os import path
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
-with open(path.join(here, 'README.md'), encoding='utf-8') as f:
-    long_description = f.read()
+#with open(path.join(here, 'README.md'), encoding='utf-8') as f:
+#    long_description = f.read()
 
 import subprocess
 if subprocess.call(["pip", "install","-r", path.join(here, "requirements.txt"), "-v", "--no-cache"]):
@@ -26,13 +26,13 @@ if subprocess.call(["pip", "install","-r", path.join(here, "requirements.txt"), 
 
 setup(
     name='opengrid',
-    version="0.3.0",
+    version="0.3.2",
     description='Open-source algorithms for data-driven building analysis and control',
-    long_description=long_description,
+    #long_description=long_description,
     url='https://github.com/opengridcc/opengrid',
     author='Roel De Coninck and many others',
     author_email='roeldeconinck@gmail.com',
-    license='GPLv3',
+    license='Apache 2.0',
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
