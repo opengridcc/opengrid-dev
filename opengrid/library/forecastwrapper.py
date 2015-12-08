@@ -111,7 +111,7 @@ class Weather():
                                                  ) for forecast in self.forecasts]
 
         frame = pd.concat(day_list)
-        frame = self._fix_index(frame).sort()
+        frame = self._fix_index(frame).sort_index()
 
         if include_temperature_equivalent:
             frame = self._add_temperature_equivalent(frame)
