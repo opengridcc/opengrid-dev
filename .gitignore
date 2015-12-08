@@ -1,6 +1,5 @@
 *.pyc
 opengrid/config/og.txt
-opengrid/tests/temp.hp
 **opengrid.cfg
 **.ipynb_checkpoints
 *.pkl
