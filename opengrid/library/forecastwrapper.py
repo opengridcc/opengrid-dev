@@ -1,60 +1,148 @@
-# -*- coding: utf-8 -*-
+__author__ = 'Jan Pecinovsky'
 
-__author__ = 'Jan'
-
-import forecastio
 import datetime as dt
-import geopy
-
-from dateutil import rrule
-import numpy as np
-import pandas as pd
 from copy import copy
 
-class Weather(object):
-    """
-        Abstract Class
-        Object that contains Weather Data from Forecast.io for multiple days as a Pandas Dataframe.
-        Use Weather_Days and Weather_Hours for different resolutions.
+import forecastio
+import geopy
+import numpy as np
+import pandas as pd
+from dateutil import rrule
 
+
+class Weather():
+    """
+        Object that contains Weather Data from Forecast.io for multiple days as a Pandas Dataframe.
         NOTE: Forecast.io allows 1000 requests per day, after that you have to pay. Each requested day is 1 request.
     """
+
     def __init__(self, api_key, location, start, end=None, tz=None):
         """
             Constructor
 
             Parameters
             ----------
-            api_key: string
+            api_key : string
                 Forecast.io API Key
-            location: string OR iterable with 2 floats, latitude and longitude
+            location : string OR iterable with 2 floats, latitude and longitude
                 String can be City, address, POI. Iterable = [lat,lng]
-            start: datetime-like object
+            start : datetime-like object
                 start of the interval to be searched
-            end: datetime-like object (optional, default=None)
+            end : datetime-like object (optional, default=None)
                 end of the interval to be searched, if None, use current time
-            tz: timezone string (optional)
-                The lookup always happens in the timezone of the location
+            tz : timezone string (optional)
                 tz specifies the timezone of the response.
-                If none, tz is the timezone of the location
+                If none, response will be in the timezone of the location
         """
+
+        self.start = start
         if end is None:
             end = pd.Timestamp('now', tz=tz)
+        self.end = end
 
         self.api_key = api_key
 
-        #input location
+        # input location
         if isinstance(location, str):
-            self.location = self._getGeolocator().geocode(location)
+            self.location = self._get_geolocator().geocode(location)
         else:
-            self.location = geopy.location.Location(point=geopy.location.Point(latitude=location[0],longitude=location[1]))
+            self.location = geopy.location.Location(
+                point=geopy.location.Point(latitude=location[0], longitude=location[1]))
 
-        self.df = self.get_weather_df(start, end, tz)
+        if tz is not None:
+            self.tz = tz
+        else:
+            self.tz = self.lookup_timezone()
 
-    def _getGeolocator(self):
+        self.forecasts = [self._get_forecast(date=date) for date in self._dayset(start=start, end=end)]
+
+    def days(self,
+             include_average_temperature=True,
+             include_temperature_equivalent=True,
+             include_heating_degree_days=True,
+             heating_base_temperatures=[16.5],
+             include_cooling_degree_days=True,
+             cooling_base_temperatures=[18],
+             include_daytime_cloud_cover=True,
+             include_daytime_temperature=True
+             ):
         """
-        Only create the geolocator if needed
-        :return: geopy.geolocator
+        Create a dataframe with all weather data in daily resolution
+
+        Parameters
+        ----------
+        include_average_temperature : bool (optional, default: True)
+            Include automatic calculation of average temperature from hourly data
+        include_temperature_equivalent : bool (optional, default: True)
+            Include Temperature Equivalent to dataframe
+        include_heating_degree_days : bool (optional, default: True)
+            Add heating degree days to the dataframe
+        heating_base_temperatures : list of numbers (optional, default 16.5)
+            List of possible base temperatures for which to calculate heating degree days
+        include_cooling_degree_days : bool (optional, default: False)
+            Add cooling degree days to the dataframe
+        cooling_base_temperatures : list of numbers (optional, default 18)
+            List of possible base temperatures for which to calculate cooling degree days
+        include_daytime_cloud_cover : bool (optional, default: True)
+            Include average Cloud Cover during daytime hours (from sunrise to sunset)
+        include_daytime_temperature : bool (optional, default: True)
+            Include average Temperature during daytime hours (from sunrise to sunset)
+
+        Returns
+        -------
+        Pandas Dataframe
+        """
+        if include_heating_degree_days or include_cooling_degree_days:
+            include_temperature_equivalent = True
+
+        if include_temperature_equivalent:
+            include_average_temperature = True
+
+        # if temperature_equivalent is needed,
+        # we need to add 2 days before the start
+        if include_temperature_equivalent:
+            self._add_forecast(self.start - pd.Timedelta(days=1))
+            self._add_forecast(self.start - pd.Timedelta(days=2))
+
+        day_list = [self._forecast_to_day_series(forecast=forecast,
+                                                 include_average_temperature=include_average_temperature,
+                                                 include_daytime_cloud_cover=include_daytime_cloud_cover,
+                                                 include_daytime_temperature=include_daytime_temperature
+                                                 ) for forecast in self.forecasts]
+
+        frame = pd.concat(day_list)
+        frame = self._fix_index(frame).sort()
+
+        if include_temperature_equivalent:
+            frame = self._add_temperature_equivalent(frame)
+
+        if include_heating_degree_days:
+            frame = self._add_heating_degree_days(df=frame, base_temperatures=heating_base_temperatures)
+
+        if include_cooling_degree_days:
+            frame = self._add_cooling_degree_days(df=frame, base_temperatures=cooling_base_temperatures)
+
+        return frame.truncate(before=self.start, after=self.end)
+
+    def hours(self):
+        """
+        Create a dataframe with all weather data in hourly resolution
+
+        Returns
+        -------
+        Pandas Dataframe
+        """
+        day_list = [self._forecast_to_hour_series(forecast) for forecast in self.forecasts]
+        frame = pd.concat(day_list)
+        return self._fix_index(frame).truncate(before=self.start, after=self.end)
+
+    def _get_geolocator(self):
+        """
+            Only create the geolocator if needed
+
+            Returns
+            -------
+            geopy.geolocator
         """
         if not hasattr(self, 'geolocator'):
             self.geolocator = geopy.GoogleV3()
@@ -66,323 +154,261 @@ class Weather(object):
 
             Parameters
             ----------
-            start: datetime-like object
-            end: datetime-like object 
+            start : datetime-like object
+            end : datetime-like object
 
             Returns
             -------
             set of datetime objects
         """
-        
+
         res = []
         for dt in rrule.rrule(rrule.DAILY, dtstart=start, until=end):
             res.append(dt)
         return sorted(set(res))
 
-    def get_weather_df(self, start, end, tz=None):
+    def _get_forecast(self, date):
         """
-            Creates a Pandas DataFrame with all weather info.
+            Get the raw forecast object for a given date
 
             Parameters
             ----------
-            start: datetime-like object
-            end: datetime-like object 
-            tz: timezone string (optional)
-                default response is in the timezone of the weather location
-        """
-        #create list of time series per day
-        dayList = [self.get_weather_ts(day) for day in self._dayset(start, end)]
-
-        #concat list to dataframe
-        res = pd.concat(dayList)
-
-        #convert UNIX timestamps to datetime
-        res['time'] = pd.DatetimeIndex(res['time'].astype('datetime64[s]'))
-
-        #set time column as index
-        res.set_index('time',inplace=True)
-        #time returned by Forecast.io is always in UTC
-        res = res.tz_localize('UTC')
-
-        #save the dataframe in the timezone specified
-        #if no tz is specified, use the timezone of the location
-        if tz is None:
-            tz = self.get_timezone()
-        else:
-            pass #tz = tz
-        res = res.tz_convert(tz)
-
-        return res
-
-    def get_timezone(self):
-        """
-            Get the timezone of the weather location
+            date : datetime-like object
 
             Returns
             -------
-            timezone string
+            forecastio forecast
         """
+        return forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
 
-        tz = self._getGeolocator().timezone((self.location.latitude,self.location.longitude))
+    def _get_forecast_dates(self):
+        """
+        Return a set with the dates of all forecasts in self.forecasts
+
+        Returns
+        -------
+        set of datetime.date
+        """
+        return {forecast.currently().time.date() for forecast in self.forecasts}
+
+    def _add_forecast(self, date):
+        """
+        Add a forecast to the list of forecasts
+
+        Parameters
+        ----------
+        date: datetime-like object
+        """
+        if date.date() not in self._get_forecast_dates():
+            self.forecasts.append(self._get_forecast(date))
+
+    def _forecast_to_hour_series(self, forecast):
+        """
+        Transforms the hourly data of a forecast object to a pandas dataframe
+
+        Parameters
+        ----------
+        forecast : Forecast object
+
+        Returns
+        -------
+        Pandas Dataframe
+
+        """
+        hour_list = [pd.Series(hour.d) for hour in forecast.hourly().data]
+        frame = pd.concat(hour_list, axis=1).T
+        return frame
+
+    def _fix_index(self, frame):
+        """
+        Transform a column of a dataframe to a datetimeindex, set as the index and localize
+
+        Parameters
+        ----------
+        frame : Pandas Dataframe
+
+        Returns
+        -------
+        Pandas Dataframe
+
+        """
+        frame['time'] = pd.DatetimeIndex(frame['time'].astype('datetime64[s]'))
+        frame.set_index('time', inplace=True)
+        frame = frame.tz_localize('UTC')
+        frame = frame.tz_convert(self.tz)
+        return frame
+
+    def lookup_timezone(self):
+        """
+        Lookup the timezone using the location information
+
+        Returns
+        -------
+        String (Pytz timezone)
+        """
+        tz = self._get_geolocator().timezone((self.location.latitude, self.location.longitude))
         return tz.zone
 
-class Weather_Days(Weather):
-    """
-        Weather_Days object contains a Pandas DataFrame with all weather data 
-        at daily resolution from Forecast.io.
-        Additionally, heating degreedays are added by default for a base
-        temperature of 16.5 degC. Different base temperature can be provided and 
-        also cooling degreedays can be added
-        
-        NOTE
-        ====
-        Forecast.io allows 1000 requests per day for a free account. 
-        Each requested day is 1 request. Paid accounts are available. 
-
-    """
-
-    def __init__(self,
-                 api_key,
-                 location,
-                 start,
-                 end = None,
-                 tz = None,
-                 averageTemperature = True,
-                 heatingDegreeDays = True,
-                 heatingBaseTemps = [16.5],
-                 coolingDegreeDays = False,
-                 coolingBaseTemps = [18],
-                 daytimeCloudCover = True,
-                 daytimeTemperature = True
-                 ):
+    def _forecast_to_day_series(
+            self,
+            forecast,
+            include_average_temperature,
+            include_daytime_cloud_cover,
+            include_daytime_temperature
+    ):
         """
-            Constructor
+        Transforms the daily data of a forecast object to a pandas dataframe
 
-            Parameters
-            ----------
-            api_key: string
-                Forecast.io API Key
-            location: string OR iterable with 2 floats, latitude and longitude
-                String can be City, address, POI. Iterable = [lat,lng]
-            start: datetime object
-                start of the interval to be searched
-            end: datetime object (optional, default=None)
-                end of the interval to be searched, if None, use current time.
-            tz: timezone string (optional)
-                The lookup always happens in the timezone of the location
-                tz specifies the timezone of the response.
-                If none, tz is the timezone of the location
-            averageTemperature: bool (optional, default: True)
-                Include automatic calculation of average temperature from hourly data
-            heatingDegreeDays: bool (optional, default: True)
-                Add heating degree days to the dataframe
-            heatingBaseTemps: list of numbers (optional, default 16.5)
-                List of possible base temperatures for which to calculate heating degree days
-            coolingDegreeDays: bool (optional, default: False)
-                Add cooling degree days to the dataframe
-            coolingBaseTemps: list of numbers (optional, default 18)
-                List of possible base temperatures for which to calculate cooling degree days
-            daytimeCloudCover: bool (optional, default: True)
-                Include average Cloud Cover during daytime hours (from sunrise to sunset)
-            daytimeTemperature: bool (optional, default: True)
-                Include average Temperature during daytime hours (from sunrise to sunset)
+        Parameters
+        ----------
+        include_daytime_cloud_cover : bool
+        include_daytime_temperature : bool
+        include_average_temperature : bool
+        forecast : Forecast Object
+
+        Returns
+        -------
+        Pandas dataframe
+
         """
+        data = forecast.daily().data[0].d
 
-        self.averageTemperature = averageTemperature
+        if include_average_temperature:
+            average_temperature = self._get_daily_average(forecast=forecast, key='temperature')
+            data.update({'temperature': average_temperature})
+        if include_daytime_cloud_cover:
+            daytime_cloud_cover = self._get_daytime_average(forecast=forecast, key='cloudCover')
+            data.update({'daytimeCloudCover': daytime_cloud_cover})
+        if include_daytime_temperature:
+            daytime_temperature = self._get_daytime_average(forecast=forecast, key='temperature')
+            data.update({'daytimeTemperature': daytime_temperature})
 
-        #we need data from 2 days earlier to calculate degree days
-        if heatingDegreeDays or coolingDegreeDays:
-            start = start - pd.Timedelta(days = 2)
+        frame = [pd.Series(data)]
+        return pd.concat(frame, axis=1).T
 
-        self.daytimeCloudCover = daytimeCloudCover
-        self.daytimeTemperature = daytimeTemperature
-
-        #init the superclass
-        super(Weather_Days, self).__init__(api_key = api_key,
-                                           location=location,
-                                           start = start,
-                                           end = end,
-                                           tz=tz)
-
-        #add degree days to dataframe
-        if heatingDegreeDays or coolingDegreeDays:
-            self.df = self._addDegreeDays(self.df, heatingDegreeDays, heatingBaseTemps, coolingDegreeDays, coolingBaseTemps)
-
-    def get_weather_ts(self, date):
+    def _get_daily_average(self, forecast, key):
         """
-            Get one single row of the final dataframe, representing data from a single day.
+        Calculate the average daily value for a given forecast and a given key from the hourly values
 
-            Parameters
-            ----------
-            date: datetime object
+        Parameters
+        ----------
+        forecast : Forecast object
+        key : String
 
-            Returns
-            -------
-            Pandas Dataframe
+        Returns
+        -------
+        float
         """
-        #get forecast
-        forecast = forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
-        day_data = forecast.daily().data[0].d
+        # make a list of all hourly values for the given key
+        values = [hour.d[key] for hour in forecast.hourly().data]
+        # calculate the mean, round to 2 significant figures and return
+        return round(np.mean(values), 2)
 
-        if self.averageTemperature:
-            #calculate average temperature and add to day_data
-            avg_temp = self._get_daily_avg(forecast = forecast, key = 'temperature')
-            day_data.update({'temperature':avg_temp})
-
-        #add daytime Cloud Cover
-        if self.daytimeCloudCover:
-            dtcc = self._get_daytime_avg(forecast = forecast, key= 'cloudCover')
-            day_data.update({'daytimeCloudCover':dtcc})
-        #add daytime Temperature
-        if self.daytimeTemperature:
-            dtt = self._get_daytime_avg(forecast = forecast, key='temperature')
-            day_data.update({'daytimeTemperature':dtt})
-
-        #convert to a single row in a dataframe and return
-        daylist = [pd.Series(day_data)]
-        return pd.concat(daylist,axis=1).T
-
-    def _get_daytime_avg(self, forecast, key):
+    def _get_daytime_average(self, forecast, key):
         """
         Calculate the average for a given value during daytime hours (from sunrise to sunset)
-        :param forecast: Forecast object
-        :param key: String
-            parameter to average (eg. 'cloudCover')
-        :return: float
+
+        Parameters
+        ----------
+        forecast : Forecast Object
+        key : String
+
+        Returns
+        -------
+        float
         """
-        #extract values from forecast
+        # extract values from forecast
         try:
             values = [hour.d[key] for hour in forecast.hourly().data]
         except KeyError:
             return None
 
-        #make a time series
+        # make a time series
         time = [hour.d['time'] for hour in forecast.hourly().data]
-        ts = pd.Series(data = values, index=time)
+        ts = pd.Series(data=values, index=time)
         ts.index = pd.DatetimeIndex(ts.index.astype('datetime64[s]'))
 
-        #get sunrise and sunset
+        # get sunrise and sunset
         sunrise = dt.datetime.utcfromtimestamp(forecast.daily().data[0].d['sunriseTime'])
         sunset = dt.datetime.utcfromtimestamp(forecast.daily().data[0].d['sunsetTime'])
 
-        #truncate timeseries
+        # truncate timeseries
         ts = ts.truncate(before=sunrise, after=sunset)
 
-        #return mean of truncated timeseries
+        # return mean of truncated timeseries
         return round(ts.mean(), 2)
 
-    def _get_daily_avg(self, forecast, key):
+    def _add_temperature_equivalent(self, df):
         """
-            Calculate the average daily value for a given forecast and a given key from the hourly values
+        Adds the temperature equivalent to the data frame
+        according to the formula: 0.6 * tempDay0 + 0.3 * tempDay-1 + 0.1 * tempDay-2
+        Because we need the two previous days to calculate day0, the resulting dataframe will be 2 days shorter
+        (you should pass dataframes that have two days more than you want)
 
-            Parameters
-            ----------
-            forecast: Forecast object
-            key: string
-                parameter to average (eg. 'temperature')
+        Parameters
+        ----------
+        df : Pandas Dataframe
 
-            Returns
-            -------
-            float
+        Returns
+        -------
+        Pandas Dataframe
         """
-        #make a list of all hourly values for the given key
-        values = [hour.d[key] for hour in forecast.hourly().data]
-        #calculate the mean, round to 2 significant figures and return
-        return round(np.mean(values),2)
 
-    def _addDegreeDays(self, df, heatingDegreeDays, heatingBaseTemps, coolingDegreeDays, coolingBaseTemps):
-        """
-            Takes a dataframe of daily values and adds degree days.
-            Degree days are calculated from a temperature equivalent: 0.6 * tempDay0 + 0.3 * tempDay-1 + 0.1 * tempDay-2
-            Because we need the two previous days to calculate day0, the resulting dataframe will be 2 days shorter
-                (you should pass dataframes that have two days more than you want)
+        # select temperature column from dataframe
+        temperature = df['temperature']
+        # calculate the temperature equivalent, using two days before day0
+        temperature_equivalent = [
+            0.6 * temperature.values[ix] + 0.3 * temperature.values[ix - 1] + 0.1 * temperature.values[ix - 2] for ix in
+            range(0, len(df)) if ix > 1]
 
-            Parameters
-            ----------
-            df: Pandas Dataframe
-                should contain a column named 'temperature'
-            heatingDegreeDays: bool
-                add heating degree days
-            heatingBaseTemps: list of numbers
-                base temperatures to be used to calculate heating degree days
-            coolingDegreeDays: bool
-                add cooling degree days
-            coolingBaseTemps: list of numbers
-                base temperatures to be used to calculate cooling degree days
-
-            Returns
-            -------
-            Pandas Dataframe
-        """
-        #select temperature column from dataframe
-        temp = df['temperature']
-        #calculate the temperature equivalent, using two days before day0
-        temp_equiv = [0.6 * temp.values[ix] + 0.3 * temp.values[ix-1] + 0.1 * temp.values[ix-2] for ix in range(0,len(df)) if ix>1]
-
-        #the response will be 2 days shorter
+        # the response will be 2 days shorter
         res = copy(df[2:])
 
-        #add degree days to response
-        if heatingDegreeDays:
-            for baseTemp in heatingBaseTemps:
-                res['heatingDegreeDays{}'.format(baseTemp)] = [max(0, baseTemp - val) for val in temp_equiv]
-        if coolingDegreeDays:
-            for baseTemp in coolingBaseTemps:
-                res['coolingDegreeDays{}'.format(baseTemp)] = [max(0, val - baseTemp) for val in temp_equiv]
+        # add the temperature equivalent to the response
+        res['temperatureEquivalent'] = temperature_equivalent
 
         return res
 
-class Weather_Hours(Weather):
-    """
-        Weather_Hours object contains a Pandas DataFrame with all weather data hour from Forecast.io
-
-        NOTE: Forecast.io allows 1000 requests per day, after that you have to pay. Each requested day is 1 request.
-
-    """
-    def __init__(self, api_key, location, start, end=None, tz=None):
+    def _add_heating_degree_days(self, df, base_temperatures):
         """
-            Constructor
+        Add heating degree days to the dataframe.
+        They are calculated by subtracting the temperature equivalent from a base temperature
+        Note: Degree days cannot be negative
 
-            Parameters
-            ----------
-            api_key: string
-                Forecast.io API Key
-            location: string OR iterable with 2 floats, latitude and longitude
-                String can be City, address, POI. Iterable = [lat,lng]
-            start: datetime object
-                start of the interval to be searched
-            end: datetime object (optional, default=None)
-                end of the interval to be searched, if None, use current time
-            tz: timezone string (optional)
-                The lookup always happens in the timezone of the location
-                tz specifies the timezone of the response.
-                If none, tz is the timezone of the location
+        Parameters
+        ----------
+        df : Pandas Dataframe
+        base_temperatures : list of numbers
+
+        Returns
+        -------
+        Pandas Dataframe
         """
 
-        super(Weather_Hours, self).__init__(api_key=api_key,
-                                            location=location,
-                                            start=start,
-                                            end=end,
-                                            tz=tz)
+        for base in base_temperatures:
+            df['heatingDegreeDays{}'.format(base)] = [max(0, base - equivalent) for equivalent in
+                                                      df['temperatureEquivalent']]
 
-    def get_weather_ts(self, date):
+        return df
+
+    def _add_cooling_degree_days(self, df, base_temperatures):
         """
-            Create a Dataframe for a single day, a row per hour
+        Add cooling degree days to the dataframe.
+        They are calculated by subtracting a base temperature from the temperature equivalent.
+        Note: Degree days cannot be negative
 
-            Parameters
-            ----------
-            date: datetime-like object
+        Parameters
+        ----------
+        df : Pandas Dataframe
+        base_temperatures : list of numbers
 
-            Returns
-            -------
-            Pandas Dataframe
+        Returns
+        -------
+        Pandas Dataframe
         """
-        #get forecast
-        forecast = forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
 
-        #create a Pandas Series per hour
-        day_data = forecast.hourly().data
-        hourlist = [pd.Series(hour.d) for hour in day_data]
+        for base in base_temperatures:
+            df['coolingDegreeDays{}'.format(base)] = [max(0, equivalent - base) for equivalent in
+                                                      df['temperatureEquivalent']]
 
-        #concatenate hourly series, transform and return
-        return pd.concat(hourlist,axis=1).T
+        return df
