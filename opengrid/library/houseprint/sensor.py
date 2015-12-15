@@ -95,6 +95,9 @@ class Fluksosensor(Sensor):
                            head = head,
                            tail = tail)
 
+        if resample == 'raw':
+            return data
+
         if not data.dropna().empty:
 
             #interpolate on seconds
