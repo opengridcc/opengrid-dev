@@ -373,12 +373,16 @@ class Houseprint(object):
     def init_tmpo(self, tmpos=None, path_to_tmpo_data=None):
         """
             Fluksosensors need a tmpo session to obtain data.
-            It is overkill to have each fluksosensor make its own session, syncing would take too long and be overly redundant.
-            Passing a tmpo session to the get_data function is also bad form because we might add new types of sensors that don't use tmpo in the future.
+            It is overkill to have each fluksosensor make its own session, syncing would 
+            take too long and be overly redundant.
+            Passing a tmpo session to the get_data function is also bad form because 
+            we might add new types of sensors that don't use tmpo in the future.
             This is why the session is initialised here.
 
-            A tmpo session as parameter is optional.
+            A tmpo session as parameter is optional.  If passed, no additional sensors are added.
+            
             If no session is passed, a new one will be created using the location in the config file.
+            It will then be populated with the fluksosensors known to the houseprint object
         """
 
         if tmpos is not None:
@@ -390,6 +394,13 @@ class Houseprint(object):
                 path_to_tmpo_data = None            
             
             self._tmpos = tmpo.Session(path_to_tmpo_data)
+            # Add fluksosensors
+            fluksosensors = [sensor for sensor in self.get_sensors() if isinstance(sensor,Fluksosensor)]
+
+            for sensor in fluksosensors:
+                self._tmpos.add(sensor.key, sensor.token)
+
+        print("Using tmpo database from {}".format(self._tmpos.db))
 
     def get_tmpos(self):
         """
@@ -409,11 +420,6 @@ class Houseprint(object):
             Add all Fluksosensors to the TMPO session and sync
         """
         tmpos = self.get_tmpos()
-        fluksosensors = [sensor for sensor in self.get_sensors() if isinstance(sensor,Fluksosensor)]
-
-        for sensor in fluksosensors:
-            tmpos.add(sensor.key, sensor.token)
-
         tmpos.sync()
 
     def get_data(self, sensors=None, sensortype=None, head=None, tail=None, resample='min'):

@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Houseprint unit test based on previously saved houseprint file.
+This test is a combination of unit and integration test. 
+It makes a connection with google spreadsheets to get a dummy test version of the
+houseprint sheet. The sheet is called "unit and integration test houseprint"
+
+Open that sheet to check some of the tests.
 
 Created on Mon Dec 30 02:37:25 2013
 
@@ -27,8 +31,7 @@ class HouseprintTest(unittest.TestCase):
         All tests can use self.hp as the houseprint object
         """
         
-        here = os.path.abspath(os.path.dirname(__file__))
-        cls.hp = houseprint.load_houseprint_from_file(os.path.join(here, 'test_saved_hp.hp'))
+        cls.hp = houseprint.Houseprint(spreadsheet="unit and integration test houseprint")
         
     @classmethod    
     def tearDownClass(cls):
@@ -100,8 +103,8 @@ class HouseprintTest(unittest.TestCase):
         """Save a HP and load it back"""
         
         self.hp.init_tmpo()
-        self.hp.save('temp.hp')
-        hp2 = houseprint.load_houseprint_from_file('temp.hp')
+        self.hp.save('test_saved_hp.hp')
+        hp2 = houseprint.load_houseprint_from_file('test_saved_hp.hp')
         
         # Just comparing the old and new hp does not work: the sensors have the
         # same attributes, but are different objects (different location in memory)
@@ -114,11 +117,8 @@ class HouseprintTest(unittest.TestCase):
             self.assertEqual(s1_old.__dict__[x], s1_new.__dict__[x])
             
         self.assertIsNotNone(self.hp.get_tmpos())
-        self.hp.save('temp.hp')
+        self.hp.save('test_saved_hp.hp')
         self.assertIsNotNone(self.hp.get_tmpos())
-
-        # remove temp.hp file
-        os.remove('temp.hp')
                 
         
 if __name__ == '__main__':
