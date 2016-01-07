@@ -7,6 +7,7 @@ Created on Thu Jan  7 09:34:04 2016
 @author: roel
 """
 import os
+import numpy as np
 from opengrid import config
 cfg = config.Config()
 from opengrid.library.misc import *

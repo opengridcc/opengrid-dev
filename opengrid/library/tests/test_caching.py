@@ -21,6 +21,7 @@ import pandas as pd
 import pytz
 
 test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+os.chdir(test_dir)
 # add the path to opengrid to sys.path
 sys.path.insert(1, os.path.join(test_dir, os.pardir, os.pardir, os.pardir))
 from opengrid.library import caching
