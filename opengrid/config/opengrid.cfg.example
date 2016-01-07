@@ -6,7 +6,7 @@
 # precedence over the former.
 
 [data]
-# obsolete, was used (only?) for CSV files
+# Used for CSV files that are saved locally, eg by the cache.py module
 folder: path_to_csv_files
 
 [opengrid_server]
@@ -22,7 +22,7 @@ apikey: CHANGE_ME
 apikey: CHANGE_ME
 
 [tmpo]
-# specify the location of tmpo-py
+# specify the location of tmpo-py.  Not needed normally as tmpo can now be installed by pip
 folder: path_to_folder_containing_tmpo.py
 # data: only specify the path to the tmpo-data if different from the default
 # data: path_to_tmpo_data
