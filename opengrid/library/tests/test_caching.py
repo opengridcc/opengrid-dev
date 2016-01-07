@@ -39,8 +39,27 @@ class CacheTest(unittest.TestCase):
         self.assertEqual(ch.folder, os.path.join(os.getcwd(), 'data'))
         
         
+    def test_load(self):
+        ch = caching.Cache('elec_standby')
+        df = ch._load('mysensor')
+        
+        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=365)).all())
+        self.assertEqual(df.columns, ['mysensor'])
         
         
+    def test_get(self):
+        
+        ch = caching.Cache('elec_standby')
+        df = ch.get('mysensor')
+        
+        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=365)).all())
+        self.assertEqual(df.columns, ['mysensor'])
+        
+        df = ch.get('mysensor', end='20160115')
+        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=15)).all())
+        
+        df = ch.get('mysensor', start = '20160707', end='20160708')
+        self.assertTrue((df.index == pd.DatetimeIndex(start='20160707', freq='D', periods=2)).all())
                          
 
 

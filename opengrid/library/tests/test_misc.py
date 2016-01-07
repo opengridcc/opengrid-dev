@@ -68,8 +68,9 @@ class MiscTest(unittest.TestCase):
         self.assertEqual(pts.value/1e9, epoch_expected)   
 
         pts = parse_date('2014-11-23T010203')
-        self.assertEqual(pts.value/1e9, epoch_expected)   
-
+        self.assertEqual(pts.value/1e9, epoch_expected) 
+        
+    
 
 if __name__ == '__main__':
     
