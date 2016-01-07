@@ -69,15 +69,40 @@ class Cache(object):
         return df
     
     
+    def _write(self, df):
+        """
+        Write the dataframe to csv according to the filename conventions
+        """
+        
+        if not self.check_df(df):
+            return False
+        
+        # Find the file and read into a dataframe
+        filename = self.result + '_' + sensor + '.csv'
+        path = os.path.join(self.folder, filename)
+        
+        df.to_csv(path)
+        print("Dataframe written to {}".format(path))
+        return True
+    
+    
     def get(self, sensor, start=None, end=None):
         """
         Return a dataframe with cached data for this sensor
         
+        Arguments
+        ---------
         sensor : str
             Unique identifier for this sensor
         start, end : Datetime, float, int, string or pandas Timestamp
             Anything that can be parsed into a pandas.Timestamp
             If None, return all cached data available
+            
+        Returns
+        -------
+        df : pandas DataFrame
+            With single column, daily datetimeindex 
+            and curtailed if start and/or end are given.
         """
        
         df = self._load(sensor)
@@ -99,12 +124,61 @@ class Cache(object):
         return df.loc[t_start:t_end,:]
    
     
+    def check_df(self, df):
+        """
+        Verify that the dataframe is acceptable as a daily aggregation result
+        
+        Arguments
+        ---------
+        df : pandas DataFrame
+            
+        Returns
+        --------
+        True/False
+        
+        Return False when the dataframe is empty, when it does not have a single
+        column or when the index does not have a daily frequency        
+        
+        
+        """
+        if len(df) == 0:
+            print("Empty dataframe")
+            return False
+        
+        if len(df.columns) != 1:
+            print("Wrong number of columns")
+            return False
+            
+        if df.index.freqstr != 'D':
+            if df.index.freqstr is not None:
+                print("Wrong frequency of the index: '{}' (instead of 'D')".format(df.index.freqstr))
+                return False
+            else:
+                # The df.index does not have a freqstr attribute for some reason. 
+                # verify the frequency manually
+                interval = np.round((df.index[-1] - df.index[0]).total_seconds()/(len(df.index)-1))
+                if not interval == 86400:
+                    print("Wrong frequency of the index: mean interval = {}s (instead of 86400)".format(interval))
+                    return False
+                
+        return True
+    
+    
+    
     def update(self, df):
         """
         Update the stored dataframe with the given dataframe if it contains 
         new results
         """
-       
-        pass
+        
+        if not self.check_df(df):
+            return
+
+        # Find the file and read into a dataframe
+        sensor = df.columns[0]        
+        df_old = self._load(sensor) 
+        df_old.update(df)
+        self._write(df_old)
+        return             
    
    

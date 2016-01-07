@@ -61,7 +61,26 @@ class CacheTest(unittest.TestCase):
         df = ch.get('mysensor', start = '20160707', end='20160708')
         self.assertTrue((df.index == pd.DatetimeIndex(start='20160707', freq='D', periods=2)).all())
                          
-
+    def test_check_df(self):
+        ch = caching.Cache('elec_standby')
+        
+        df = pd.DataFrame()
+        self.assertFalse(ch.check_df(df))
+        
+        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3)       
+        df = pd.DataFrame(index=index, data=np.random.randn(3,2), columns=['A', 'B'])
+        self.assertFalse(ch.check_df(df))
+        
+        index = pd.DatetimeIndex(['20160201', '20160202', '20160203'])       
+        df = pd.DataFrame(index=index, data=np.random.randn(3), columns=['A'])
+        self.assertTrue(ch.check_df(df))
+        
+        index = pd.DatetimeIndex(['20160201', '20160202', '20160204'])       
+        df = pd.DataFrame(index=index, data=np.random.randn(3), columns=['A'])
+        self.assertFalse(ch.check_df(df))
+        
+        
+        
 
 
 if __name__ == '__main__':
