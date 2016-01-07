@@ -107,6 +107,9 @@ class Cache(object):
         """
        
         df = self._load(sensor)
+
+        if len(df) == 0:
+            return df
         
         if (start is None) & (end is None):
             return df
