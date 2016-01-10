@@ -68,8 +68,41 @@ class MiscTest(unittest.TestCase):
         self.assertEqual(pts.value/1e9, epoch_expected)   
 
         pts = parse_date('2014-11-23T010203')
-        self.assertEqual(pts.value/1e9, epoch_expected) 
-        
+        self.assertEqual(pts.value/1e9, epoch_expected)
+
+    def test_time_to_timedelta(self):
+
+        t = dt.time(2,45,23)
+        self.assertEqual(time_to_timedelta(t).total_seconds(), 7200+45*60+23.0)
+
+        t = dt.time(2,45,23, tzinfo=pytz.timezone('Europe/Brussels'))
+        self.assertEqual(time_to_timedelta(t).total_seconds(), 7200+45*60+23.0)
+
+    def test_split_by_day(self):
+        index = pd.DatetimeIndex(start='20160101 03:51:15', freq='h', periods=80)
+        df = pd.DataFrame(index=index, data=np.random.randn(80,2), columns=['A', 'B'])
+
+        # without specifying hours
+        list_daily = split_by_day(df)
+        self.assertEqual(len(list_daily), 4)
+        self.assertEqual(list_daily[0].index[0], index[0])
+        self.assertEqual(list_daily[1].index[0], pd.Timestamp('20160102 00:51:15'))
+        self.assertEqual(list_daily[1].index[-1], pd.Timestamp('20160102 23:51:15'))
+
+        # specifying start
+        list_daily = split_by_day(df, starttime = dt.time(1,30))
+        self.assertEqual(len(list_daily), 4)
+        self.assertEqual(list_daily[0].index[0], pd.Timestamp('20160101 03:51:15'))
+        self.assertEqual(list_daily[1].index[0], pd.Timestamp('20160102 01:51:15'))
+        self.assertEqual(list_daily[1].index[-1], pd.Timestamp('20160102 23:51:15'))
+
+        # specifying start and end
+        list_daily = split_by_day(df, starttime=dt.time(1,30), endtime=dt.time(6))
+        self.assertEqual(len(list_daily), 4)
+        self.assertEqual(list_daily[0].index[0], pd.Timestamp('20160101 03:51:15'))
+        self.assertEqual(list_daily[1].index[0], pd.Timestamp('20160102 01:51:15'))
+        self.assertEqual(list_daily[1].index[-1], pd.Timestamp('20160102 05:51:15'))
+
     
 
 if __name__ == '__main__':
