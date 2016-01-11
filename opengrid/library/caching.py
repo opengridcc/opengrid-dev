@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-General caching functionality
+General caching functionality. This module defines:
+
+1. the Cache class
+2. generic cache functions to store daily results
 
 Created on Thu Jan  7 09:34:04 2016
 
@@ -8,9 +11,11 @@ Created on Thu Jan  7 09:34:04 2016
 """
 import os
 import numpy as np
+import pandas as pd
 from opengrid import config
 cfg = config.Config()
-from opengrid.library.misc import *
+from opengrid.library import misc
+from opengrid.library import analysis
 
 class Cache(object):
     """
@@ -53,9 +58,15 @@ class Cache(object):
         """
         Return a dataframe with cached data for this sensor.  If there is no
         cached data, return an empty dataframe
-        
+
+        Arguments
+        ---------
         sensor : str
             Unique identifier for this sensor
+
+        Returns
+        -------
+        df : tz-aware dataframe with cached daily results or empty dataframe.
         
         """
         # Find the file and read into a dataframe
@@ -67,34 +78,72 @@ class Cache(object):
             return pd.DataFrame()
         
         df = pd.read_csv(path, index_col = 0, header=0, parse_dates=True)
+        df.index = df.index.tz_localize('UTC')
         return df
     
     
-    def _write(self, df):
+    def _write_single(self, df):
         """
-        Write the dataframe to csv according to the filename conventions
+        Write the dataframe with single sensor to csv according to the filename conventions
+
+        Arguments
+        ---------
+        df : pandas DataFrame or Series
         """
-        
-        if not self.check_df(df):
-            return False
-        
+
+        # handle both cases correctly: dataframe or series
+        if isinstance(df, pd.DataFrame):
+            if len(df.columns) != 1:
+                raise ValueError("Wrong number of columns")
+            df_temp = df.copy()
+        elif isinstance(df, pd.Series):
+            if df.name is None:
+                raise ValueError("pandas Series needs a name with sensor id")
+            df_temp = pd.DataFrame(df)
+
+        sensor = df_temp.columns[0]
         # Find the file and read into a dataframe
         filename = self.result + '_' + sensor + '.csv'
         path = os.path.join(self.folder, filename)
         
-        df.to_csv(path)
-        print("Dataframe written to {}".format(path))
+        df_temp.to_csv(path)
+        print("Values for {} written to {}".format(sensor, path))
         return True
-    
-    
-    def get(self, sensor, start=None, end=None):
+
+    def _write(self, df):
         """
-        Return a dataframe with cached data for this sensor
+        Write the dataframe to csv according to the filename conventions
+
+        Parameters
+        ----------
+        df : pandas DataFrame or Series
+            This can be a multiple-column dataframe.  Each columns is a sensor_id.
+
+        Returns
+        -------
+        True if all data is cached successfully
+
+        Notes
+        -----
+        For each sensor found in df, a csv is saved to disk with filename
+        self.folder/result_sensor.csv
+        """
+
+        if isinstance(df, pd.Series):
+            return self._write_single(df)
+        else:
+            for sensor in df.columns:
+                self._write_single(df[sensor])
+            return True
+    
+    def get(self, sensors, start=None, end=None):
+        """
+        Return a dataframe with cached data for these sensors
         
         Arguments
         ---------
-        sensor : str
-            Unique identifier for this sensor
+        sensors : list with strings
+            Each element is a unique identifier for a sensor
         start, end : Datetime, float, int, string or pandas Timestamp
             Anything that can be parsed into a pandas.Timestamp
             If None, return all cached data available
@@ -105,25 +154,32 @@ class Cache(object):
             With single column, daily datetimeindex 
             and curtailed if start and/or end are given.
         """
-       
-        df = self._load(sensor)
+
+        if not isinstance(sensors, list):
+            raise TypeError("Sensors has to be a list with sensor id's, not a {}".format(type(sensors)))
+
+        dfs = []
+        for sensor in sensors:
+            dfs.append(self._load(sensor))
+        df = pd.concat(dfs,axis=1)
 
         if len(df) == 0:
             return df
         
         if (start is None) & (end is None):
+            # no truncating
             return df
         
-        # truncate if necessary  
+        # truncate
         if start is None:
-            t_start = parse_date(0)
+            t_start = misc.parse_date(0)
         else:
-            t_start = parse_date(start)
+            t_start = misc.parse_date(start)
         
         if end is None:
-            t_end = parse_date('21000101')
+            t_end = misc.parse_date('21000101')
         else:
-            t_end = parse_date(end)
+            t_end = misc.parse_date(end)
             
         return df.loc[t_start:t_end,:]
    
@@ -140,19 +196,13 @@ class Cache(object):
         --------
         True/False
         
-        Return False when the dataframe is empty, when it does not have a single
-        column or when the index does not have a daily frequency        
-        
-        
+        Return False when the dataframe is empty or when the index does not have a daily frequency
+
         """
         if len(df) == 0:
             print("Empty dataframe")
             return False
         
-        if len(df.columns) != 1:
-            print("Wrong number of columns")
-            return False
-            
         if df.index.freqstr != 'D':
             if df.index.freqstr is not None:
                 print("Wrong frequency of the index: '{}' (instead of 'D')".format(df.index.freqstr))
@@ -167,22 +217,126 @@ class Cache(object):
                 
         return True
     
-    
-    
-    def update(self, df):
+
+    def _update_single(self, df):
         """
-        Update the stored dataframe with the given dataframe if it contains 
-        new results
+        For a single sensor: update the stored dataframe with the given one
+
+        Arguments
+        ---------
+        df : pandas DataFrame or Series
+            If a dataframe, can only contain a single column with the sensor_id
+            If a Series, the name attribute is the sensor_id
+
+        Returns
+        --------
+        True if successfully updated
         """
         
         if not self.check_df(df):
-            return
+            raise ValueError("Dataframe or Series not acceptable for updating.")
+
+        # handle both cases correctly: dataframe or series
+        if isinstance(df, pd.DataFrame):
+            if len(df.columns) != 1:
+                raise ValueError("Wrong number of columns")
+            df_temp = df.copy()
+        elif isinstance(df, pd.Series):
+            if df.name is None:
+                raise ValueError("pandas Series needs a name with sensor id")
+            df_temp = pd.DataFrame(df)
 
         # Find the file and read into a dataframe
-        sensor = df.columns[0]        
-        df_old = self._load(sensor) 
-        df_old.update(df)
-        self._write(df_old)
-        return             
-   
-   
+        sensor = df_temp.columns[0]
+        df_old = self._load(sensor)
+        df_old.update(df_temp)
+        df_res = df_old.combine_first(df_temp)
+        self._write(df_res)
+        return True
+
+
+    def update(self, df):
+        """
+        Updates the cached data for each sensor in df
+
+        Arguments
+        ----------
+        df : pandas DataFrame or Series
+            This can be a multiple-column dataframe.  Each columns is a sensor_id.
+
+        Returns
+        -------
+        True if all data is cached successfully
+
+        Notes
+        -----
+        For each sensor found in df, a csv is saved to disk with filename
+        self.folder/result_sensor.csv. If such a file was already present,
+        the values are updated with the ones provided in df (will overwrite
+        overlapping days).
+        """
+
+        if isinstance(df, pd.Series):
+            return self._update_single(df)
+        else:
+            for sensor in df.columns:
+                try:
+                    self._update_single(df[sensor])
+                except ValueError:
+                    pass
+            return True
+
+
+def cache(hp, sensors, function, resultname, **kwargs):
+    """
+    Run an analysis on a set of sensors and cache the results
+
+    Parameters
+    ----------
+    sensors : list with sensor objects
+        Each element is a sensor object with attribute 'key' as sensor_id
+    function : string (functionname)
+        method from the analysis library
+    resultname : string
+        Name of the cached variable, eg. elect_standby or water_daily_max
+    kwargs : dict
+        Additional keyword arguments are passed to the call of the analysis method
+
+    Returns
+    -------
+    True if all data has been successfully cached.
+
+    """
+
+    # The method would run perfectly on all sensorids at once.
+    # However, this leads to large dataframes and large RAM use.
+    # Therefore, we create a for loop over the sensor ids
+
+    import importlib
+    cache = Cache(result=resultname)
+
+    for sensor in sensors:
+        # Get whatever is available as cache
+        # and only extract timeseries from tmpos since the last day
+        df_cached = cache.get([sensor.key])
+        try:
+            last_day = df_cached.index[-1]
+        except IndexError:
+            last_day = 0
+
+        # get new data, full resolution
+        # Todo: for non-counter values, diff() is not needed!!
+        df_new = hp.get_data(sensors = [sensor], head=last_day).diff()
+
+        # apply the method
+        method = getattr(analysis, function)
+        df_day = method(df_new, **kwargs)
+
+        # cache the results
+        cache.update(df_day)
+    return True
+
+
+
+
+

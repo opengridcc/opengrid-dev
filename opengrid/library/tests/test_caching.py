@@ -25,6 +25,8 @@ os.chdir(test_dir)
 # add the path to opengrid to sys.path
 sys.path.insert(1, os.path.join(test_dir, os.pardir, os.pardir, os.pardir))
 from opengrid.library import caching
+
+# Note: there is a opengrid.cfg in the test_dir which is loaded here!!
 from opengrid import config
 cfg = config.Config()
 
@@ -41,47 +43,199 @@ class CacheTest(unittest.TestCase):
         
         
     def test_load(self):
+        """Load and parse a cached object correctly"""
         ch = caching.Cache('elec_standby')
         df = ch._load('mysensor')
         
-        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=365)).all())
+        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=365, tz='UTC')).all())
         self.assertEqual(df.columns, ['mysensor'])
         
         
-    def test_get(self):
-        
+    def test_get_raises(self):
+        """Raise TypeError when argument sensors is not a list"""
         ch = caching.Cache('elec_standby')
-        df = ch.get('mysensor')
+        self.assertRaises(TypeError, ch.get, 'mysensor')
+
+    def test_get_single(self):
+        """Obtain cached results and return a correct dataframe"""
+        ch = caching.Cache('elec_standby')
+        df = ch.get(['mysensor'])
         
-        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=365)).all())
+        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=365, tz='UTC')).all())
         self.assertEqual(df.columns, ['mysensor'])
         
-        df = ch.get('mysensor', end='20160115')
-        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=15)).all())
+        df = ch.get(['mysensor'], end='20160115')
+        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=15, tz='UTC')).all())
         
-        df = ch.get('mysensor', start = '20160707', end='20160708')
-        self.assertTrue((df.index == pd.DatetimeIndex(start='20160707', freq='D', periods=2)).all())
+        df = ch.get(['mysensor'], start = '20160707', end='20160708')
+        self.assertTrue((df.index == pd.DatetimeIndex(start='20160707', freq='D', periods=2, tz='UTC')).all())
+        self.assertFalse(df.index.tz is None, "Returned dataframe is tz-naive")
+
+
                          
-    def test_check_df(self):
+    def test_get_multiple(self):
+        """Obtain cached results and return a correct dataframe"""
         ch = caching.Cache('elec_standby')
-        
+        df = ch.get(['mysensor', 'mysensor2'], end='20160104')
+
+        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=4, tz='UTC')).all())
+        self.assertListEqual(df.columns.tolist(), ['mysensor', 'mysensor2'])
+        self.assertEqual(df.ix[1, 'mysensor2'], 5)
+        self.assertTrue(np.isnan(df.ix[3, 'mysensor2']))
+
+
+    def test_check_df_series(self):
+        """check if series is not empty and has daily frequency"""
+        ch = caching.Cache('elec_standby')
+
+        df = pd.Series()
+        self.assertFalse(ch.check_df(df))
+
+        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
+        ts = pd.Series(index=index, data=np.random.randn(3), name='A')
+        self.assertTrue(ch.check_df(ts))
+
+    def test_check_df(self):
+        """check if dataframe is not empty and has daily frequency"""
+        ch = caching.Cache('elec_standby')
+
         df = pd.DataFrame()
         self.assertFalse(ch.check_df(df))
-        
-        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3)       
+
+        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
         df = pd.DataFrame(index=index, data=np.random.randn(3,2), columns=['A', 'B'])
-        self.assertFalse(ch.check_df(df))
+        self.assertTrue(ch.check_df(df))
         
-        index = pd.DatetimeIndex(['20160201', '20160202', '20160203'])       
+        index = pd.DatetimeIndex(['20160201', '20160202', '20160203'], tz='UTC')
         df = pd.DataFrame(index=index, data=np.random.randn(3), columns=['A'])
         self.assertTrue(ch.check_df(df))
         
-        index = pd.DatetimeIndex(['20160201', '20160202', '20160204'])       
+        index = pd.DatetimeIndex(['20160201', '20160202', '20160204'], tz='UTC')
         df = pd.DataFrame(index=index, data=np.random.randn(3), columns=['A'])
         self.assertFalse(ch.check_df(df))
+
+    def test_write_single1(self):
+        """Write dataframe with single columns only"""
+        ch = caching.Cache('elec_temp')
+
+        # write a dataframe with single column
+        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
+        df = pd.DataFrame(index=index, data=np.random.randn(3), columns=['testsensor'])
+        expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor.csv')
+        self.assertFalse(os.path.exists(expected_path))
+        try:
+            ch._write_single(df)
+            self.assertTrue(os.path.exists(expected_path))
+        except:
+            raise
+        finally:
+            os.remove(expected_path)
+
+        # raise ValueError on dataframe with multiple columns
+        df = pd.DataFrame(index=index, data=np.random.randn(3,2), columns=['testsensor1', 'testsensor2'])
+        self.assertRaises(ValueError, ch._write_single, df)
         
-        
-        
+    def test_write_single2(self):
+        """Write timeseries """
+        ch = caching.Cache('elec_temp')
+
+        # write a dataframe with single column
+        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
+        df = pd.Series(index=index, data=np.random.randn(3), name='testsensor_series')
+        expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor_series.csv')
+        self.assertFalse(os.path.exists(expected_path))
+        try:
+            ch._write_single(df)
+            self.assertTrue(os.path.exists(expected_path))
+        except:
+            raise
+        finally:
+            os.remove(expected_path)
+
+        # raise ValueError on series without name
+        df = pd.Series(index=index, data=np.random.randn(3))
+        self.assertRaises(ValueError, ch._write_single, df)
+
+    def test_write(self):
+        """Write dataframe with multiple columns"""
+        ch = caching.Cache('elec_temp')
+
+        # write a dataframe with single column
+        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
+        df = pd.DataFrame(index=index, data=np.random.randn(3,2), columns=['testsensor1', 'testsensor2'])
+        expected_path1 = os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor1.csv')
+        expected_path2 = os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor2.csv')
+        self.assertFalse(os.path.exists(expected_path1))
+        self.assertFalse(os.path.exists(expected_path2))
+
+        try:
+            ch._write(df)
+            self.assertTrue(os.path.exists(expected_path1))
+            self.assertTrue(os.path.exists(expected_path2))
+        except:
+            raise
+        finally:
+            os.remove(expected_path1)
+            os.remove(expected_path2)
+
+    def test_update_single(self):
+        """Update an existing cached sensor with new information"""
+
+        ch = caching.Cache('elec_temp')
+
+        try:
+            # write a dataframe with single column
+            index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
+            df = pd.DataFrame(index=index, data=[0,1,2], columns=['testsensor'])
+            expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor.csv')
+            self.assertFalse(os.path.exists(expected_path))
+            ch._write_single(df)
+
+            index = pd.DatetimeIndex(start='20160103', freq='D', periods=3, tz='UTC')
+            df_new = pd.DataFrame(index=index, data=[100,200,300], columns=['testsensor'])
+            ch.update(df_new)
+            df_res = ch.get(['testsensor'])
+            print df_res
+            self.assertEqual(df_res.iloc[1,0], 1)
+            self.assertEqual(df_res.iloc[2,0], 100)
+            self.assertEqual(df_res.iloc[4,0], 300)
+        except:
+            raise
+        finally:
+            os.remove(os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor.csv'))
+
+    def test_update_multiple(self):
+        """Update an existing cached sensor with new information"""
+
+        ch = caching.Cache('elec_temp')
+
+
+        # write a dataframe with two columns
+        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
+        df = pd.DataFrame(index=index, data=dict(testsensor1=[0,1,2], testsensor2= [0,1,2]))
+        expected_path1 = os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor1.csv')
+        expected_path2 = os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor2.csv')
+        self.assertFalse(os.path.exists(expected_path1))
+        self.assertFalse(os.path.exists(expected_path2))
+        try:
+            ch.update(df)
+            self.assertTrue(os.path.exists(expected_path1))
+            self.assertTrue(os.path.exists(expected_path2))
+
+            index = pd.DatetimeIndex(start='20160103', freq='D', periods=3, tz='UTC')
+            df_new = pd.DataFrame(index=index, data=dict(testsensor1=[100,200,300], testsensor2=[100,200,300]))
+            ch.update(df_new)
+            df_res = ch.get(['testsensor2'])
+
+            self.assertEqual(df_res.iloc[1,0], 1)
+            self.assertEqual(df_res.iloc[2,0], 100)
+            self.assertEqual(df_res.iloc[4,0], 300)
+        except:
+            raise
+        finally:
+            os.remove(expected_path1)
+            os.remove(expected_path2)
+
 
 
 if __name__ == '__main__':
