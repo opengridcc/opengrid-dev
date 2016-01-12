@@ -37,6 +37,19 @@ class Device(object):
         """
         return [sensor for sensor in self.sensors if sensor.type == sensortype or sensortype is None]
 
+    def number_of_sensors(self, sensortype = None):
+        """
+        Parameters
+        ----------
+        sensortype: gas, water, electricity: optional
+
+        Returns
+        -------
+        int
+        """
+
+        return len(self.get_sensors(sensortype=sensortype))
+
     def get_data(self, sensortype = None, head = None, tail = None, resample = 'min'):
         """
             Return a Pandas Dataframe with the joined data for all sensors in this device

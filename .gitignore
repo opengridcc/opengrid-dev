@@ -12,3 +12,6 @@ notebooks/*.csv
 dist/
 build/
 opengrid.egg-info/
+
+data/*
+notebooks/index.html
