@@ -6,6 +6,7 @@ opengrid/config/og.txt
 opengrid/tests/data_backup/
 opengrid/config/houseprint-d74f58100c93.json
 .idea/*
+.spyder*
 notebooks/*.json
 notebooks/*.csv
 dist/
