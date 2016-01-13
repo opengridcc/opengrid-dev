@@ -2,10 +2,10 @@ numpy
 scipy
 matplotlib
 pandas
-gspread
+gspread==0.2.5
 requests
 requests_futures
-ipython[notebook]
+jupyter
 charts
 python-forecastio
 geopy
