@@ -206,7 +206,7 @@ class CacheTest(unittest.TestCase):
             df_new = pd.DataFrame(index=index, data=[100,200,300], columns=['testsensor'])
             ch.update(df_new)
             df_res = ch.get([testsensor])
-            print df_res
+            
             self.assertEqual(df_res.iloc[1,0], 1)
             self.assertEqual(df_res.iloc[2,0], 100)
             self.assertEqual(df_res.iloc[4,0], 300)
