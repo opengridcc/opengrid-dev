@@ -36,3 +36,6 @@ install:
 
 
 script: nosetests --exclude needpassword
+
+after_success:
+  - coveralls
