@@ -252,14 +252,12 @@ class Houseprint(object):
         
         result = []
         for site in self.sites:
-            keep = False
             for keyword, value in kwargs.items():
                 if getattr(site, keyword) == value:
-                    keep = True
+                    continue
                 else:
-                    keep = False
                     break
-            if keep:
+            else:
                 result.append(site)
                 
         return result
@@ -279,14 +277,12 @@ class Houseprint(object):
         
         result = []
         for sensor in self.get_sensors():
-            keep = False
             for keyword, value in kwargs.items():
                 if getattr(sensor, keyword) == value:
-                    keep = True
+                    continue
                 else:
-                    keep = False
                     break
-            if keep:
+            else:
                 result.append(sensor)
                 
         return result        
