@@ -54,7 +54,7 @@ class Cache(object):
         print("Cache object created for result: {}".format(self.result))
 
    
-    def _load(self, sensor):
+    def _load(self, sensorkey):
         """
         Return a dataframe with cached data for this sensor.  If there is no
         cached data, return an empty dataframe
@@ -62,7 +62,7 @@ class Cache(object):
         Arguments
         ---------
         sensor : str
-            Unique identifier for this sensor
+            sensor key, unique string identifier of the sensor.
 
         Returns
         -------
@@ -70,7 +70,7 @@ class Cache(object):
         
         """
         # Find the file and read into a dataframe
-        filename = self.result + '_' + sensor + '.csv'
+        filename = self.result + '_' + sensorkey + '.csv'
         path = os.path.join(self.folder, filename)
         
         if not os.path.exists(path):
@@ -142,8 +142,8 @@ class Cache(object):
         
         Arguments
         ---------
-        sensors : list with strings
-            Each element is a unique identifier for a sensor
+        sensors : list with Sensor objects
+            Each element is a Sensor object with attribute 'key' as sensor_id
         start, end : Datetime, float, int, string or pandas Timestamp
             Anything that can be parsed into a pandas.Timestamp
             If None, return all cached data available
@@ -156,11 +156,11 @@ class Cache(object):
         """
 
         if not isinstance(sensors, list):
-            raise TypeError("Sensors has to be a list with sensor id's, not a {}".format(type(sensors)))
+            raise TypeError("Sensors has to be a list with Sensor objects, not a {}".format(type(sensors)))
 
         dfs = []
         for sensor in sensors:
-            dfs.append(self._load(sensor))
+            dfs.append(self._load(sensor.key))
         df = pd.concat(dfs,axis=1)
 
         if len(df) == 0:
@@ -293,8 +293,8 @@ def cache(hp, sensors, function, resultname, **kwargs):
 
     Parameters
     ----------
-    sensors : list with sensor objects
-        Each element is a sensor object with attribute 'key' as sensor_id
+    sensors : list with Sensor objects
+        Each element is a Sensor object with attribute 'key' as sensor_id
     function : string (functionname)
         method from the analysis library
     resultname : string

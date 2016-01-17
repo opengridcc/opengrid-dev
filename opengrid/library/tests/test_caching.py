@@ -25,6 +25,7 @@ os.chdir(test_dir)
 # add the path to opengrid to sys.path
 sys.path.insert(1, os.path.join(test_dir, os.pardir, os.pardir, os.pardir))
 from opengrid.library import caching
+from opengrid.library.houseprint import Sensor
 
 # Note: there is a opengrid.cfg in the test_dir which is loaded here!!
 from opengrid import config
@@ -54,20 +55,24 @@ class CacheTest(unittest.TestCase):
     def test_get_raises(self):
         """Raise TypeError when argument sensors is not a list"""
         ch = caching.Cache('elec_standby')
-        self.assertRaises(TypeError, ch.get, 'mysensor')
+        mysensor = Sensor(key='mysensor', device=None, site='None', type=None, description=None,system=None,
+                                quantity=None,unit=None,direction=None,tariff=None)
+        self.assertRaises(TypeError, ch.get, mysensor)
 
     def test_get_single(self):
         """Obtain cached results and return a correct dataframe"""
         ch = caching.Cache('elec_standby')
-        df = ch.get(['mysensor'])
+        mysensor = Sensor(key='mysensor', device=None, site='None', type=None, description=None,system=None,
+                                quantity=None,unit=None,direction=None,tariff=None)
+        df = ch.get([mysensor])
         
         self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=365, tz='UTC')).all())
         self.assertEqual(df.columns, ['mysensor'])
         
-        df = ch.get(['mysensor'], end='20160115')
+        df = ch.get([mysensor], end='20160115')
         self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=15, tz='UTC')).all())
         
-        df = ch.get(['mysensor'], start = '20160707', end='20160708')
+        df = ch.get([mysensor], start = '20160707', end='20160708')
         self.assertTrue((df.index == pd.DatetimeIndex(start='20160707', freq='D', periods=2, tz='UTC')).all())
         self.assertFalse(df.index.tz is None, "Returned dataframe is tz-naive")
 
@@ -76,7 +81,11 @@ class CacheTest(unittest.TestCase):
     def test_get_multiple(self):
         """Obtain cached results and return a correct dataframe"""
         ch = caching.Cache('elec_standby')
-        df = ch.get(['mysensor', 'mysensor2'], end='20160104')
+        mysensor = Sensor(key='mysensor', device=None, site='None', type=None, description=None,system=None,
+                                quantity=None,unit=None,direction=None,tariff=None)
+        mysensor2 = Sensor(key='mysensor2', device=None, site='None', type=None, description=None,system=None,
+                                quantity=None,unit=None,direction=None,tariff=None)
+        df = ch.get([mysensor, mysensor2], end='20160104')
 
         self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=4, tz='UTC')).all())
         self.assertListEqual(df.columns.tolist(), ['mysensor', 'mysensor2'])
@@ -182,6 +191,8 @@ class CacheTest(unittest.TestCase):
         """Update an existing cached sensor with new information"""
 
         ch = caching.Cache('elec_temp')
+        testsensor = Sensor(key='testsensor', device=None, site='None', type=None, description=None,system=None,
+                                quantity=None,unit=None,direction=None,tariff=None)
 
         try:
             # write a dataframe with single column
@@ -194,7 +205,7 @@ class CacheTest(unittest.TestCase):
             index = pd.DatetimeIndex(start='20160103', freq='D', periods=3, tz='UTC')
             df_new = pd.DataFrame(index=index, data=[100,200,300], columns=['testsensor'])
             ch.update(df_new)
-            df_res = ch.get(['testsensor'])
+            df_res = ch.get([testsensor])
             print df_res
             self.assertEqual(df_res.iloc[1,0], 1)
             self.assertEqual(df_res.iloc[2,0], 100)
@@ -208,7 +219,8 @@ class CacheTest(unittest.TestCase):
         """Update an existing cached sensor with new information"""
 
         ch = caching.Cache('elec_temp')
-
+        testsensor2 = Sensor(key='testsensor2', device=None, site='None', type=None, description=None,system=None,
+                                quantity=None,unit=None,direction=None,tariff=None)
 
         # write a dataframe with two columns
         index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
@@ -225,7 +237,7 @@ class CacheTest(unittest.TestCase):
             index = pd.DatetimeIndex(start='20160103', freq='D', periods=3, tz='UTC')
             df_new = pd.DataFrame(index=index, data=dict(testsensor1=[100,200,300], testsensor2=[100,200,300]))
             ch.update(df_new)
-            df_res = ch.get(['testsensor2'])
+            df_res = ch.get([testsensor2])
 
             self.assertEqual(df_res.iloc[1,0], 1)
             self.assertEqual(df_res.iloc[2,0], 100)
