@@ -12,3 +12,5 @@ geopy
 oauth2client
 tmpo
 jsonpickle
+python-coveralls 
+coverage 

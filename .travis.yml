@@ -25,7 +25,7 @@ install:
   # If you're reading this, good luck out there. I'm not sure what to tell you.
   - conda update --yes conda
   - conda config --add channels soft-matter
-  - conda create -n testenv --yes $DEPS pip nose python-coveralls coverage setuptools python=$TRAVIS_PYTHON_VERSION
+  - conda create -n testenv --yes $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
   # for debugging...
   - echo $PATH
