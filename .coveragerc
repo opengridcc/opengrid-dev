@@ -3,4 +3,6 @@ branch = True
 source = opengrid
 include = */opengrid/library/*
 omit =
-    */something_to_omit*
+    */python?.?/*
+    */site-packages/nose/*
+    *__init__*
