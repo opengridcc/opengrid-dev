@@ -319,7 +319,7 @@ class Houseprint(object):
             Device
         '''
         for device in self.get_devices():
-            if device.key == key:
+            if device.key.lower() == key.lower():
                 return device
         return None
 
@@ -334,7 +334,7 @@ class Houseprint(object):
             Sensor
         '''
         for sensor in self.get_sensors():
-            if sensor.key == key:
+            if sensor.key.lower() == key.lower():
                 return sensor
         return None
 
