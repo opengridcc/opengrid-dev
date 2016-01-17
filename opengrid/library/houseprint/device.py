@@ -55,6 +55,20 @@ class Device(object):
         series = [sensor.get_data(head=head,tail=tail,resample=resample) for sensor in sensors]
         return pd.concat(series, axis=1)
 
+    def number_of_sensors(self, sensortype=None):
+        """
+
+        Parameters
+        ----------
+        sensortype: gas, water, electricity
+
+        Returns
+        -------
+        int
+        """
+        return len(self.get_sensors(sensortype=sensortype))
+
+
 class Fluksometer(Device):
     def __init__(self, site, key, mastertoken = None):
 
