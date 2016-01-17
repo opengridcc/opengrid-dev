@@ -318,7 +318,7 @@ def cache(hp, sensors, function, resultname, **kwargs):
     for sensor in sensors:
         # Get whatever is available as cache
         # and only extract timeseries from tmpos since the last day
-        df_cached = cache.get([sensor.key])
+        df_cached = cache.get([sensor])
         try:
             last_day = df_cached.index[-1]
         except IndexError:
