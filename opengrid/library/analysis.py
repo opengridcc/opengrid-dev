@@ -11,6 +11,22 @@ import pdb
 import pandas as pd
 from opengrid.library.misc import *
 
+
+class Analysis(object):
+    """
+        Abstract class for Open Grid Analyses
+    """
+
+    def __init__(self, id = None):
+        self.id = id
+
+    def to_json(self):
+        raise NotImplementedError("Subclass must implement abstract method")
+
+    def to_plt(self):
+        raise NotImplementedError("Subclass must implement abstract method")
+
+
 def daily_min(df, starttime=None, endtime=None):
     """
 
