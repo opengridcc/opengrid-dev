@@ -14,3 +14,4 @@ tmpo
 jsonpickle
 python-coveralls 
 coverage 
+pint
