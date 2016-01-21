@@ -9,6 +9,7 @@ This class contains all metadata concerning the function and type of the sensor 
 """
 
 from opengrid.library import misc
+from opengrid import ureg
 
 class Sensor(object):
     def __init__(self, key, device, site, type, description, system, quantity, unit, direction, tariff):
@@ -56,7 +57,9 @@ class Sensor(object):
         """
         Return a conversion factor to convert the obtained data
         The method starts from the unit of the sensor, and takes
-        into account samplint, differentiation (if any) and target unit.
+        into account sampling, differentiation (if any) and target unit.
+
+        For gas, a default calorific value of 10 kWh/liter is used.
 
         Parameters
         ----------
@@ -96,13 +99,25 @@ class Sensor(object):
             if diff:
                 raise NotImplementedError("Differentiation always needs a sampled dataframe")
 
-        if not diff:
-            source = self.unit
-        else:
-            # differentiation
-            source = self.unit + '/' + resample
+        if not self.type == 'gas':
+            if not diff:
+                source = self.unit
+            else:
+                # differentiation
+                source = self.unit + '/' + resample
 
-        return misc.unit_conversion_factor(source, target)
+            return misc.unit_conversion_factor(source, target)
+        else:
+            # for gas, we need to take into account the calorific value
+            # as of now, we use 10 kWh/l by default
+            CALORIFICVALUE = 10
+            q_src = 1*ureg(self.unit)
+            q_int = q_src * ureg('Wh/liter')
+            if not diff:
+                source = q_int.units.keys()[0] # string representing the unit, mostly kWh
+            else:
+                source = q_int.units.keys()[0] + '/' + resample
+            return CALORIFICVALUE * misc.unit_conversion_factor(source, target)
 
 class Fluksosensor(Sensor):
     def __init__(self, key, token, device, type, description, system, quantity, unit, direction, tariff):
@@ -132,17 +147,28 @@ class Fluksosensor(Sensor):
 
 
     # @Override :-D
-    def get_data(self, head = None, tail = None, diff=False, resample = 'min', unit='default'):
+    def get_data(self, head=None, tail=None, diff=False, resample='min', unit='default'):
         '''
-            Connect to tmpo and fetch a data series
+        Connect to tmpo and fetch a data series
 
-            Parameters
-            ----------
-            head, tail: optional timestamps
+        Parameters
+        ----------
+        sensors : list of Sensor objects
+            If None, use sensortype to make a selection
+        sensortype : string (optional)
+            gas, water, electricity. If None, and Sensors = None,
+            all available sensors in the houseprint are fetched
+        head, tail: timestamps,
+        diff : True (default) or False
+            If True, the original data has been differentiated
+        resample : str (default='min')
+            Sampling rate, if any.  Use 'raw' if no resampling.
+        unit : str , default='default'
+            String representation of the target unit, eg m**3/h, kW, ...
 
-            Returns
-            -------
-            Pandas Series
+        Returns
+        -------
+        Pandas Series
         '''
 
         tmpos = self.site.hp.get_tmpos()
@@ -166,6 +192,9 @@ class Fluksosensor(Sensor):
 
             #resample as requested
             data = data.resample(resample)
+
+            if diff:
+                data = data.diff()
 
         # unit conversion
         ucf = self._unit_conversion_factor(diff=diff, resample=resample, target=unit)

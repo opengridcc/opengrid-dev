@@ -203,7 +203,26 @@ class HouseprintTest(unittest.TestCase):
         np.testing.assert_almost_equal(cf, 1./24./60.)
 
         self.assertRaises(NotImplementedError, sensor._unit_conversion_factor, resample='raw')
-        
+
+        # for gas, check correct calorific conversion from l to kWh
+        sensor = houseprint.Fluksosensor(key = 'key',
+                                           device = device,
+                                           token='token',
+                                           type = 'gas',
+                                           description = 'description',
+                                           system = 'system',
+                                           quantity = 'quantity',
+                                          unit = '',
+                                          direction = 'direction',
+                                          tariff = 'tariff')
+        self.assertEqual(sensor.unit, 'liter')
+        cf = sensor._unit_conversion_factor(diff=True, resample='hour')
+        np.testing.assert_almost_equal(cf, 10)
+
+        cf = sensor._unit_conversion_factor(diff=True, resample='min')
+        np.testing.assert_almost_equal(cf, 10*60.)
+
+
 if __name__ == '__main__':
     
     # http://stackoverflow.com/questions/4005695/changing-order-of-unit-tests-in-python
