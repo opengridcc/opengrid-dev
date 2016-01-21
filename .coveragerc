@@ -1,0 +1,8 @@
+[run]
+branch = True
+source = opengrid
+include = */opengrid/library/*
+omit =
+    */python?.?/*
+    */site-packages/nose/*
+    *__init__*

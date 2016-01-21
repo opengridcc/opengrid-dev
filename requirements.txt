@@ -1,0 +1,16 @@
+numpy
+scipy
+matplotlib
+pandas
+gspread==0.2.5
+requests
+requests_futures
+jupyter
+charts
+python-forecastio
+geopy
+oauth2client
+tmpo
+jsonpickle
+python-coveralls 
+coverage 
