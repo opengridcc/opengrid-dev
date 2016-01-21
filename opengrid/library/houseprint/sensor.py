@@ -114,9 +114,9 @@ class Sensor(object):
             q_src = 1*ureg(self.unit)
             q_int = q_src * ureg('Wh/liter')
             if not diff:
-                source = q_int.units.keys()[0] # string representing the unit, mostly kWh
+                source = list(q_int.units)[0] # string representing the unit, mostly kWh
             else:
-                source = q_int.units.keys()[0] + '/' + resample
+                source = list(q_int.units)[0] + '/' + resample
             return CALORIFICVALUE * misc.unit_conversion_factor(source, target)
 
 class Fluksosensor(Sensor):
@@ -191,7 +191,13 @@ class Fluksosensor(Sensor):
             data = data.reindex(newindex)
 
             #resample as requested
-            data = data.resample(resample)
+            if resample == 'hour':
+                rule = 'H'
+            elif resample == 'day':
+                rule = 'D'
+            else:
+                rule = resample
+            data = data.resample(rule=rule)
 
             if diff:
                 data = data.diff()
