@@ -103,6 +103,12 @@ class MiscTest(unittest.TestCase):
         self.assertEqual(list_daily[1].index[0], pd.Timestamp('20160102 01:51:15'))
         self.assertEqual(list_daily[1].index[-1], pd.Timestamp('20160102 05:51:15'))
 
+    def test_unit_conversion_factor(self):
+        cf = unit_conversion_factor('liter/minute', 'm**3/hour')
+        np.testing.assert_array_almost_equal(cf, 1/1e3*60.)
+
+        cf = unit_conversion_factor('Wh/min', 'kW')
+        np.testing.assert_array_almost_equal(cf, 60/1000.)
     
 
 if __name__ == '__main__':

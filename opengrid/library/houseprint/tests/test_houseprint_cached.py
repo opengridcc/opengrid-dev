@@ -119,6 +119,24 @@ class HouseprintTest(unittest.TestCase):
 
         # remove temp.hp file
         os.remove('temp.hp')
+
+    def test_unit_conversion(self):
+        device = self.hp.get_
+        sensor = houseprint.Fluksosensor(key = 'key',
+                                           device = 'device',
+                                           token='token',
+                                           type = 'electricity',
+                                           description = 'description',
+                                           system = 'system',
+                                           quantity = 'quantity',
+                                          unit = '',
+                                          direction = 'direction',
+                                          tariff = 'tariff')
+        self.assertEqual(sensor.unit, 'Wh')
+        sensor = self.hp.get_sensors(sensortype='water')[-1]
+        self.assertEqual(sensor.unit, 'liter')
+        sensor = self.hp.get_sensors(sensortype='gas')[-1]
+        self.assertEqual(sensor.unit, 'liter')
                 
         
 if __name__ == '__main__':

@@ -8,6 +8,8 @@ It is an abstract class definition which has to be overridden (by eg. a Fluksose
 This class contains all metadata concerning the function and type of the sensor (eg. electricity - solar, ...)
 """
 
+from opengrid.library import misc
+
 class Sensor(object):
     def __init__(self, key, device, site, type, description, system, quantity, unit, direction, tariff):
         self.key = key
@@ -50,6 +52,55 @@ class Sensor(object):
 
         raise NotImplementedError("Subclass must implement abstract method")
 
+    def _unit_conversion_factor(self, diff=True, resample='min', target='default'):
+        """
+        Return a conversion factor to convert the obtained data
+        The method starts from the unit of the sensor, and takes
+        into account samplint, differentiation (if any) and target unit.
+
+        Parameters
+        ----------
+        diff : True (default) or False
+            If True, the original data has been differentiated
+        resample : str (default='min')
+            Sampling rate, if any.  Use 'raw' if no resampling.
+        target : str , default='default'
+            String representation of the target unit, eg m3/h, kW, ...
+
+        Returns
+        -------
+        cf : float
+            Multiplication factor for the original data to the target unit
+        """
+
+
+        # get the target
+        if target == 'default':
+            if self.type == 'electricity':
+                target = 'kWh'
+            elif self.type == 'water':
+                target = 'liter'
+            elif self.type == 'gas':
+                target = 'kWh'
+
+        if resample == 'raw':
+            if diff:
+                raise NotImplementedError("Differentiation always needs a sampled dataframe")
+
+        if not diff:
+            source = self.unit
+        else:
+            # differentiation
+            source = self.unit + '/' + resample
+            if self.type == 'electricity':
+                target = 'W'
+            elif self.type == 'water':
+                target = 'liter/min'
+            elif self.type == 'gas':
+                target = 'W'
+
+        return misc.unit_conversion_factor(source, target)
+
 class Fluksosensor(Sensor):
     def __init__(self, key, token, device, type, description, system, quantity, unit, direction, tariff):
 
@@ -70,8 +121,15 @@ class Fluksosensor(Sensor):
         else:
             self.token = device.mastertoken
 
+        if self.unit == '' or self.unit is None:
+            if self.type in ['water', 'gas']:
+                self.unit = 'liter'
+            elif self.type == 'electricity':
+                self.unit = 'Wh'
+
+
     # @Override :-D
-    def get_data(self, head = None, tail = None, resample = 'min'):
+    def get_data(self, head = None, tail = None, diff=False, resample = 'min'):
         '''
             Connect to tmpo and fetch a data series
 
@@ -95,10 +153,7 @@ class Fluksosensor(Sensor):
                            head = head,
                            tail = tail)
 
-        if resample == 'raw':
-            return data
-
-        if not data.dropna().empty:
+        if not data.dropna().empty and resample != 'raw':
 
             #interpolate on seconds
             newindex = data.resample('s').index
@@ -109,4 +164,7 @@ class Fluksosensor(Sensor):
             #resample as requested
             data = data.resample(resample)
 
-        return data
+        # unit conversion
+        ucf = self._unit_conversion_factor(diff=diff, resample=resample, target='default')
+
+        return data*ucf
