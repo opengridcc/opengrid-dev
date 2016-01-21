@@ -77,11 +77,20 @@ class Sensor(object):
         # get the target
         if target == 'default':
             if self.type == 'electricity':
-                target = 'kWh'
+                if diff:
+                    target = 'W'
+                else:
+                    target = 'kWh'
             elif self.type == 'water':
-                target = 'liter'
+                if diff:
+                    target = 'l/min'
+                else:
+                    target = 'liter'
             elif self.type == 'gas':
-                target = 'kWh'
+                if diff:
+                    target = 'W'
+                else:
+                    target = 'kWh'
 
         if resample == 'raw':
             if diff:
@@ -92,12 +101,6 @@ class Sensor(object):
         else:
             # differentiation
             source = self.unit + '/' + resample
-            if self.type == 'electricity':
-                target = 'W'
-            elif self.type == 'water':
-                target = 'liter/min'
-            elif self.type == 'gas':
-                target = 'W'
 
         return misc.unit_conversion_factor(source, target)
 
@@ -129,7 +132,7 @@ class Fluksosensor(Sensor):
 
 
     # @Override :-D
-    def get_data(self, head = None, tail = None, diff=False, resample = 'min'):
+    def get_data(self, head = None, tail = None, diff=False, resample = 'min', unit='default'):
         '''
             Connect to tmpo and fetch a data series
 
@@ -165,6 +168,6 @@ class Fluksosensor(Sensor):
             data = data.resample(resample)
 
         # unit conversion
-        ucf = self._unit_conversion_factor(diff=diff, resample=resample, target='default')
+        ucf = self._unit_conversion_factor(diff=diff, resample=resample, target=unit)
 
         return data*ucf

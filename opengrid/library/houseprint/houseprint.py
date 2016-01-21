@@ -418,7 +418,7 @@ class Houseprint(object):
         tmpos = self.get_tmpos()
         tmpos.sync()
 
-    def get_data(self, sensors=None, sensortype=None, head=None, tail=None, resample='min'):
+    def get_data(self, sensors=None, sensortype=None, head=None, tail=None, diff=False, resample='min', unit='default'):
         """
         Return a Pandas Dataframe with joined data for the given sensors
 
@@ -429,13 +429,18 @@ class Houseprint(object):
         sensortype : string (optional)
             gas, water, electricity. If None, and Sensors = None,
             all available sensors in the houseprint are fetched
-
-        head, tail: timestamps
+        head, tail: timestamps,
+        diff : True (default) or False
+            If True, the original data has been differentiated
+        resample : str (default='min')
+            Sampling rate, if any.  Use 'raw' if no resampling.
+        unit : str , default='default'
+            String representation of the target unit, eg m**3/h, kW, ...
         
         """
         if sensors is None:        
             sensors = self.get_sensors(sensortype)
-        series = [sensor.get_data(head=head,tail=tail,resample=resample) for sensor in sensors]
+        series = [sensor.get_data(head=head, tail=tail, diff=diff, resample=resample, unit=unit) for sensor in sensors]
         return pd.concat(series, axis=1)
 
 def load_houseprint_from_file(filename):
