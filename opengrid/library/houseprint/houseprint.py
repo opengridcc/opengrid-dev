@@ -21,12 +21,12 @@ import tmpo
 #compatibility with py3
 if sys.version_info.major == 3:
     from .site import Site
-    from .device import Fluksometer
-    from .sensor import Fluksosensor
+    from .device import Device, Fluksometer
+    from .sensor import Sensor, Fluksosensor
 else:
     from site import Site
-    from device import Fluksometer
-    from sensor import Fluksosensor
+    from device import Device, Fluksometer
+    from sensor import Sensor, Fluksosensor
 
 """
 The Houseprint is a Singleton object which contains all metadata for sites, devices and sensors.
