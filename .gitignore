@@ -9,6 +9,7 @@ opengrid/config/houseprint-d74f58100c93.json
 .spyder*
 notebooks/*.json
 notebooks/*.csv
+notebooks/index.html
 dist/
 build/
 opengrid.egg-info/
