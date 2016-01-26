@@ -21,12 +21,12 @@ import tmpo
 #compatibility with py3
 if sys.version_info.major == 3:
     from .site import Site
-    from .device import Fluksometer
-    from .sensor import Fluksosensor
+    from .device import Device, Fluksometer
+    from .sensor import Sensor, Fluksosensor
 else:
     from site import Site
-    from device import Fluksometer
-    from sensor import Fluksosensor
+    from device import Device, Fluksometer
+    from sensor import Sensor, Fluksosensor
 
 """
 The Houseprint is a Singleton object which contains all metadata for sites, devices and sensors.
@@ -252,14 +252,12 @@ class Houseprint(object):
         
         result = []
         for site in self.sites:
-            keep = False
             for keyword, value in kwargs.items():
                 if getattr(site, keyword) == value:
-                    keep = True
+                    continue
                 else:
-                    keep = False
                     break
-            if keep:
+            else:
                 result.append(site)
                 
         return result
@@ -279,14 +277,12 @@ class Houseprint(object):
         
         result = []
         for sensor in self.get_sensors():
-            keep = False
             for keyword, value in kwargs.items():
                 if getattr(sensor, keyword) == value:
-                    keep = True
+                    continue
                 else:
-                    keep = False
                     break
-            if keep:
+            else:
                 result.append(sensor)
                 
         return result        
@@ -319,7 +315,7 @@ class Houseprint(object):
             Device
         '''
         for device in self.get_devices():
-            if device.key == key:
+            if device.key.lower() == key.lower():
                 return device
         return None
 
@@ -334,7 +330,7 @@ class Houseprint(object):
             Sensor
         '''
         for sensor in self.get_sensors():
-            if sensor.key == key:
+            if sensor.key.lower() == key.lower():
                 return sensor
         return None
 
