@@ -5,3 +5,4 @@ include opengrid/library/houseprint/tests/test_saved_hp.hp
 include opengrid/library/tests/*
 include opengrid/library/tests/data/*
 include opengrid/library/tests/data/cache_day/*
+include notebooks/*
