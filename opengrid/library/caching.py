@@ -325,7 +325,6 @@ def cache_results(hp, sensors, function, resultname, **kwargs):
             last_day = 0
 
         # get new data, full resolution
-        # Todo: for non-counter values, diff() is not needed!!
         df_new = hp.get_data(sensors = [sensor], head=last_day).diff()
 
         # apply the method

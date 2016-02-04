@@ -53,6 +53,43 @@ class Sensor(object):
 
         raise NotImplementedError("Subclass must implement abstract method")
 
+
+    def _get_default_unit(self, diff=True, resample='min'):
+        """
+        Return a string representation of the default unit for the requested operation
+
+        Parameters
+        ----------
+        diff : True (default) or False
+            If True, the original data has been differentiated
+        resample : str (default='min')
+            Sampling rate, if any.  Use 'raw' if no resampling.
+
+        Returns
+        -------
+        target : str
+            String representation of the target unit, eg m3/h, kW, ...
+        """
+
+        if self.type == 'electricity':
+            if diff:
+                target = 'W'
+            else:
+                target = 'kWh'
+        elif self.type == 'water':
+            if diff:
+                target = 'l/min'
+            else:
+                target = 'liter'
+        elif self.type == 'gas':
+            if diff:
+                target = 'W'
+            else:
+                target = 'kWh'
+
+        return target
+
+
     def _unit_conversion_factor(self, diff=True, resample='min', target='default'):
         """
         Return a conversion factor to convert the obtained data
@@ -79,21 +116,7 @@ class Sensor(object):
 
         # get the target
         if target == 'default':
-            if self.type == 'electricity':
-                if diff:
-                    target = 'W'
-                else:
-                    target = 'kWh'
-            elif self.type == 'water':
-                if diff:
-                    target = 'l/min'
-                else:
-                    target = 'liter'
-            elif self.type == 'gas':
-                if diff:
-                    target = 'W'
-                else:
-                    target = 'kWh'
+            target = self._get_default_unit(diff=diff, resample=resample)
 
         if resample == 'raw':
             if diff:
@@ -168,7 +191,8 @@ class Fluksosensor(Sensor):
 
         Returns
         -------
-        Pandas Series
+        Pandas Series with additional attribute 'unit' set to
+        the string representation of the unit of the data.
         '''
 
         tmpos = self.site.hp.get_tmpos()
@@ -203,6 +227,10 @@ class Fluksosensor(Sensor):
                 data = data.diff()
 
         # unit conversion
+        if unit == 'default':
+            unit = self._get_default_unit(diff=diff, resample=resample)
         ucf = self._unit_conversion_factor(diff=diff, resample=resample, target=unit)
+        data *= ucf
+        data.unit = unit
 
-        return data*ucf
+        return data

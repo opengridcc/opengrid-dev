@@ -73,4 +73,14 @@ class Site(object):
         """
         sensors = self.get_sensors(sensortype)
         series = [sensor.get_data(head=head, tail=tail, diff=diff, resample=resample, unit=unit) for sensor in sensors]
-        return pd.concat(series, axis=1)
+        df =  pd.concat(series, axis=1)
+
+        # Add unit as string to each series in the df.  This is not persistent: the attribute unit will get
+        # lost when doing operations with df, but at least it can be checked once.
+        for s in series:
+            try:
+                df[s.name].unit = s.unit
+            except:
+                pass
+
+        return df
