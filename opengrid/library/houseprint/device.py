@@ -37,7 +37,7 @@ class Device(object):
         """
         return [sensor for sensor in self.sensors if sensor.type == sensortype or sensortype is None]
 
-    def get_data(self, sensortype=None, head=None, tail=None, diff=False, resample='min', unit='default'):
+    def get_data(self, sensortype=None, head=None, tail=None, diff='default', resample='min', unit='default'):
         """
         Return a Pandas Dataframe with the joined data for all sensors in this device
 
@@ -49,8 +49,10 @@ class Device(object):
             gas, water, electricity. If None, and Sensors = None,
             all available sensors in the houseprint are fetched
         head, tail: timestamps,
-        diff : True (default) or False
-            If True, the original data has been differentiated
+        diff : bool or 'default'
+            If True, the original data will be differentiated
+            If 'default', the sensor will decide: if it has the attribute
+            cumulative==True, the data will be differentiated.
         resample : str (default='min')
             Sampling rate, if any.  Use 'raw' if no resampling.
         unit : str , default='default'

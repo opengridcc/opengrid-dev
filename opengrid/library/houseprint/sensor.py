@@ -192,8 +192,8 @@ class Fluksosensor(Sensor):
         head, tail: timestamps,
         diff : bool or 'default'
             If True, the original data will be differentiated
-            If 'default', the sensor will decide: if it is a counter,
-            the data will be differentiated.
+            If 'default', the sensor will decide: if it has the attribute
+            cumulative==True, the data will be differentiated.
         resample : str (default='min')
             Sampling rate, if any.  Use 'raw' if no resampling.
         unit : str , default='default'
