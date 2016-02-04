@@ -281,7 +281,7 @@ class Houseprint(object):
         result = []
         for sensor in self.get_sensors():
             for keyword, value in kwargs.items():
-                if getattr(sensor, keyword) == value:
+                if value in getattr(sensor, keyword):
                     continue
                 else:
                     break

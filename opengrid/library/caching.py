@@ -74,7 +74,7 @@ class Cache(object):
         path = os.path.join(self.folder, filename)
         
         if not os.path.exists(path):
-            print("Could not find {}".format(path))
+            #print("Could not find {}".format(path))
             return pd.DataFrame()
         
         df = pd.read_csv(path, index_col = 0, header=0, parse_dates=True)
@@ -107,7 +107,7 @@ class Cache(object):
         path = os.path.join(self.folder, filename)
         
         df_temp.to_csv(path)
-        print("Values for {} written to {}".format(sensor, path))
+        #print("Values for {} written to {}".format(sensor, path))
         return True
 
     def _write(self, df):
@@ -200,7 +200,7 @@ class Cache(object):
 
         """
         if len(df) == 0:
-            print("Empty dataframe")
+            #print("Empty dataframe")
             return False
         
         if df.index.freqstr != 'D':
