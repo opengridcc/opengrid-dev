@@ -27,7 +27,7 @@ for s in sensors:
 hp.init_tmpo()
 hp.sync_tmpos()
 
-cache = caching.Cache(result='elec_standby')
+cache = caching.Cache(variable='elec_standby')
 
 for s in sensors[:1]:
     # get cached data

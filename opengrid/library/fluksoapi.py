@@ -57,7 +57,7 @@ def pull_api(sensor, token, unit, interval='day', resolution='minute'):
     except:
         print("-------> Problem with HTTP request to Flukso <-------")
     
-    # check result
+    # check variable
     if not r.ok:
         print("The flukso api GET request did not succeed.")
         print("Some details:")

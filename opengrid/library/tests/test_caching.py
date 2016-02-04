@@ -40,7 +40,7 @@ class CacheTest(unittest.TestCase):
         self.assertEqual(ch.folder, os.getcwd())
         
         ch = caching.Cache('water_standby')
-        self.assertEqual(ch.folder, os.path.join(os.getcwd(), 'data'))
+        self.assertEqual(ch.folder, os.path.join(os.getcwd(), 'data', 'cache_day'))
         
         
     def test_load(self):
@@ -130,7 +130,7 @@ class CacheTest(unittest.TestCase):
         # write a dataframe with single column
         index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
         df = pd.DataFrame(index=index, data=np.random.randn(3), columns=['testsensor'])
-        expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor.csv')
+        expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor.csv')
         self.assertFalse(os.path.exists(expected_path))
         try:
             ch._write_single(df)
@@ -151,7 +151,7 @@ class CacheTest(unittest.TestCase):
         # write a dataframe with single column
         index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
         df = pd.Series(index=index, data=np.random.randn(3), name='testsensor_series')
-        expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor_series.csv')
+        expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor_series.csv')
         self.assertFalse(os.path.exists(expected_path))
         try:
             ch._write_single(df)
@@ -172,8 +172,8 @@ class CacheTest(unittest.TestCase):
         # write a dataframe with single column
         index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
         df = pd.DataFrame(index=index, data=np.random.randn(3,2), columns=['testsensor1', 'testsensor2'])
-        expected_path1 = os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor1.csv')
-        expected_path2 = os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor2.csv')
+        expected_path1 = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor1.csv')
+        expected_path2 = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor2.csv')
         self.assertFalse(os.path.exists(expected_path1))
         self.assertFalse(os.path.exists(expected_path2))
 
@@ -198,7 +198,7 @@ class CacheTest(unittest.TestCase):
             # write a dataframe with single column
             index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
             df = pd.DataFrame(index=index, data=[0,1,2], columns=['testsensor'])
-            expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor.csv')
+            expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor.csv')
             self.assertFalse(os.path.exists(expected_path))
             ch._write_single(df)
 
@@ -213,7 +213,7 @@ class CacheTest(unittest.TestCase):
         except:
             raise
         finally:
-            os.remove(os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor.csv'))
+            os.remove(os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor.csv'))
 
     def test_update_multiple(self):
         """Update an existing cached sensor with new information"""
@@ -225,8 +225,8 @@ class CacheTest(unittest.TestCase):
         # write a dataframe with two columns
         index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
         df = pd.DataFrame(index=index, data=dict(testsensor1=[0,1,2], testsensor2= [0,1,2]))
-        expected_path1 = os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor1.csv')
-        expected_path2 = os.path.join(test_dir, cfg.get('data', 'folder'), 'elec_temp_testsensor2.csv')
+        expected_path1 = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor1.csv')
+        expected_path2 = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor2.csv')
         self.assertFalse(os.path.exists(expected_path1))
         self.assertFalse(os.path.exists(expected_path2))
         try:

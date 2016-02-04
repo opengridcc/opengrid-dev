@@ -247,7 +247,7 @@ class Houseprint(object):
             Returns
             -------
             List of sites satisfying the search criterion or empty list if no
-            result found.
+            variable found.
         '''
         
         result = []
@@ -272,7 +272,7 @@ class Houseprint(object):
             Returns
             -------
             List of sensors satisfying the search criterion or empty list if no
-            result found.
+            variable found.
         '''
         
         result = []
