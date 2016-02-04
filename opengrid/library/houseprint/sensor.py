@@ -12,7 +12,7 @@ from opengrid.library import misc
 from opengrid import ureg
 
 class Sensor(object):
-    def __init__(self, key, device, site, type, description, system, quantity, unit, direction, tariff):
+    def __init__(self, key, device, site, type, description, system, quantity, unit, direction, tariff, cumulative):
         self.key = key
         self.device = device
         self.site = site
@@ -23,6 +23,7 @@ class Sensor(object):
         self.unit = unit
         self.direction = direction
         self.tariff = tariff
+        self.cumulative = cumulative
 
     def __repr__(self):
         return """
@@ -143,7 +144,7 @@ class Sensor(object):
             return CALORIFICVALUE * misc.unit_conversion_factor(source, target)
 
 class Fluksosensor(Sensor):
-    def __init__(self, key, token, device, type, description, system, quantity, unit, direction, tariff):
+    def __init__(self, key, token, device, type, description, system, quantity, unit, direction, tariff, cumulative):
 
         #invoke init method of abstract Sensor
         super(Fluksosensor, self).__init__(key = key,
@@ -153,9 +154,10 @@ class Fluksosensor(Sensor):
                                            description = description,
                                            system = system,
                                            quantity = quantity,
-                                          unit = unit,
-                                          direction = direction,
-                                          tariff = tariff)
+                                           unit = unit,
+                                           direction = direction,
+                                           tariff = tariff,
+                                           cumulative=cumulative)
 
         if token != '':
             self.token = token
@@ -168,9 +170,15 @@ class Fluksosensor(Sensor):
             elif self.type == 'electricity':
                 self.unit = 'Wh'
 
+        if self.cumulative == '' or self.cumulative is None:
+            if self.type in ['water', 'gas', 'electricity']:
+                self.cumulative = True
+            else:
+                self.cumulative = False
+
 
     # @Override :-D
-    def get_data(self, head=None, tail=None, diff=False, resample='min', unit='default'):
+    def get_data(self, head=None, tail=None, diff='default', resample='min', unit='default'):
         '''
         Connect to tmpo and fetch a data series
 
@@ -182,8 +190,10 @@ class Fluksosensor(Sensor):
             gas, water, electricity. If None, and Sensors = None,
             all available sensors in the houseprint are fetched
         head, tail: timestamps,
-        diff : True (default) or False
-            If True, the original data has been differentiated
+        diff : bool or 'default'
+            If True, the original data will be differentiated
+            If 'default', the sensor will decide: if it is a counter,
+            the data will be differentiated.
         resample : str (default='min')
             Sampling rate, if any.  Use 'raw' if no resampling.
         unit : str , default='default'
@@ -222,6 +232,9 @@ class Fluksosensor(Sensor):
             else:
                 rule = resample
             data = data.resample(rule=rule)
+
+            if diff == 'default':
+                diff = self.cumulative
 
             if diff:
                 data = data.diff()

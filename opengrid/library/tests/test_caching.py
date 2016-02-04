@@ -56,14 +56,14 @@ class CacheTest(unittest.TestCase):
         """Raise TypeError when argument sensors is not a list"""
         ch = caching.Cache('elec_standby')
         mysensor = Sensor(key='mysensor', device=None, site='None', type=None, description=None,system=None,
-                                quantity=None,unit=None,direction=None,tariff=None)
+                                quantity=None,unit=None,direction=None,tariff=None,cumulative=None)
         self.assertRaises(TypeError, ch.get, mysensor)
 
     def test_get_single(self):
         """Obtain cached results and return a correct dataframe"""
         ch = caching.Cache('elec_standby')
         mysensor = Sensor(key='mysensor', device=None, site='None', type=None, description=None,system=None,
-                                quantity=None,unit=None,direction=None,tariff=None)
+                                quantity=None,unit=None,direction=None,tariff=None,cumulative=None)
         df = ch.get([mysensor])
         
         self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=365, tz='UTC')).all())
@@ -82,9 +82,9 @@ class CacheTest(unittest.TestCase):
         """Obtain cached results and return a correct dataframe"""
         ch = caching.Cache('elec_standby')
         mysensor = Sensor(key='mysensor', device=None, site='None', type=None, description=None,system=None,
-                                quantity=None,unit=None,direction=None,tariff=None)
+                                quantity=None,unit=None,direction=None,tariff=None,cumulative=None)
         mysensor2 = Sensor(key='mysensor2', device=None, site='None', type=None, description=None,system=None,
-                                quantity=None,unit=None,direction=None,tariff=None)
+                                quantity=None,unit=None,direction=None,tariff=None,cumulative=None)
         df = ch.get([mysensor, mysensor2], end='20160104')
 
         self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=4, tz='UTC')).all())
@@ -192,7 +192,7 @@ class CacheTest(unittest.TestCase):
 
         ch = caching.Cache('elec_temp')
         testsensor = Sensor(key='testsensor', device=None, site='None', type=None, description=None,system=None,
-                                quantity=None,unit=None,direction=None,tariff=None)
+                                quantity=None,unit=None,direction=None,tariff=None,cumulative=None)
 
         try:
             # write a dataframe with single column
@@ -220,7 +220,7 @@ class CacheTest(unittest.TestCase):
 
         ch = caching.Cache('elec_temp')
         testsensor2 = Sensor(key='testsensor2', device=None, site='None', type=None, description=None,system=None,
-                                quantity=None,unit=None,direction=None,tariff=None)
+                                quantity=None,unit=None,direction=None,tariff=None,cumulative=None)
 
         # write a dataframe with two columns
         index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')

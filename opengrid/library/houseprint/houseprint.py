@@ -186,16 +186,19 @@ class Houseprint(object):
 
             #create new sensor according to its manufacturer
             if r['manufacturer'] == 'Flukso':
-                new_sensor = Fluksosensor(device = device,
-                                         key = r['Sensor_id'],
-                                         token = r['token'],
-                                         type = r['sensor type'],
-                                         description = r['name by user'],
-                                         system = r['system'],
-                                         quantity = r['quantity'],
-                                         unit = r['unit'],
-                                         direction = r['direction'],
-                                         tariff = r['tariff'])
+                new_sensor = Fluksosensor(
+                                          device = device,
+                                          key = r['Sensor_id'],
+                                          token = r['token'],
+                                          type = r['sensor type'],
+                                          description = r['name by user'],
+                                          system = r['system'],
+                                          quantity = r['quantity'],
+                                          unit = r['unit'],
+                                          direction = r['direction'],
+                                          tariff = r['tariff'],
+                                          cumulative = None # will be determined based on type
+                                          )
             else:
                 raise NotImplementedError('Sensors from {} are not supported'.format(r['manufacturer']))
 

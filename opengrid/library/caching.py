@@ -325,7 +325,7 @@ def cache_results(hp, sensors, function, resultname, **kwargs):
             last_day = 0
 
         # get new data, full resolution
-        df_new = hp.get_data(sensors = [sensor], head=last_day).diff()
+        df_new = hp.get_data(sensors = [sensor], head=last_day)
 
         # apply the method
         method = getattr(analysis, function)

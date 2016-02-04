@@ -121,6 +121,34 @@ class HouseprintTest(unittest.TestCase):
         # remove temp.hp file
         os.remove('temp.hp')
 
+    def test_cumulative_setting(self):
+        device = self.hp.get_devices()[0]
+        sensor = houseprint.Fluksosensor(key = 'key',
+                                           device = device,
+                                           token='token',
+                                           type = 'electricity',
+                                           description = 'description',
+                                           system = 'system',
+                                           quantity = 'quantity',
+                                          unit = '',
+                                          direction = 'direction',
+                                          tariff = 'tariff',
+                                          cumulative=None)
+        self.assertTrue(sensor.cumulative)
+
+        sensor = houseprint.Fluksosensor(key = 'key',
+                                           device = device,
+                                           token='token',
+                                           type = 'temperature',
+                                           description = 'description',
+                                           system = 'system',
+                                           quantity = 'quantity',
+                                          unit = '',
+                                          direction = 'direction',
+                                          tariff = 'tariff',
+                                          cumulative=None)
+        self.assertFalse(sensor.cumulative)
+
     def test_unit_setting(self):
         device = self.hp.get_devices()[0]
         sensor = houseprint.Fluksosensor(key = 'key',
@@ -132,7 +160,8 @@ class HouseprintTest(unittest.TestCase):
                                            quantity = 'quantity',
                                           unit = '',
                                           direction = 'direction',
-                                          tariff = 'tariff')
+                                          tariff = 'tariff',
+                                          cumulative=None)
         self.assertEqual(sensor.unit, 'Wh')
         sensor = houseprint.Fluksosensor(key = 'key',
                                            device = device,
@@ -143,7 +172,8 @@ class HouseprintTest(unittest.TestCase):
                                            quantity = 'quantity',
                                           unit = '',
                                           direction = 'direction',
-                                          tariff = 'tariff')
+                                          tariff = 'tariff',
+                                          cumulative=None)
         self.assertEqual(sensor.unit, 'liter')
         sensor = houseprint.Fluksosensor(key = 'key',
                                            device = device,
@@ -154,7 +184,8 @@ class HouseprintTest(unittest.TestCase):
                                            quantity = 'quantity',
                                           unit = '',
                                           direction = 'direction',
-                                          tariff = 'tariff')
+                                          tariff = 'tariff',
+                                          cumulative=None)
         self.assertEqual(sensor.unit, 'liter')
 
     def test_unit_conversion(self):
@@ -168,7 +199,8 @@ class HouseprintTest(unittest.TestCase):
                                            quantity = 'quantity',
                                           unit = '',
                                           direction = 'direction',
-                                          tariff = 'tariff')
+                                          tariff = 'tariff',
+                                         cumulative=None)
         self.assertEqual(sensor.unit, 'Wh')
         cf = sensor._unit_conversion_factor(diff=False, resample='hour', target='kWh')
         np.testing.assert_almost_equal(cf, 1e-3)
@@ -191,7 +223,8 @@ class HouseprintTest(unittest.TestCase):
                                            quantity = 'quantity',
                                           unit = '',
                                           direction = 'direction',
-                                          tariff = 'tariff')
+                                          tariff = 'tariff',
+                                         cumulative=None)
         self.assertEqual(sensor.unit, 'liter')
         cf = sensor._unit_conversion_factor(diff=True, resample='min')
         np.testing.assert_almost_equal(cf, 1)
@@ -214,7 +247,8 @@ class HouseprintTest(unittest.TestCase):
                                            quantity = 'quantity',
                                           unit = '',
                                           direction = 'direction',
-                                          tariff = 'tariff')
+                                          tariff = 'tariff',
+                                         cumulative=None)
         self.assertEqual(sensor.unit, 'liter')
         cf = sensor._unit_conversion_factor(diff=True, resample='hour')
         np.testing.assert_almost_equal(cf, 10)
