@@ -9,10 +9,10 @@ from opengrid import config
 c=config.Config()
 
 # other imports
-import os
 import pandas as pd
 import charts
 import numpy as np
+import os
 
 
 # configuration for the plots
@@ -23,7 +23,7 @@ if not DEV:
     import matplotlib
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from matplotlib.dates import HourLocator, DateFormatter, AutoDateLocator
+from matplotlib.dates import HourLocator, DateFormatter, AutoDateLocator, num2date
 
 if DEV:
     if c.get('env', 'plots') == 'inline':
@@ -52,6 +52,10 @@ for s in sensors:
         sensors.remove(s)
 
 hp.init_tmpo()
+
+
+# In[ ]:
+
 #hp.sync_tmpos()
 
 
@@ -75,6 +79,13 @@ dfdaymax = cache_max.get(sensors=sensors)
 
 # In[ ]:
 
+if DEV:
+    sensor = hp.search_sensors(key='3aa4')[0]
+    df = sensor.get_data(head=pd.Timestamp('20151117'), tail=pd.Timestamp('20160104'))
+    charts.plot(df, stock=True, show='inline')
+
+
+# In[ ]:
 
 # Clean out the data: 
 # First remove days with too low values to be realistic
@@ -87,6 +98,11 @@ dfdaymin[(dfdaymax - dfdaymin) < 1] = np.nan
 
 if DEV:
     charts.plot(dfdaymin, stock=True, show='inline')
+
+
+# In[ ]:
+
+DEV
 
 
 # In[ ]:
@@ -105,8 +121,8 @@ if DEV:
 # Get detailed profiles for the last day
 now = pd.Timestamp('now', tz='UTC')
 start_of_day = now - pd.Timedelta(hours=now.hour, minutes=now.minute, seconds=now.second)
-
-
+sensors = map(hp.find_sensor, dfdaymin.columns)
+df_details = hp.get_data(sensors = sensors, head=start_of_day)
 
 
 # ### Boxplot approach.  Possible for a period of maximum +/- 2 weeks. 
@@ -117,8 +133,8 @@ start_of_day = now - pd.Timedelta(hours=now.hour, minutes=now.minute, seconds=no
 look_back_days = 10
 start = now - pd.Timedelta(days=look_back_days)
 dfdaymin_period = dfdaymin.ix[start:].dropna(axis=1, how='all')
-sensors = map(hp.find_sensor, dfdaymin_period.columns)
-df_details = hp.get_data(sensors = sensors, head=start_of_day)
+
+
 # In[ ]:
 
 box = [dfdaymin_period.loc[i,:].dropna().values for i in dfdaymin_period.index]
@@ -158,7 +174,7 @@ for sensor in dfdaymin_period.columns:
 # In[ ]:
 
 # choose a period
-look_back_days = 100
+look_back_days = 40
 start = now - pd.Timedelta(days=look_back_days)
 dfdaymin_period = dfdaymin.ix[start:].dropna(axis=1, how='all')
 df = dfdaymin_period.join(standby_statistics[['10%', '50%', '90%']], how='left')    
@@ -174,8 +190,8 @@ for sensor in dfdaymin_period.columns:
     ax1.plot_date(df.index, df[u'90%'], '-', lw=2, color='r', label=u'90% percentile')
     ax1.plot_date(df.index, df[sensor], 'rD', ms=7, label='Your standby power') 
     ax1.legend()
-    xticks = [x.strftime(format='%d/%m') for x in df.index]
     locs, lables=plt.xticks()
+    xticks = [x.strftime(format='%d/%m') for x in num2date(locs)]
     plt.xticks(locs, xticks, rotation='vertical')
     plt.title(hp.find_sensor(sensor).device.key + ' - ' + sensor)
     ax1.grid()
