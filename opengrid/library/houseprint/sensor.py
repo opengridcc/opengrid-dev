@@ -218,20 +218,18 @@ class Fluksosensor(Sensor):
 
         if not data.dropna().empty and resample != 'raw':
 
-            #interpolate on seconds
-            newindex = data.resample('s').index
-            data = data.reindex(data.index + newindex)
-            data = data.interpolate(method='time')
-            data = data.reindex(newindex)
-
-            #resample as requested
             if resample == 'hour':
                 rule = 'H'
             elif resample == 'day':
                 rule = 'D'
             else:
                 rule = resample
-            data = data.resample(rule=rule)
+
+            #interpolate to requested frequency
+            newindex = data.resample(rule).index
+            data = data.reindex(data.index + newindex)
+            data = data.interpolate(method='time')
+            data = data.reindex(newindex)
 
             if diff == 'default':
                 diff = self.cumulative
