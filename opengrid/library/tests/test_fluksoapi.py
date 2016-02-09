@@ -55,7 +55,7 @@ class FluksoapiTest(unittest.TestCase):
 
         
     def test_consolidate(self):
-        """Consolidating 2 files and checking result"""
+        """Consolidating 2 files and checking variable"""
         
         datafolder = os.path.join(test_dir, 'data')        
         new_csv=fluksoapi.consolidate_sensor(folder = datafolder, 
@@ -95,7 +95,7 @@ class FluksoapiTest(unittest.TestCase):
         self.assertEqual(new_csv, os.path.join(datafolder,'FL12345678_sensorS_FROM_2014-01-07_16-02-00_TO_2014-01-08_16-01-00.csv'))
         
     def test_consolidate_day(self):
-        """Consolidating 2 files for a single day and checking result"""
+        """Consolidating 2 files for a single day and checking variable"""
         
         datafolder = os.path.join(test_dir, 'data')        
         new_csv=fluksoapi.consolidate_sensor(folder = datafolder, 

@@ -186,16 +186,19 @@ class Houseprint(object):
 
             #create new sensor according to its manufacturer
             if r['manufacturer'] == 'Flukso':
-                new_sensor = Fluksosensor(device = device,
-                                         key = r['Sensor_id'],
-                                         token = r['token'],
-                                         type = r['sensor type'],
-                                         description = r['name by user'],
-                                         system = r['system'],
-                                         quantity = r['quantity'],
-                                         unit = r['unit'],
-                                         direction = r['direction'],
-                                         tariff = r['tariff'])
+                new_sensor = Fluksosensor(
+                                          device = device,
+                                          key = r['Sensor_id'],
+                                          token = r['token'],
+                                          type = r['sensor type'],
+                                          description = r['name by user'],
+                                          system = r['system'],
+                                          quantity = r['quantity'],
+                                          unit = r['unit'],
+                                          direction = r['direction'],
+                                          tariff = r['tariff'],
+                                          cumulative = None # will be determined based on type
+                                          )
             else:
                 raise NotImplementedError('Sensors from {} are not supported'.format(r['manufacturer']))
 
@@ -247,7 +250,7 @@ class Houseprint(object):
             Returns
             -------
             List of sites satisfying the search criterion or empty list if no
-            result found.
+            variable found.
         '''
         
         result = []
@@ -272,13 +275,13 @@ class Houseprint(object):
             Returns
             -------
             List of sensors satisfying the search criterion or empty list if no
-            result found.
+            variable found.
         '''
         
         result = []
         for sensor in self.get_sensors():
             for keyword, value in kwargs.items():
-                if getattr(sensor, keyword) == value:
+                if value in getattr(sensor, keyword):
                     continue
                 else:
                     break
@@ -418,7 +421,7 @@ class Houseprint(object):
         tmpos = self.get_tmpos()
         tmpos.sync()
 
-    def get_data(self, sensors=None, sensortype=None, head=None, tail=None, resample='min'):
+    def get_data(self, sensors=None, sensortype=None, head=None, tail=None, diff='default', resample='min', unit='default'):
         """
         Return a Pandas Dataframe with joined data for the given sensors
 
@@ -429,14 +432,31 @@ class Houseprint(object):
         sensortype : string (optional)
             gas, water, electricity. If None, and Sensors = None,
             all available sensors in the houseprint are fetched
-
-        head, tail: timestamps
+        head, tail: timestamps,
+        diff : bool or 'default'
+            If True, the original data will be differentiated
+            If 'default', the sensor will decide: if it has the attribute
+            cumulative==True, the data will be differentiated.
+        resample : str (default='min')
+            Sampling rate, if any.  Use 'raw' if no resampling.
+        unit : str , default='default'
+            String representation of the target unit, eg m**3/h, kW, ...
         
         """
         if sensors is None:        
             sensors = self.get_sensors(sensortype)
-        series = [sensor.get_data(head=head,tail=tail,resample=resample) for sensor in sensors]
-        return pd.concat(series, axis=1)
+        series = [sensor.get_data(head=head, tail=tail, diff=diff, resample=resample, unit=unit) for sensor in sensors]
+        df =  pd.concat(series, axis=1)
+
+        # Add unit as string to each series in the df.  This is not persistent: the attribute unit will get
+        # lost when doing operations with df, but at least it can be checked once.
+        for s in series:
+            try:
+                df[s.name].unit = s.unit
+            except:
+                pass
+
+        return df
 
 def load_houseprint_from_file(filename):
     """Return a static (=anonymous) houseprint object"""

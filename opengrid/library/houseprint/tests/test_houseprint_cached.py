@@ -10,6 +10,7 @@ Created on Mon Dec 30 02:37:25 2013
 import os, sys
 import unittest
 import inspect
+import numpy as np
 
 from opengrid.library.houseprint import houseprint
 
@@ -119,8 +120,143 @@ class HouseprintTest(unittest.TestCase):
 
         # remove temp.hp file
         os.remove('temp.hp')
-                
-        
+
+    def test_cumulative_setting(self):
+        device = self.hp.get_devices()[0]
+        sensor = houseprint.Fluksosensor(key = 'key',
+                                           device = device,
+                                           token='token',
+                                           type = 'electricity',
+                                           description = 'description',
+                                           system = 'system',
+                                           quantity = 'quantity',
+                                          unit = '',
+                                          direction = 'direction',
+                                          tariff = 'tariff',
+                                          cumulative=None)
+        self.assertTrue(sensor.cumulative)
+
+        sensor = houseprint.Fluksosensor(key = 'key',
+                                           device = device,
+                                           token='token',
+                                           type = 'temperature',
+                                           description = 'description',
+                                           system = 'system',
+                                           quantity = 'quantity',
+                                          unit = '',
+                                          direction = 'direction',
+                                          tariff = 'tariff',
+                                          cumulative=None)
+        self.assertFalse(sensor.cumulative)
+
+    def test_unit_setting(self):
+        device = self.hp.get_devices()[0]
+        sensor = houseprint.Fluksosensor(key = 'key',
+                                           device = device,
+                                           token='token',
+                                           type = 'electricity',
+                                           description = 'description',
+                                           system = 'system',
+                                           quantity = 'quantity',
+                                          unit = '',
+                                          direction = 'direction',
+                                          tariff = 'tariff',
+                                          cumulative=None)
+        self.assertEqual(sensor.unit, 'Wh')
+        sensor = houseprint.Fluksosensor(key = 'key',
+                                           device = device,
+                                           token='token',
+                                           type = 'water',
+                                           description = 'description',
+                                           system = 'system',
+                                           quantity = 'quantity',
+                                          unit = '',
+                                          direction = 'direction',
+                                          tariff = 'tariff',
+                                          cumulative=None)
+        self.assertEqual(sensor.unit, 'liter')
+        sensor = houseprint.Fluksosensor(key = 'key',
+                                           device = device,
+                                           token='token',
+                                           type = 'gas',
+                                           description = 'description',
+                                           system = 'system',
+                                           quantity = 'quantity',
+                                          unit = '',
+                                          direction = 'direction',
+                                          tariff = 'tariff',
+                                          cumulative=None)
+        self.assertEqual(sensor.unit, 'liter')
+
+    def test_unit_conversion(self):
+        device = self.hp.get_devices()[0]
+        sensor = houseprint.Fluksosensor(key = 'key',
+                                           device = device,
+                                           token='token',
+                                           type = 'electricity',
+                                           description = 'description',
+                                           system = 'system',
+                                           quantity = 'quantity',
+                                          unit = '',
+                                          direction = 'direction',
+                                          tariff = 'tariff',
+                                         cumulative=None)
+        self.assertEqual(sensor.unit, 'Wh')
+        cf = sensor._unit_conversion_factor(diff=False, resample='hour', target='kWh')
+        np.testing.assert_almost_equal(cf, 1e-3)
+
+        cf = sensor._unit_conversion_factor(diff=False, resample='min', target='kWh')
+        np.testing.assert_almost_equal(cf, 1e-3)
+
+        cf = sensor._unit_conversion_factor(diff=True, resample='hour', target='kW')
+        np.testing.assert_almost_equal(cf, 1e-3)
+
+        cf = sensor._unit_conversion_factor(diff=True, resample='min', target='kW')
+        np.testing.assert_almost_equal(cf, 60.*1e-3)
+
+        sensor = houseprint.Fluksosensor(key = 'key',
+                                           device = device,
+                                           token='token',
+                                           type = 'water',
+                                           description = 'description',
+                                           system = 'system',
+                                           quantity = 'quantity',
+                                          unit = '',
+                                          direction = 'direction',
+                                          tariff = 'tariff',
+                                         cumulative=None)
+        self.assertEqual(sensor.unit, 'liter')
+        cf = sensor._unit_conversion_factor(diff=True, resample='min')
+        np.testing.assert_almost_equal(cf, 1)
+
+        cf = sensor._unit_conversion_factor(diff=False, resample='day', target='m**3')
+        np.testing.assert_almost_equal(cf, 1e-3)
+
+        cf = sensor._unit_conversion_factor(diff=True, resample='day')
+        np.testing.assert_almost_equal(cf, 1./24./60.)
+
+        self.assertRaises(NotImplementedError, sensor._unit_conversion_factor, resample='raw')
+
+        # for gas, check correct calorific conversion from l to kWh
+        sensor = houseprint.Fluksosensor(key = 'key',
+                                           device = device,
+                                           token='token',
+                                           type = 'gas',
+                                           description = 'description',
+                                           system = 'system',
+                                           quantity = 'quantity',
+                                          unit = '',
+                                          direction = 'direction',
+                                          tariff = 'tariff',
+                                         cumulative=None)
+        self.assertEqual(sensor.unit, 'liter')
+        cf = sensor._unit_conversion_factor(diff=True, resample='hour')
+        np.testing.assert_almost_equal(cf, 10)
+
+        cf = sensor._unit_conversion_factor(diff=True, resample='min')
+        np.testing.assert_almost_equal(cf, 10*60.)
+
+
 if __name__ == '__main__':
     
     # http://stackoverflow.com/questions/4005695/changing-order-of-unit-tests-in-python
