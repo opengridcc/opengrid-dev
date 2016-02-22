@@ -14,7 +14,7 @@ import inspect
 script_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 # add the path to opengrid to sys.path
 sys.path.append(os.path.join(script_dir, os.pardir, os.pardir))
-from opengrid.library.houseprint import Houseprint
+from opengrid.library.houseprint import load_houseprint_from_file
 from opengrid.library import fluksoapi
 from opengrid.library.storetimeseriesdata import storeTimeSeriesData
 
@@ -24,20 +24,19 @@ save_all = True
 
 ##############################################################################
 
-hp = Houseprint()
+hp = load_houseprint_from_file(os.path.join(script_dir, 'hp_anonymous.pkl'))
 all_sensordata = hp.get_all_fluksosensors()
 print('Sensor data fetched')
 
 i=0
 if extract_all:
     print('Writing files:')
-    for flukso_id in all_sensordata.keys():
-        for sensor_id, s in all_sensordata[flukso_id].items():
+    for flukso_id, sensors in all_sensordata.items():
+        for sensor_id, s in sensors.items():
             # sensor_id is 1-6, s is {}
             if s is not None and s:
                 # determine the type of the measurement to set the unit                
-                t = s['Type'].lower()
-                if t.startswith('ele'):
+                if s['Type'].lower().startswith('ele'):
                     unit = 'watt'
                 else:
                     unit = 'lperday'
@@ -47,11 +46,10 @@ if extract_all:
                 if save_all:
                     storeTimeSeriesData(r.json(), s['Sensor'], s['Token'], unit)
                     ts = fluksoapi.parse(r)
-                    fluksoapi.save_csv(ts, csvpath=None, 
-                                       fileNamePrefix='_'.join([flukso_id, s['Sensor']]))
+                    fluksoapi.save_file(ts, folder=None, file_type='csv',
+                                        prefix='_'.join([flukso_id, s['Sensor']]))
                     i=i+1
                     print('.'),
                     sys.stdout.flush()
     print('done')
 print str(i) + " sensor data files saved"
-            
