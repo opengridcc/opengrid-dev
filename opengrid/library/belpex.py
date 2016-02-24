@@ -14,14 +14,14 @@ def get_belpex(start, end=None):
     ----------
     start : something datetime like
     end : something datetime like too
-        optional, defaults to today
+        optional, defaults to tomorrow, because Belpex values are available for 1 day in the future!
 
     Returns
     -------
     Pandas Series
     """
     if end is None:
-        end = dt.date.today()
+        end = dt.date.today() + dt.timedelta(days=1)
     # Prices are fetched per day, so we'll create a set of days, download seperate dataframes per day and put them
     # together
     series = [get_belpex_day(date) for date in dayset(start, end)]
