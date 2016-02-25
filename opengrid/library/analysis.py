@@ -6,10 +6,9 @@ Try to write all methods such that they take a dataframe as input
 and return a dataframe or list of dataframes.
 """
 
-import numpy as np
-import pdb
 import pandas as pd
-from opengrid.library.misc import *
+from .misc import split_by_day
+
 
 def daily_min(df, starttime=None, endtime=None):
     """
@@ -32,8 +31,8 @@ def daily_min(df, starttime=None, endtime=None):
     # create a dataframe with correct index
     df_res = pd.DataFrame(index=df.resample(rule='D', how='max').index, columns=df.columns)
     # fill it up, day by day
-    for i,df_day in enumerate(df_daily_list):
-        df_res.iloc[i,:] = df_day.min()
+    for i, df_day in enumerate(df_daily_list):
+        df_res.iloc[i, :] = df_day.min()
 
     return df_res
 
@@ -59,7 +58,7 @@ def daily_max(df, starttime=None, endtime=None):
     # create a dataframe with correct index
     df_res = pd.DataFrame(index=df.resample(rule='D', how='max').index, columns=df.columns)
     # fill it up, day by day
-    for i,df_day in enumerate(df_daily_list):
-        df_res.iloc[i,:] = df_day.max()
+    for i, df_day in enumerate(df_daily_list):
+        df_res.iloc[i, :] = df_day.max()
 
     return df_res
