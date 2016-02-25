@@ -7,6 +7,7 @@ and return a dataframe or list of dataframes.
 """
 
 import datetime as dt
+import pandas as pd
 
 
 class Analysis(object):
@@ -15,11 +16,15 @@ class Analysis(object):
 
     An analysis should have a dataframe as input
     self.result should be used as 'output dataframe'
-    It also has output methods: to plot, to json...
+    It also has output methods: plot, to json...
     """
-    def __init__(self, df):
+    def __init__(self, df, *args, **kwargs):
         self.df = df
-        self.result = df
+        self.do_analysis(*args, **kwargs)
+
+    def do_analysis(self):
+        # To be overwritten by inheriting class
+        self.result = self.df.copy()
 
     def plot(self):
         self.result.plot()
@@ -41,13 +46,16 @@ class DailyAgg(Analysis):
             For each day, only consider the time between starttime and endtime
             If None, use begin of day/end of day respectively
         """
-        super(DailyAgg, self).__init__(df=df)
+        super(DailyAgg, self).__init__(df, agg, starttime=starttime, endtime=endtime)
 
+
+    def do_analysis(self, agg, starttime=dt.time.min, endtime=dt.time.max):
         if not self.df.empty:
-            df = self.df
-            df = df[(df.index.time >= starttime) & (df.index.time < endtime)]
+            df = self.df[(self.df.index.time >= starttime) & (self.df.index.time < endtime)]
             df = df.resample('D', how=agg)
             self.result = df
+        else:
+            self.result = pd.DataFrame()
 
 
 def daily_min(df, starttime=dt.time.min, endtime=dt.time.max):
