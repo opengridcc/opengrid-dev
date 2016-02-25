@@ -57,10 +57,3 @@ class DailyAgg(Analysis):
         else:
             self.result = pd.DataFrame()
 
-
-def daily_min(df, starttime=dt.time.min, endtime=dt.time.max):
-    return DailyAgg(df=df, agg='min', starttime=starttime, endtime=endtime).result
-
-
-def daily_max(df, starttime=dt.time.min, endtime=dt.time.max):
-    return DailyAgg(df=df, agg='max', starttime=starttime, endtime=endtime).result
