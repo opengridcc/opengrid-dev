@@ -60,7 +60,7 @@ def time_to_timedelta(t):
     return pd.Timedelta(seconds=t.hour*3600+t.minute*60+t.second+t.microsecond*1e-3)
 
 
-def split_by_day(df, starttime=None, endtime=None):
+def split_by_day(df, starttime=dt.time.min, endtime=dt.time.max):
     """
     Return a list with dataframes, one for each day
 
@@ -77,11 +77,6 @@ def split_by_day(df, starttime=None, endtime=None):
     """
     if df.empty:
         return None
-
-    if starttime is None:
-        starttime = dt.time.min
-    if endtime is None:
-        endtime = dt.time.max
 
     df = df[(df.index.time >= starttime) & (df.index.time < endtime)]  # slice between starttime and endtime
     list_df = [group[1] for group in df.groupby(df.index.date)]  # group by date and create list

@@ -9,7 +9,7 @@ and return a dataframe or list of dataframes.
 import datetime as dt
 
 
-def daily(df, agg, starttime=None, endtime=None):
+def daily(df, agg, starttime=dt.time.min, endtime=dt.time.max):
     """
 
     Parameters
@@ -29,19 +29,14 @@ def daily(df, agg, starttime=None, endtime=None):
     if df.empty:
         return df
 
-    if starttime is None:
-        starttime = dt.time.min
-    if endtime is None:
-        endtime = dt.time.max
-
     df = df[(df.index.time >= starttime) & (df.index.time < endtime)]
     df = df.resample('D', how=agg)
     return df
 
 
-def daily_min(df, starttime=None, endtime=None):
+def daily_min(df, starttime=dt.time.min, endtime=dt.time.max):
     return daily(df=df, agg='min', starttime=starttime, endtime=endtime)
 
 
-def daily_max(df, starttime=None, endtime=None):
+def daily_max(df, starttime=dt.time.min, endtime=dt.time.max):
     return daily(df=df, agg='max', starttime=starttime, endtime=endtime)
