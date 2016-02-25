@@ -48,19 +48,41 @@ class Site(object):
         """
         return [sensor for sensor in self.sensors if sensor.type == sensortype or sensortype is None]
 
-    def get_data(self, sensortype = None, head = None, tail = None, resample='min'):
+    def get_data(self, sensortype=None, head=None, tail=None, diff='default', resample='min', unit='default'):
         """
-            Return a Pandas Dataframe with joined data for all sensors in this Site
+        Return a Pandas Dataframe with the joined data for all sensors in this device
 
-            Parameters
-            ----------
-            sensortype: gas, water, electricity: optional
-            head, tail: timestamps
+        Parameters
+        ----------
+        sensors : list of Sensor objects
+            If None, use sensortype to make a selection
+        sensortype : string (optional)
+            gas, water, electricity. If None, and Sensors = None,
+            all available sensors in the houseprint are fetched
+        head, tail: timestamps,
+        diff : bool or 'default'
+            If True, the original data will be differentiated
+            If 'default', the sensor will decide: if it has the attribute
+            cumulative==True, the data will be differentiated.
+        resample : str (default='min')
+            Sampling rate, if any.  Use 'raw' if no resampling.
+        unit : str , default='default'
+            String representation of the target unit, eg m**3/h, kW, ...
 
-            Returns
-            -------
-            Pandas DataFrame
+        Returns
+        -------
+        Pandas DataFrame
         """
         sensors = self.get_sensors(sensortype)
-        series = [sensor.get_data(head=head,tail=tail,resample=resample) for sensor in sensors]
-        return pd.concat(series, axis=1)
+        series = [sensor.get_data(head=head, tail=tail, diff=diff, resample=resample, unit=unit) for sensor in sensors]
+        df =  pd.concat(series, axis=1)
+
+        # Add unit as string to each series in the df.  This is not persistent: the attribute unit will get
+        # lost when doing operations with df, but at least it can be checked once.
+        for s in series:
+            try:
+                df[s.name].unit = s.unit
+            except:
+                pass
+
+        return df

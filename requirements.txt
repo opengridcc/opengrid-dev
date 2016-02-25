@@ -12,3 +12,8 @@ geopy
 oauth2client
 tmpo
 jsonpickle
+python-coveralls 
+coverage 
+pint
+beautifulsoup4
+iso8601
