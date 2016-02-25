@@ -24,6 +24,9 @@ def daily_min(df, starttime=None, endtime=None):
     -------
     df_day : pandas.DataFrame with daily datetimindex and minima
     """
+    if df.empty:
+        return df
+
     if starttime is None:
         starttime = dt.time.min
     if endtime is None:
@@ -32,6 +35,7 @@ def daily_min(df, starttime=None, endtime=None):
     df = df[(df.index.time >= starttime) & (df.index.time < endtime)]
     df = df.resample('D', how='min')
     return df
+
 
 def daily_max(df, starttime=None, endtime=None):
     """
@@ -48,6 +52,8 @@ def daily_max(df, starttime=None, endtime=None):
     -------
     df_day : pandas.DataFrame with daily datetimeindex and maxima
     """
+    if df.empty:
+        return df
 
     if starttime is None:
         starttime = dt.time.min
