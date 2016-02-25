@@ -123,6 +123,7 @@ class Sensor(object):
             if diff:
                 raise NotImplementedError("Differentiation always needs a sampled dataframe")
 
+        # get the source
         if not self.type == 'gas':
             if not diff:
                 source = self.unit
@@ -138,9 +139,9 @@ class Sensor(object):
             q_src = 1*ureg(self.unit)
             q_int = q_src * ureg('Wh/liter')
             if not diff:
-                source = list(q_int.units)[0] # string representing the unit, mostly kWh
+                source = str(q_int.units) # string representing the unit, mostly kWh
             else:
-                source = list(q_int.units)[0] + '/' + resample
+                source = str(q_int.units) + '/' + resample
             return CALORIFICVALUE * misc.unit_conversion_factor(source, target)
 
 class Fluksosensor(Sensor):
