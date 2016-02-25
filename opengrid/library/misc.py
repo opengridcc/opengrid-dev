@@ -76,7 +76,7 @@ def split_by_day(df, starttime=None, endtime=None):
     list, one dataframe per day.
     """
     if df.empty:
-        return df
+        return None
 
     if starttime is None:
         starttime = dt.time.min
