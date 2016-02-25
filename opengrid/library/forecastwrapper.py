@@ -7,8 +7,7 @@ import forecastio
 import geopy
 import numpy as np
 import pandas as pd
-from dateutil import rrule
-
+from .misc import dayset
 
 class Weather():
     """
@@ -54,7 +53,7 @@ class Weather():
         else:
             self.tz = self.lookup_timezone()
 
-        self.forecasts = [self._get_forecast(date=date) for date in self._dayset(start=start, end=end)]
+        self.forecasts = [self._get_forecast(date=date) for date in dayset(start=start, end=end)]
 
     def days(self,
              include_average_temperature=True,
@@ -147,25 +146,6 @@ class Weather():
         if not hasattr(self, 'geolocator'):
             self.geolocator = geopy.GoogleV3()
         return self.geolocator
-
-    def _dayset(self, start, end):
-        """
-            Takes a start and end date and returns a set containing all dates between start and end
-
-            Parameters
-            ----------
-            start : datetime-like object
-            end : datetime-like object
-
-            Returns
-            -------
-            set of datetime objects
-        """
-
-        res = []
-        for dt in rrule.rrule(rrule.DAILY, dtstart=start, until=end):
-            res.append(dt)
-        return sorted(set(res))
 
     def _get_forecast(self, date):
         """

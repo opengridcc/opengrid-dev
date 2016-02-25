@@ -6,7 +6,7 @@ Created on Thu Jan  7 10:31:00 2016
 """
 from opengrid import ureg, Q_
 import pandas as pd
-import datetime as dt
+from dateutil import rrule
 
 
 def parse_date(d):
@@ -118,3 +118,23 @@ def unit_conversion_factor(source, target):
     """
 
     return 1*ureg(source).to(target).magnitude
+
+
+def dayset(start, end):
+    """
+        Takes a start and end date and returns a set containing all dates between start and end
+
+        Parameters
+        ----------
+        start : datetime-like object
+        end : datetime-like object
+
+        Returns
+        -------
+        set of datetime objects
+    """
+
+    res = []
+    for dt in rrule.rrule(rrule.DAILY, dtstart=start, until=end):
+        res.append(dt)
+    return sorted(set(res))
