@@ -29,7 +29,7 @@ def daily_min(df, starttime=None, endtime=None):
     if endtime is None:
         endtime = dt.time.max
 
-    df = df[(df.index >= starttime) & (df.index < endtime)]
+    df = df[(df.index.time >= starttime) & (df.index.time < endtime)]
     df = df.resample('D', how='min')
     return df
 
@@ -54,6 +54,6 @@ def daily_max(df, starttime=None, endtime=None):
     if endtime is None:
         endtime = dt.time.max
 
-    df = df[(df.index >= starttime) & (df.index < endtime)]
+    df = df[(df.index.time >= starttime) & (df.index.time < endtime)]
     df = df.resample('D', how='max')
     return df
