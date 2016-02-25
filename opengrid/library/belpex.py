@@ -43,7 +43,12 @@ def get_belpex_day(date):
     # start out by getting the html from the website
     html = fetch_website(date)
     # parse html into an array of timestamps and values
-    index, data = parse_html(html)
+    try:
+        index, data = parse_html(html)
+    except KeyError:  # something goes wrong when parsing, probably meaning data is unavailable.
+        print("No data found for {}".format(date.date()))
+        return None
+
     series = pd.Series(index=index, data=data)
     series = series.tz_convert('Europe/Brussels')
     return series
