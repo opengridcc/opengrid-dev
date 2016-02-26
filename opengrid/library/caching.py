@@ -287,7 +287,7 @@ class Cache(object):
             return True
 
 
-def cache_results(hp, sensors, function, resultname, **kwargs):
+def cache_results(hp, sensors, resultname, AnalysisClass, **kwargs):
     """
     Run an analysis on a set of sensors and cache the results
 
@@ -295,12 +295,12 @@ def cache_results(hp, sensors, function, resultname, **kwargs):
     ----------
     sensors : list with Sensor objects
         Each element is a Sensor object with attribute 'key' as sensor_id
-    function : string (functionname)
-        method from the analysis library
+    AnalysisClass : object
+        Class from the analysis library for the doing the analysis
     resultname : string
         Name of the cached variable, eg. elect_standby or water_daily_max
     kwargs : dict
-        Additional keyword arguments are passed to the call of the analysis method
+        Additional keyword arguments are passed to the instantiation of the analysis class
 
     Returns
     -------
@@ -328,8 +328,7 @@ def cache_results(hp, sensors, function, resultname, **kwargs):
         df_new = hp.get_data(sensors = [sensor], head=last_day)
 
         # apply the method
-        method = getattr(analysis, function)
-        df_day = method(df_new, **kwargs)
+        df_day = AnalysisClass(df_new, **kwargs).result
 
         # cache the results
         cache.update(df_day)
