@@ -61,8 +61,8 @@ def parse(html):
     # We start from the back, because the last row should be from yesterday
     # We then work our way back from the date we know into the past
     rows = []
+    last_date = dt.date.today()
     for row in reversed(table_rows[2:]):
-        last_date = dt.date.today()
         values = []
         for title, td in zip(column_names, row.findAll("td")):
             if title == 'datum':
