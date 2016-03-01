@@ -71,11 +71,18 @@ def parse(html):
                     last_date = last_date - dt.timedelta(days=1)
                 values.append(last_date)
             elif title == 'zon_duur':
-                hour, minute = td.text.split(":")
-                time = dt.time(hour=int(hour), minute=int(minute))
+                try:
+                    hour, minute = td.text.split(":")
+                    time = dt.time(hour=int(hour), minute=int(minute))
+                except ValueError:
+                    time = pd.NaT
                 values.append(time)
             else:
-                values.append(float(td.text.replace(",",".")))
+                try:
+                    val = float(td.text.replace(",","."))
+                except ValueError:
+                    val = pd.NaN
+                values.append(val)
         rows.append(values)
 
     # create DataFrame
