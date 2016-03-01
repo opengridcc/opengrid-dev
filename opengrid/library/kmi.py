@@ -81,7 +81,7 @@ def parse(html):
                 try:
                     val = float(td.text.replace(",","."))
                 except ValueError:
-                    val = pd.NaN
+                    val = float('NaN')
                 values.append(val)
         rows.append(values)
 
