@@ -54,7 +54,7 @@ def parse(html):
 
     # parse column names. Take the titles, but remove periods, linebreaks and other artefacts
     titles = table_rows[0].findAll("th")
-    column_names = ["_".join(title.text.replace(".","").split()).lower() for title in titles]
+    column_names = ["_".join(title.text.replace(".", "").split()).lower() for title in titles]
 
     # parse rows
     # The table has a stupid date format, so it is quite hard to infer the correct date.
@@ -79,7 +79,7 @@ def parse(html):
                 values.append(time)
             else:
                 try:
-                    val = float(td.text.replace(",","."))
+                    val = float(td.text.replace(",", "."))
                 except ValueError:
                     val = float('NaN')
                 values.append(val)
