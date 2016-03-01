@@ -88,4 +88,6 @@ def parse(html):
     # create DataFrame
     df = pd.DataFrame(rows, columns=column_names).set_index('datum')
     df.index = pd.DatetimeIndex(df.index)
-    return df.sort_index()
+    df = df.sort_index().tz_localize('Europe/Brussels')
+
+    return df
