@@ -68,6 +68,10 @@ class Config(SafeConfigParser):
         self.add_section('houseprint')
         self.set('houseprint', 'password', 'CHANGE ME IN AN OPENGRID.CFG FILE')
 
+        self.add_section('env')
+        self.set('env', 'type', 'dev')
+        self.set('env', 'plots', 'inline')
+
 
 
 
