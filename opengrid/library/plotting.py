@@ -86,7 +86,7 @@ def carpet(timeseries, **kwargs):
 
     #plot colorbar
     cbticks = np.logspace(np.log10(vmin), np.log10(vmax), 11, endpoint=True)
-    cb = plt.colorbar(format='%.0f', ticks=cbticks)
+    cb = plt.colorbar(format='%.2g', ticks=cbticks)
     cb.set_label(cblabel)
 
     #plot title
