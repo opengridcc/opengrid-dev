@@ -58,6 +58,8 @@ class Houseprint(object):
         Connect to the Google Spreadsheet again and re-parse the data
         """
         self.__init__(gjson=self.gjson, spreadsheet=self.spreadsheet)
+        if hasattr(self, '_tmpos'):
+            self._add_sensors_to_tmpos()  
 
     def __repr__(self):
         return """
@@ -411,13 +413,18 @@ class Houseprint(object):
                 path_to_tmpo_data = None
 
             self._tmpos = tmpo.Session(path_to_tmpo_data)
-            # Add flukso sensors
-            fluksosensors = [sensor for sensor in self.get_sensors() if isinstance(sensor, Fluksosensor)]
-
-            for sensor in fluksosensors:
-                self._tmpos.add(sensor.key, sensor.token)
+            self._add_sensors_to_tmpos()
 
         print("Using tmpo database from {}".format(self._tmpos.db))
+
+    def _add_sensors_to_tmpos(self):
+        """
+        Add all flukso sensors in the houseprint to the tmpo session
+        """
+        fluksosensors = [sensor for sensor in self.get_sensors() if isinstance(sensor, Fluksosensor)]
+
+        for sensor in fluksosensors:
+            self._tmpos.add(sensor.key, sensor.token)
 
     def get_tmpos(self):
         """
