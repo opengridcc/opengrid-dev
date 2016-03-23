@@ -48,7 +48,9 @@ class Houseprint(object):
 
         if gjson is None:
             gjson = config.get('houseprint', 'json')
-        self._parse_sheet(gjson, spreadsheet)
+        self.gjson = gjson
+        self.spreadsheet = spreadsheet
+        self._parse_sheet()
         self.timestamp = dt.datetime.utcnow()  # Add a timestamp upon creation
 
     def __repr__(self):
@@ -64,15 +66,9 @@ class Houseprint(object):
                sum([len(site.sensors) for site in self.sites])
                )
 
-    def _parse_sheet(self, gjson, spreadsheet):
+    def _parse_sheet(self):
         """
             Connects to Google, fetches the spreadsheet and parses the content
-
-            Parameters
-            ----------
-            gjson: Path to authenication json
-            spreadsheet: String
-                Name of the spreadsheet to connect to.
         """
 
         import gspread
@@ -80,7 +76,7 @@ class Houseprint(object):
 
         print('Opening connection to Houseprint sheet')
         # fetch credentials
-        json_key = json.load(open(gjson))
+        json_key = json.load(open(self.gjson))
         scope = ['https://spreadsheets.google.com/feeds']
         credentials = SignedJwtAssertionCredentials(
             json_key['client_email'],
@@ -94,7 +90,7 @@ class Houseprint(object):
 
         # open sheets
         print("Opening spreadsheets")
-        sheet = gc.open(spreadsheet)
+        sheet = gc.open(self.spreadsheet)
         sites_sheet = sheet.worksheet('Accounts')
         devices_sheet = sheet.worksheet('Devices')
         sensors_sheet = sheet.worksheet('Sensors')
