@@ -53,6 +53,12 @@ class Houseprint(object):
         self._parse_sheet()
         self.timestamp = dt.datetime.utcnow()  # Add a timestamp upon creation
 
+    def reset(self):
+        """
+        Connect to the Google Spreadsheet again and re-parse the data
+        """
+        self.__init__(gjson=self.gjson, spreadsheet=self.spreadsheet)
+
     def __repr__(self):
         return """
     Houseprint
