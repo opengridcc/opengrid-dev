@@ -76,7 +76,7 @@ def fetch_website(date):
     if r.status_code == 200:
         return r.text
     else:
-        raise ("Seems like you got code {}".format(r.status_code))
+        raise Exception("Seems like you got code {}".format(r.status_code))
 
 
 def parse_html(html):
