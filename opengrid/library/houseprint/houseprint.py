@@ -1,6 +1,7 @@
 __author__ = 'Jan Pecinovsky'
 
 from opengrid.config import Config
+
 config = Config()
 
 import os
@@ -10,16 +11,16 @@ import jsonpickle
 import datetime as dt
 import pandas as pd
 
-#compatibility with py3
-if sys.version_info.major == 3:
+# compatibility with py3
+if sys.version_info.major >= 3:
     import pickle
 else:
     import cPickle as pickle
 
 import tmpo
 
-#compatibility with py3
-if sys.version_info.major == 3:
+# compatibility with py3
+if sys.version_info.major >= 3:
     from .site import Site
     from .device import Device, Fluksometer
     from .sensor import Sensor, Fluksosensor
@@ -33,6 +34,7 @@ The Houseprint is a Singleton object which contains all metadata for sites, devi
 It can be pickled, saved and passed around
 """
 
+
 class Houseprint(object):
     def __init__(self, gjson=None, spreadsheet="Opengrid houseprint (Responses)"):
         """
@@ -45,9 +47,19 @@ class Houseprint(object):
         self.sites = []
 
         if gjson is None:
-            gjson = config.get('houseprint','json')
-        self._parse_sheet(gjson, spreadsheet)
-        self.timestamp = dt.datetime.utcnow() #Add a timestamp upon creation
+            gjson = config.get('houseprint', 'json')
+        self.gjson = gjson
+        self.spreadsheet = spreadsheet
+        self._parse_sheet()
+        self.timestamp = dt.datetime.utcnow()  # Add a timestamp upon creation
+
+    def reset(self):
+        """
+        Connect to the Google Spreadsheet again and re-parse the data
+        """
+        self.__init__(gjson=self.gjson, spreadsheet=self.spreadsheet)
+        if hasattr(self, '_tmpos'):
+            self._add_sensors_to_tmpos()  
 
     def __repr__(self):
         return """
@@ -60,41 +72,39 @@ class Houseprint(object):
                len(self.sites),
                sum([len(site.devices) for site in self.sites]),
                sum([len(site.sensors) for site in self.sites])
-              )
+               )
 
-    def _parse_sheet(self, gjson, spreadsheet):
+    def _parse_sheet(self):
         """
             Connects to Google, fetches the spreadsheet and parses the content
-
-            Parameters
-            ----------
-            gjson: Path to authenication json
-            spreadsheet: String
-                Name of the spreadsheet to connect to.
         """
 
         import gspread
         from oauth2client.client import SignedJwtAssertionCredentials
-        
-        print('Opening connection to Houseprint sheet')
-        #fetch credentials
-        json_key = json.load(open(gjson))
-        scope = ['https://spreadsheets.google.com/feeds']
-        credentials = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'].encode('ascii'), scope)
 
-        #authorize and login
+        print('Opening connection to Houseprint sheet')
+        # fetch credentials
+        json_key = json.load(open(self.gjson))
+        scope = ['https://spreadsheets.google.com/feeds']
+        credentials = SignedJwtAssertionCredentials(
+            json_key['client_email'],
+            json_key['private_key'].encode('ascii'),
+            scope
+        )
+
+        # authorize and login
         gc = gspread.authorize(credentials)
         gc.login()
 
-        #open sheets
+        # open sheets
         print("Opening spreadsheets")
-        sheet = gc.open(spreadsheet)
+        sheet = gc.open(self.spreadsheet)
         sites_sheet = sheet.worksheet('Accounts')
         devices_sheet = sheet.worksheet('Devices')
         sensors_sheet = sheet.worksheet('Sensors')
 
         print('Parsing spreadsheets')
-        #3 sub-methods that parse the different sheets
+        # 3 sub-methods that parse the different sheets
         self._parse_sites(sites_sheet)
         self._parse_devices(devices_sheet)
         self._parse_sensors(sensors_sheet)
@@ -103,7 +113,7 @@ class Houseprint(object):
 
     def _parse_sites(self, sheet):
         """
-            Submethod of _parse_sheet() that parses only the 'sites' sheet
+            Sub method of _parse_sheet() that parses only the 'sites' sheet
 
             Parameters
             ----------
@@ -114,23 +124,24 @@ class Houseprint(object):
         records = sheet.get_all_records()
 
         for r in records:
-            if r['Key'] == '': continue
-            new_site = Site(hp = self,
-                            key = r['Key'],
-                           size = r['House size'],
-                           inhabitants = r['Number of inhabitants'],
-                           postcode = r['postcode'],
-                           construction_year = r['construction year'],
-                           k_level = r['K-level'],
-                           e_level = r['E-level'],
-                           epc_cert = r['EPC certificate'])
+            if r['Key'] == '':
+                continue
+            new_site = Site(hp=self,
+                            key=r['Key'],
+                            size=r['House size'],
+                            inhabitants=r['Number of inhabitants'],
+                            postcode=r['postcode'],
+                            construction_year=r['construction year'],
+                            k_level=r['K-level'],
+                            e_level=r['E-level'],
+                            epc_cert=r['EPC certificate'])
             self.sites.append(new_site)
 
         print('{} Sites created'.format(len(self.sites)))
 
     def _parse_devices(self, sheet):
         """
-            Submethod of _parse_sheet() that parses only the 'devices' sheet
+            Sub method of _parse_sheet() that parses only the 'devices' sheet
 
             Parameters
             ----------
@@ -141,27 +152,28 @@ class Houseprint(object):
         records = sheet.get_all_records()
 
         for r in records:
-            if r['Key'] == '': continue
+            if r['Key'] == '':
+                continue
 
-            #find parent site and check if it exists
+            # find parent site and check if it exists
             site = self.find_site(r['Parent site'])
             if site is None:
                 raise ValueError('Device {} was given an invalid site key {}'.format(r['Key'], r['Parent site']))
-                            
-            #create a new device according to its manufacturer
+
+            # create a new device according to its manufacturer
             if r['manufacturer'] == 'Flukso':
-                new_device = Fluksometer(site=site, key = r['Key'])
+                new_device = Fluksometer(site=site, key=r['Key'])
             else:
                 raise NotImplementedError('Devices from {} are not supported'.format(r['manufacturer']))
 
-            #add new device to parent site
+            # add new device to parent site
             site.devices.append(new_device)
 
         print('{} Devices created'.format(sum([len(site.devices) for site in self.sites])))
 
     def _parse_sensors(self, sheet):
         """
-            Submethod of _parse_sheet() that parses only the 'sensors' sheet
+            Sub method of _parse_sheet() that parses only the 'sensors' sheet
 
             Parameters
             ----------
@@ -174,35 +186,39 @@ class Houseprint(object):
         for r in records:
             if r['Sensor_id'] == '': continue
 
-            #find parent. If a parent device is specified, us that, otherwise use a parent site directly
+            # find parent. If a parent device is specified, us that, otherwise use a parent site directly
             if r['parent device'] != '':
                 device = self.find_device(r['parent device'])
                 if device is None:
-                    raise ValueError('Sensor {} was given an invalid device key {}. Leave the device field empty if you want to add a sensor without a device'.format(r['Sensor_id'], r['parent device']))
+                    raise ValueError(
+                        'Sensor {} was given an invalid device key {}. \
+                        Leave the device field empty if you want to add a sensor without a device'.format(
+                            r['Sensor_id'], r['parent device']))
             else:
                 site = self.find_site(r['parent site'])
                 if site is None:
-                    raise ValueError('Sensor {} was given an invalid site key {}'.format(r['Sensor_id'],r['parent site']))
+                    raise ValueError(
+                        'Sensor {} was given an invalid site key {}'.format(r['Sensor_id'], r['parent site']))
 
-            #create new sensor according to its manufacturer
+            # create new sensor according to its manufacturer
             if r['manufacturer'] == 'Flukso':
                 new_sensor = Fluksosensor(
-                                          device = device,
-                                          key = r['Sensor_id'],
-                                          token = r['token'],
-                                          type = r['sensor type'],
-                                          description = r['name by user'],
-                                          system = r['system'],
-                                          quantity = r['quantity'],
-                                          unit = r['unit'],
-                                          direction = r['direction'],
-                                          tariff = r['tariff'],
-                                          cumulative = None # will be determined based on type
-                                          )
+                    device=device,
+                    key=r['Sensor_id'],
+                    token=r['token'],
+                    type=r['sensor type'],
+                    description=r['name by user'],
+                    system=r['system'],
+                    quantity=r['quantity'],
+                    unit=r['unit'],
+                    direction=r['direction'],
+                    tariff=r['tariff'],
+                    cumulative=None  # will be determined based on type
+                )
             else:
                 raise NotImplementedError('Sensors from {} are not supported'.format(r['manufacturer']))
 
-            #add sensor to device AND site
+            # add sensor to device AND site
             if new_sensor.device is not None:
                 new_sensor.device.sensors.append(new_sensor)
             new_sensor.site.sensors.append(new_sensor)
@@ -223,7 +239,7 @@ class Houseprint(object):
         """
         res = []
         for site in self.sites:
-            for sensor in site.get_sensors(sensortype = sensortype):
+            for sensor in site.get_sensors(sensortype=sensortype):
                 res.append(sensor)
         return res
 
@@ -242,7 +258,7 @@ class Houseprint(object):
         return res
 
     def search_sites(self, **kwargs):
-        '''
+        """
             Parameters
             ----------
             kwargs: any keyword argument, like key=mykey
@@ -251,8 +267,8 @@ class Houseprint(object):
             -------
             List of sites satisfying the search criterion or empty list if no
             variable found.
-        '''
-        
+        """
+
         result = []
         for site in self.sites:
             for keyword, value in kwargs.items():
@@ -262,12 +278,11 @@ class Houseprint(object):
                     break
             else:
                 result.append(site)
-                
+
         return result
-        
-        
+
     def search_sensors(self, **kwargs):
-        '''
+        """
             Parameters
             ----------
             kwargs: any keyword argument, like key=mykey
@@ -276,8 +291,8 @@ class Houseprint(object):
             -------
             List of sensors satisfying the search criterion or empty list if no
             variable found.
-        '''
-        
+        """
+
         result = []
         for sensor in self.get_sensors():
             for keyword, value in kwargs.items():
@@ -287,11 +302,11 @@ class Houseprint(object):
                     break
             else:
                 result.append(sensor)
-                
-        return result        
 
-    def find_site(self, key): 
-        '''
+        return result
+
+    def find_site(self, key):
+        """
             Parameters
             ----------
             key: string
@@ -299,16 +314,15 @@ class Houseprint(object):
             Returns
             -------
             Site
-        '''    
-    
+        """
+
         for site in self.sites:
             if site.key == key:
                 return site
         return None
-        
-        
+
     def find_device(self, key):
-        '''
+        """
             Parameters
             ----------
             key: string
@@ -316,14 +330,14 @@ class Houseprint(object):
             Returns
             -------
             Device
-        '''
+        """
         for device in self.get_devices():
             if device.key.lower() == key.lower():
                 return device
         return None
 
     def find_sensor(self, key):
-        '''
+        """
             Parameters
             ----------
             key: string
@@ -331,7 +345,7 @@ class Houseprint(object):
             Returns
             -------
             Sensor
-        '''
+        """
         for sensor in self.get_sensors():
             if sensor.key.lower() == key.lower():
                 return sensor
@@ -348,31 +362,31 @@ class Houseprint(object):
             current working directory
 
         """
-        #temporarily delete tmpo session        
+        # temporarily delete tmpo session
         try:
-           tmpos_tmp = self._tmpos
-           delattr(self, '_tmpos')
+            tmpos_tmp = self._tmpos
+            delattr(self, '_tmpos')
         except:
             pass
-           
-        frozen = jsonpickle.encode(self)        
-        
+
+        frozen = jsonpickle.encode(self)
+
         abspath = os.path.join(os.getcwd(), filename)
         with open(abspath, 'w') as f:
             f.write(frozen)
 
         print("Saved houseprint to {}".format(abspath))
-        
+
         # restore tmposession if needed
         try:
             setattr(self, '_tmpos', tmpos_tmp)
         except:
             pass
-        
+
     def init_tmpo(self, tmpos=None, path_to_tmpo_data=None):
         """
-            Fluksosensors need a tmpo session to obtain data.
-            It is overkill to have each fluksosensor make its own session, syncing would 
+            Flukso sensors need a tmpo session to obtain data.
+            It is overkill to have each flukso sensor make its own session, syncing would
             take too long and be overly redundant.
             Passing a tmpo session to the get_data function is also bad form because 
             we might add new types of sensors that don't use tmpo in the future.
@@ -381,7 +395,13 @@ class Houseprint(object):
             A tmpo session as parameter is optional.  If passed, no additional sensors are added.
             
             If no session is passed, a new one will be created using the location in the config file.
-            It will then be populated with the fluksosensors known to the houseprint object
+            It will then be populated with the flukso sensors known to the houseprint object
+
+            Parameters
+            ----------
+
+            tmpos : tmpo session
+            path_to_tmpo_data : str
         """
 
         if tmpos is not None:
@@ -390,16 +410,21 @@ class Houseprint(object):
             try:
                 path_to_tmpo_data = config.get('tmpo', 'data')
             except:
-                path_to_tmpo_data = None            
-            
-            self._tmpos = tmpo.Session(path_to_tmpo_data)
-            # Add fluksosensors
-            fluksosensors = [sensor for sensor in self.get_sensors() if isinstance(sensor,Fluksosensor)]
+                path_to_tmpo_data = None
 
-            for sensor in fluksosensors:
-                self._tmpos.add(sensor.key, sensor.token)
+            self._tmpos = tmpo.Session(path_to_tmpo_data)
+            self._add_sensors_to_tmpos()
 
         print("Using tmpo database from {}".format(self._tmpos.db))
+
+    def _add_sensors_to_tmpos(self):
+        """
+        Add all flukso sensors in the houseprint to the tmpo session
+        """
+        fluksosensors = [sensor for sensor in self.get_sensors() if isinstance(sensor, Fluksosensor)]
+
+        for sensor in fluksosensors:
+            self._tmpos.add(sensor.key, sensor.token)
 
     def get_tmpos(self):
         """
@@ -407,21 +432,21 @@ class Houseprint(object):
             -------
             TMPO session
         """
-        if hasattr(self,'_tmpos'):
+        if hasattr(self, '_tmpos'):
             return self._tmpos
         else:
             self.init_tmpo()
             return self._tmpos
-            #raise RuntimeError('No TMPO session was set, use the init_tmpo method to add or create a TMPO Session')
 
     def sync_tmpos(self):
         """
-            Add all Fluksosensors to the TMPO session and sync
+            Add all Flukso sensors to the TMPO session and sync
         """
         tmpos = self.get_tmpos()
         tmpos.sync()
 
-    def get_data(self, sensors=None, sensortype=None, head=None, tail=None, diff='default', resample='min', unit='default'):
+    def get_data(self, sensors=None, sensortype=None, head=None, tail=None, diff='default', resample='min',
+                 unit='default'):
         """
         Return a Pandas Dataframe with joined data for the given sensors
 
@@ -443,10 +468,10 @@ class Houseprint(object):
             String representation of the target unit, eg m**3/h, kW, ...
         
         """
-        if sensors is None:        
+        if sensors is None:
             sensors = self.get_sensors(sensortype)
         series = [sensor.get_data(head=head, tail=tail, diff=diff, resample=resample, unit=unit) for sensor in sensors]
-        df =  pd.concat(series, axis=1)
+        df = pd.concat(series, axis=1)
 
         # Add unit as string to each series in the df.  This is not persistent: the attribute unit will get
         # lost when doing operations with df, but at least it can be checked once.
@@ -458,8 +483,15 @@ class Houseprint(object):
 
         return df
 
+
 def load_houseprint_from_file(filename):
-    """Return a static (=anonymous) houseprint object"""
+    """
+    Return a static (=anonymous) houseprint object
+
+    Parameters
+    ----------
+    filename : str
+    """
 
     with open(filename, 'r') as f:
         hp = jsonpickle.decode(f.read())
