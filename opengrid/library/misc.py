@@ -4,7 +4,7 @@ Created on Thu Jan  7 10:31:00 2016
 
 @author: roel
 """
-from opengrid import ureg, Q_
+from opengrid import ureg
 import pandas as pd
 from dateutil import rrule
 import datetime as dt
@@ -27,12 +27,12 @@ def parse_date(d):
     ------
     ValueError if it was not possible to create a pandas.Timestamp
     """
-    
+
     if isinstance(d, float) or isinstance(d, int):
         # we have a POSIX timestamp IN SECONDS.
         pts = pd.Timestamp(d, unit='s')
         return pts
-        
+
     try:
         pts = pd.Timestamp(d)
     except:
@@ -57,7 +57,7 @@ def time_to_timedelta(t):
     ------
     The timezone of t (if present) is ignored.
     """
-    return pd.Timedelta(seconds=t.hour*3600+t.minute*60+t.second+t.microsecond*1e-3)
+    return pd.Timedelta(seconds=t.hour * 3600 + t.minute * 60 + t.second + t.microsecond * 1e-3)
 
 
 def split_by_day(df, starttime=dt.time.min, endtime=dt.time.max):
@@ -82,6 +82,7 @@ def split_by_day(df, starttime=dt.time.min, endtime=dt.time.max):
     list_df = [group[1] for group in df.groupby(df.index.date)]  # group by date and create list
     return list_df
 
+
 def unit_conversion_factor(source, target):
     """
     Shorthand function to get a conversion factor for unit conversion.
@@ -99,7 +100,7 @@ def unit_conversion_factor(source, target):
 
     """
 
-    return 1*ureg(source).to(target).magnitude
+    return 1 * ureg(source).to(target).magnitude
 
 
 def dayset(start, end):
@@ -117,6 +118,6 @@ def dayset(start, end):
     """
 
     res = []
-    for dt in rrule.rrule(rrule.DAILY, dtstart=start, until=end):
-        res.append(dt)
+    for day in rrule.rrule(rrule.DAILY, dtstart=start, until=end):
+        res.append(day)
     return sorted(set(res))
