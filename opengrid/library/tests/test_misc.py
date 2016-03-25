@@ -105,6 +105,11 @@ class MiscTest(unittest.TestCase):
         cf = unit_conversion_factor('Wh/min', 'kW')
         np.testing.assert_array_almost_equal(cf, 60 / 1000.)
 
+    def test_dayset(self):
+        ds = dayset(start=pd.Timestamp('20160101'), end=pd.Timestamp('20160131'))
+        comp = [dt.datetime(year=2016, month=1, day=day) for day in range(1, 32)]
+        self.assertEqual(ds, comp)
+
 
 if __name__ == '__main__':
     # http://stackoverflow.com/questions/4005695/changing-order-of-unit-tests-in-python
