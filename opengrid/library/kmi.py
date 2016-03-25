@@ -18,7 +18,7 @@ def get_kmi_current_month():
     return parse(html)
 
 
-def fetch_website():
+def fetch_website(url="http://www.meteo.be/meteo/view/nl/123763-Huidige+maand.html"):
     """
     Fetch the website containing the data from http://www.meteo.be/meteo/view/nl/123763-Huidige+maand.html
 
@@ -26,7 +26,6 @@ def fetch_website():
     -------
     str
     """
-    url = "http://www.meteo.be/meteo/view/nl/123763-Huidige+maand.html"
 
     r = requests.get(url)
 
