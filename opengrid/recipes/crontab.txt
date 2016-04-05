@@ -21,9 +21,6 @@
 # 
 # m h  dom mon dow   command
 
-0 */8 * * * cd /usr/local/data; python /usr/local/src/opengrid/scripts/extract_flukso_api.py
-#*/5 * * * * cd /usr/local/data; python /usr/local/src/opengrid/scripts/job_SyncAndRenderGraphs.py
-0 * * * * cd /usr/local/data; python /usr/local/src/opengrid/scripts/job_synctmpo.py > ./logs/job_synctmpo.log 2>&1
-20 1 * * * cd /usr/local/data; python /usr/local/src/opengrid/scripts/job_serve_monitoring_data.py
-5 * * * * cd /usr/local/src/opengrid/scripts; /usr/local/bin/ipython nbconvert --to html --ExecutePreprocessor.enabled=True TimeSeries.ipynb > /usr/local/data/logs/job_timeseriese.log 2>&1
-30 5 * * * cd /usr/local/src/opengrid/scripts; /usr/local/bin/ipython nbconvert --to html --ExecutePreprocessor.enabled=True Benchmark_night-time_standby_electricity_consumption.ipynb > /usr/local/data/logs/job_standbypower.log 2>&1
+0 * * * * cd /usr/local/src/opengrid; python recipes/synctmpo.py > /usr/local/data/logs/synctmpo.log 2>&1
+5 * * * * cd /usr/local/src/opengrid; python recipes/timeseries_7days.py > /usr/local/data/logs/timeseries_7days.log 2>&1
+30 5 * * * cd /usr/local/src/opengrid; python recipes/electricity_standby.py > /usr/local/data/logs/electricity_standby.log 2>&1

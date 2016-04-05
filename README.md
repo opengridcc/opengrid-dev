@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.org/opengridcc/opengrid.svg?branch=develop)](https://travis-ci.org/opengridcc/opengrid)
-[![Coverage Status](https://coveralls.io/repos/opengridcc/opengrid/badge.svg?branch=issue79_testing&service=github)](https://coveralls.io/github/opengridcc/opengrid?branch=issue79_testing)
+[![Coverage Status](https://coveralls.io/repos/opengridcc/opengrid/badge.svg?branch=develop&service=github)](https://coveralls.io/github/opengridcc/opengrid)
 
 opengrid
 ========

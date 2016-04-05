@@ -46,7 +46,7 @@ def carpet(timeseries, **kwargs):
         print('skipped {} - no data'.format(title))
         return
     ts = timeseries.resample('min', how='mean', label='left', closed='left')
-    vmin = max(1., kwargs.pop('vmin', ts[ts>0].min()))
+    vmin = max(0.1, kwargs.pop('vmin', ts[ts>0].min()))
     vmax = max(vmin, kwargs.pop('vmax', ts.quantile(.999)))
 
     #convert to dataframe with date as index and time as columns by
@@ -86,7 +86,7 @@ def carpet(timeseries, **kwargs):
 
     #plot colorbar
     cbticks = np.logspace(np.log10(vmin), np.log10(vmax), 11, endpoint=True)
-    cb = plt.colorbar(format='%.0f', ticks=cbticks)
+    cb = plt.colorbar(format='%.2g', ticks=cbticks)
     cb.set_label(cblabel)
 
     #plot title
