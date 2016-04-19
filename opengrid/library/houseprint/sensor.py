@@ -11,6 +11,7 @@ This class contains all metadata concerning the function and type of the sensor 
 from opengrid.library import misc
 from opengrid import ureg
 
+
 class Sensor(object):
     def __init__(self, key, device, site, type, description, system, quantity, unit, direction, tariff, cumulative):
         self.key = key
@@ -33,27 +34,26 @@ class Sensor(object):
     """.format(self.__class__.__name__,
                self.key,
                self.type
-              )
+               )
 
-    def get_data(self, head = None, tail = None, resample = 'min'):
+    def get_data(self, head=None, tail=None, resample='min'):
         """
-            Return a Pandas Series with measurement data
+        Return a Pandas Series with measurement data
 
-            Parameters
-            ----------
-            head, tail: timestamps for the begin and end of the interval
+        Parameters
+        ----------
+        head, tail: timestamps for the begin and end of the interval
 
-            Notes
-            -----
-            This is an abstract method, because each type of sensor has a different way of fetching the data.
+        Notes
+        -----
+        This is an abstract method, because each type of sensor has a different way of fetching the data.
 
-            Returns
-            -------
-            Pandas Series
+        Returns
+        -------
+        Pandas Series
         """
 
         raise NotImplementedError("Subclass must implement abstract method")
-
 
     def _get_default_unit(self, diff=True, resample='min'):
         """
@@ -90,7 +90,6 @@ class Sensor(object):
 
         return target
 
-
     def _unit_conversion_factor(self, diff=True, resample='min', target='default'):
         """
         Return a conversion factor to convert the obtained data
@@ -114,7 +113,6 @@ class Sensor(object):
             Multiplication factor for the original data to the target unit
         """
 
-
         # get the target
         if target == 'default':
             target = self._get_default_unit(diff=diff, resample=resample)
@@ -136,28 +134,29 @@ class Sensor(object):
             # for gas, we need to take into account the calorific value
             # as of now, we use 10 kWh/l by default
             CALORIFICVALUE = 10
-            q_src = 1*ureg(self.unit)
+            q_src = 1 * ureg(self.unit)
             q_int = q_src * ureg('Wh/liter')
             if not diff:
-                source = str(q_int.units) # string representing the unit, mostly kWh
+                source = str(q_int.units)  # string representing the unit, mostly kWh
             else:
                 source = str(q_int.units) + '/' + resample
             return CALORIFICVALUE * misc.unit_conversion_factor(source, target)
 
+
 class Fluksosensor(Sensor):
     def __init__(self, key, token, device, type, description, system, quantity, unit, direction, tariff, cumulative):
 
-        #invoke init method of abstract Sensor
-        super(Fluksosensor, self).__init__(key = key,
-                                           device = device,
-                                           site = device.site,
-                                           type = type,
-                                           description = description,
-                                           system = system,
-                                           quantity = quantity,
-                                           unit = unit,
-                                           direction = direction,
-                                           tariff = tariff,
+        # invoke init method of abstract Sensor
+        super(Fluksosensor, self).__init__(key=key,
+                                           device=device,
+                                           site=device.site,
+                                           type=type,
+                                           description=description,
+                                           system=system,
+                                           quantity=quantity,
+                                           unit=unit,
+                                           direction=direction,
+                                           tariff=tariff,
                                            cumulative=cumulative)
 
         if token != '':
@@ -177,10 +176,8 @@ class Fluksosensor(Sensor):
             else:
                 self.cumulative = False
 
-
-    # @Override :-D
     def get_data(self, head=None, tail=None, diff='default', resample='min', unit='default'):
-        '''
+        """
         Connect to tmpo and fetch a data series
 
         Parameters
@@ -204,18 +201,18 @@ class Fluksosensor(Sensor):
         -------
         Pandas Series with additional attribute 'unit' set to
         the string representation of the unit of the data.
-        '''
+        """
 
         tmpos = self.site.hp.get_tmpos()
 
         if head is None:
             head = 0
         if tail is None:
-            tail = 2147483647 #tmpo epochs max
+            tail = 2147483647  # tmpo epochs max
 
-        data = tmpos.series(sid = self.key,
-                           head = head,
-                           tail = tail)
+        data = tmpos.series(sid=self.key,
+                            head=head,
+                            tail=tail)
 
         if not data.dropna().empty and resample != 'raw':
 
@@ -226,7 +223,7 @@ class Fluksosensor(Sensor):
             else:
                 rule = resample
 
-            #interpolate to requested frequency
+            # interpolate to requested frequency
             newindex = data.resample(rule).index
             data = data.reindex(data.index + newindex)
             data = data.interpolate(method='time')
