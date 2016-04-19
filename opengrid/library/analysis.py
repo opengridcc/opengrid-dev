@@ -6,76 +6,53 @@ Try to write all methods such that they take a dataframe as input
 and return a dataframe or list of dataframes.
 """
 
-import numpy as np
-import pdb
+import datetime as dt
 import pandas as pd
-from opengrid.library.misc import *
 
 
 class Analysis(object):
     """
-        Abstract class for Open Grid Analyses
-    """
+    Generic Analysis
 
-    def __init__(self, id = None):
-        self.id = id
+    An analysis should have a dataframe as input
+    self.result should be used as 'output dataframe'
+    It also has output methods: plot, to json...
+    """
+    def __init__(self, df, *args, **kwargs):
+        self.df = df
+        self.do_analysis(*args, **kwargs)
+
+    def do_analysis(self, *args, **kwargs):
+        # To be overwritten by inheriting class
+        self.result = self.df.copy()
+
+    def plot(self):
+        self.result.plot()
 
     def to_json(self):
-        raise NotImplementedError("Subclass must implement abstract method")
-
-    def to_plt(self):
-        raise NotImplementedError("Subclass must implement abstract method")
+        return self.result.to_json()
 
 
-def daily_min(df, starttime=None, endtime=None):
-    """
+class DailyAgg(Analysis):
+    def __init__(self, df, agg, starttime=dt.time.min, endtime=dt.time.max):
+        """
+        Parameters
+        ----------
+        df : pandas.DataFrame
+            With pandas.DatetimeIndex and one or more columns
+        agg : str
+            'min', 'max', or another aggregation function
+        starttime, endtime : datetime.time objects
+            For each day, only consider the time between starttime and endtime
+            If None, use begin of day/end of day respectively
+        """
+        super(DailyAgg, self).__init__(df, agg, starttime=starttime, endtime=endtime)
 
-    Parameters
-    ----------
-    df: pandas.DataFrame
-        With pandas.DatetimeIndex and one or more columns
-    starttime, endtime :datetime.time objects
-        For each day, only consider the time between starttime and endtime
-        If None, use begin of day/end of day respectively
+    def do_analysis(self, agg, starttime=dt.time.min, endtime=dt.time.max):
+        if not self.df.empty:
+            df = self.df[(self.df.index.time >= starttime) & (self.df.index.time < endtime)]
+            df = df.resample('D', how=agg)
+            self.result = df
+        else:
+            self.result = pd.DataFrame()
 
-    Returns
-    -------
-    df_day : pandas.DataFrame with daily datetimindex and minima
-    """
-
-    df_daily_list = split_by_day(df, starttime, endtime)
-
-    # create a dataframe with correct index
-    df_res = pd.DataFrame(index=df.resample(rule='D', how='max').index, columns=df.columns)
-    # fill it up, day by day
-    for i,df_day in enumerate(df_daily_list):
-        df_res.iloc[i,:] = df_day.min()
-
-    return df_res
-
-
-def daily_max(df, starttime=None, endtime=None):
-    """
-
-    Parameters
-    ----------
-    df: pandas.DataFrame
-        With pandas.DatetimeIndex and one or more columns
-    starttime, endtime :datetime.time objects
-        For each day, only consider the time between starttime and endtime
-        If None, use begin of day/end of day respectively
-
-    Returns
-    -------
-    df_day : pandas.DataFrame with daily datetimeindex and maxima
-    """
-
-    df_daily_list = split_by_day(df, starttime, endtime)
-
-    # create a dataframe with correct index
-    df_res = pd.DataFrame(index=df.resample(rule='D', how='max').index, columns=df.columns)
-    # fill it up, day by day
-    for i,df_day in enumerate(df_daily_list):
-        df_res.iloc[i,:] = df_day.max()
-
-    return df_res

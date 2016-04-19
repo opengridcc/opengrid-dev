@@ -4,9 +4,10 @@ Created on Thu Jan  7 10:31:00 2016
 
 @author: roel
 """
-from opengrid import ureg, Q_
+from opengrid import ureg
 import pandas as pd
 from dateutil import rrule
+import datetime as dt
 
 
 def parse_date(d):
@@ -26,12 +27,12 @@ def parse_date(d):
     ------
     ValueError if it was not possible to create a pandas.Timestamp
     """
-    
+
     if isinstance(d, float) or isinstance(d, int):
         # we have a POSIX timestamp IN SECONDS.
         pts = pd.Timestamp(d, unit='s')
         return pts
-        
+
     try:
         pts = pd.Timestamp(d)
     except:
@@ -56,10 +57,10 @@ def time_to_timedelta(t):
     ------
     The timezone of t (if present) is ignored.
     """
-    return pd.Timedelta(seconds=t.hour*3600+t.minute*60+t.second+t.microsecond*1e-3)
+    return pd.Timedelta(seconds=t.hour * 3600 + t.minute * 60 + t.second + t.microsecond * 1e-3)
 
 
-def split_by_day(df, starttime=None, endtime=None):
+def split_by_day(df, starttime=dt.time.min, endtime=dt.time.max):
     """
     Return a list with dataframes, one for each day
 
@@ -73,32 +74,14 @@ def split_by_day(df, starttime=None, endtime=None):
     Returns
     -------
     list, one dataframe per day.
-
-    Notes
-    -----
-    The returned dataframes are simply slices of the original dataframe.
-    If both starttime and endtime are None, there is an overlap in the index
-    of subsequent dataframes whenever an index with time 00:00:00 is present.
     """
+    if df.empty:
+        return None
 
-    if starttime is None:
-        timedelta_start = pd.Timedelta(seconds=0)
-    else:
-        timedelta_start = time_to_timedelta(starttime)
-
-    if endtime is None:
-        timedelta_end = pd.Timedelta(days=1)
-    else:
-        timedelta_end = time_to_timedelta(endtime)
-
-    index_daily = df.resample(rule='D', how='max').index
-    list_df = []
-    for i in index_daily:
-        ts_start = i + timedelta_start
-        ts_end = i + timedelta_end
-        list_df.append(df.ix[ts_start:ts_end])
-
+    df = df[(df.index.time >= starttime) & (df.index.time < endtime)]  # slice between starttime and endtime
+    list_df = [group[1] for group in df.groupby(df.index.date)]  # group by date and create list
     return list_df
+
 
 def unit_conversion_factor(source, target):
     """
@@ -117,7 +100,7 @@ def unit_conversion_factor(source, target):
 
     """
 
-    return 1*ureg(source).to(target).magnitude
+    return 1 * ureg(source).to(target).magnitude
 
 
 def dayset(start, end):
@@ -135,6 +118,6 @@ def dayset(start, end):
     """
 
     res = []
-    for dt in rrule.rrule(rrule.DAILY, dtstart=start, until=end):
-        res.append(dt)
+    for day in rrule.rrule(rrule.DAILY, dtstart=start, until=end):
+        res.append(day)
     return sorted(set(res))

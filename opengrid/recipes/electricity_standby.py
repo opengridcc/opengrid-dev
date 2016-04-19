@@ -1,10 +1,11 @@
 
 # coding: utf-8
 
-# In[ ]:
+# In[1]:
 
 # opengrid imports
-from opengrid.library import misc, houseprint, caching, analysis
+from opengrid.library import misc, houseprint, caching
+from opengrid.library.analysis import DailyAgg
 from opengrid import config
 c=config.Config()
 
@@ -38,7 +39,7 @@ else:
 plt.rcParams['figure.figsize'] = 12,8
 
 
-# In[ ]:
+# In[2]:
 
 hp = houseprint.Houseprint()
 sensors = hp.get_sensors(sensortype='electricity') # sensor objects
@@ -57,9 +58,9 @@ for s in sensors:
 hp.init_tmpo()
 
 
-# In[ ]:
+# In[3]:
 
-#hp.sync_tmpos()
+hp.sync_tmpos()
 
 
 # In[ ]:
@@ -68,11 +69,11 @@ hp.init_tmpo()
 # Afterwards, this is quick
 starttime = dt.time(0, tzinfo=BXL)
 endtime = dt.time(5, tzinfo=BXL)
-caching.cache_results(hp=hp, sensors=sensors, function='daily_min', resultname='elec_min_night_0-5', 
-                      starttime=starttime, endtime=endtime)
+caching.cache_results(hp=hp, sensors=sensors, resultname='elec_min_night_0-5', AnalysisClass=DailyAgg,  
+                      agg='min', starttime=starttime, endtime=endtime)
 
-caching.cache_results(hp=hp, sensors=sensors, function='daily_max', resultname='elec_max_night_0-5',
-                      starttime=starttime, endtime=endtime)
+caching.cache_results(hp=hp, sensors=sensors, resultname='elec_max_night_0-5', AnalysisClass=DailyAgg, 
+                      agg='max', starttime=starttime, endtime=endtime)
 
 
 # In[ ]:
@@ -81,6 +82,7 @@ cache_min = caching.Cache(variable='elec_min_night_0-5')
 cache_max = caching.Cache(variable='elec_max_night_0-5')
 dfdaymin = cache_min.get(sensors=sensors)
 dfdaymax = cache_max.get(sensors=sensors)
+dfdaymin.info()
 
 
 # The next plot shows that some periods are missing.  Due to the cumulative nature of the electricity counter, we still have the total consumption.  However, it is spread out of the entire period.  So we don't know the standby power during these days, and we have to remove those days.  
@@ -95,8 +97,61 @@ if DEV:
 
 # In[ ]:
 
+def is_submeter(sensor, dfdaymin, dfdaymax):
+    """
+    Return True if this sensor is a sub-meter
+    
+    sensor = sensor object
+    """
+    
+    
+    other_sensors = sensor.device.get_sensors(sensortype='electricity')
+    other_sensors.remove(sensor)
+    if len(other_sensors) == 0:
+        print("\n{} - {}: no other sensors, this must be main.".format(sensor.device.key, sensor.description))
+        return False
+    else:
+        print("\n{} - {}: comparing with:".format(sensor.device.key, sensor.description))
+        for o in other_sensors:
+            # we only check the values for last day
+            print("* {}:".format(o.description))
+            sensormin = dfdaymin.ix[-1,sensor.key]
+            sensormax = dfdaymax.ix[-1,sensor.key]
+            try:
+                othermin = dfdaymin.ix[-1].dropna()[o.key]
+                othermax = dfdaymax.ix[-1].dropna()[o.key]
+            except:
+                print("  No data found for sensor {}".format(o.description))
+                pass
+            else:
+                if (sensormin <= othermin) and (sensormax <= othermax):
+                    print("  {} has lower daily min AND max, so it is a submeter.".format(sensor.description))                   
+                    return True
+                else:
+                    print("  {} has higher daily min and/or max, we look further.".format(sensor.description))
+        else:
+            print("All other sensors have no data OR lower daily min and max. {} must be main.".format(sensor.description))
+            return False
+    
+    
+
+
+# In[ ]:
+
+# The function is_submeter makes one obvious error: see results for FL03001566
+for col in dfdaymin:
+    is_submeter(hp.find_sensor(col), dfdaymin, dfdaymax)
+
+
+# In[ ]:
+
 # Clean out the data: 
-# First remove days with too low values to be realistic
+# First remove sensors that are submeters
+for col in dfdaymin:
+    if is_submeter(hp.find_sensor(col), dfdaymin, dfdaymax):
+        print("\n!!Removing submeter {}".format(col))
+        dfdaymin = dfdaymin.drop(col, axis=1)
+# Now remove days with too low values to be realistic
 dfdaymin[dfdaymin < 10] = np.nan
 # Now remove days where the minimum=maximum (within 1 Watt difference)
 dfdaymin[(dfdaymax - dfdaymin) < 1] = np.nan
@@ -104,13 +159,13 @@ dfdaymin[(dfdaymax - dfdaymin) < 1] = np.nan
 
 # In[ ]:
 
-if DEV:
-    charts.plot(dfdaymin, stock=True, show='inline')
+dfdaymin.info()
 
 
 # In[ ]:
 
-DEV
+if DEV:
+    charts.plot(dfdaymin, stock=True, show='inline')
 
 
 # In[ ]:
@@ -156,7 +211,7 @@ for sensor in dfdaymin_period.columns:
     ax1.plot(range(len(box)), dfdaymin_period[sensor], 'rD', ms=10, label='Standby power')
     xticks = [x.strftime(format='%d/%m') for x in dfdaymin_period.index]
     plt.xticks(range(len(box)), xticks, rotation='vertical')
-    plt.title(hp.find_sensor(sensor).device.key + ' - ' + sensor)
+    plt.title(hp.find_sensor(sensor).device.key + ' - ' + hp.find_sensor(sensor).description)
     ax1.grid()
     ax1.set_ylabel('Watt')
     plt.legend(numpoints=1, frameon=False)
