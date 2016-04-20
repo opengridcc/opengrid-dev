@@ -102,8 +102,8 @@ class Weather():
         # if temperature_equivalent is needed,
         # we need to add 2 days before the start
         if include_temperature_equivalent:
-            self._add_forecast(self.start - pd.Timedelta(days=1))
-            self._add_forecast(self.start - pd.Timedelta(days=2))
+            self._add_forecast((self.start - pd.Timedelta(days=1)).date())
+            self._add_forecast((self.start - pd.Timedelta(days=2)).date())
 
         day_list = [self._forecast_to_day_series(forecast=forecast,
                                                  include_average_temperature=include_average_temperature,
