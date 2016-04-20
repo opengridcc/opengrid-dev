@@ -57,10 +57,10 @@ class Weather():
         else:
             self.tz = self.lookup_timezone()
 
-        if self.start.tzinfo is None:
+        if hasattr(self.start, 'tzinfo') and self.start.tzinfo is None:
             tz = pytz.timezone(self.tz)
             self.start = tz.localize(self.start)
-        if self.end.tzinfo is None:
+        if hasattr(self.end, 'tzinfo') and self.end.tzinfo is None:
             tz = pytz.timezone(self.tz)
             self.end = tz.localize(self.end)
 
@@ -109,8 +109,8 @@ class Weather():
         # if temperature_equivalent is needed,
         # we need to add 2 days before the start
         if include_temperature_equivalent:
-            self._add_forecast((self.start - pd.Timedelta(days=1)).date())
-            self._add_forecast((self.start - pd.Timedelta(days=2)).date())
+            self._add_forecast(self.start - pd.Timedelta(days=1))
+            self._add_forecast(self.start - pd.Timedelta(days=2))
 
         day_list = [self._forecast_to_day_series(forecast=forecast,
                                                  include_average_temperature=include_average_temperature,
@@ -202,6 +202,10 @@ class Weather():
         ----------
         date : dt.date
         """
+        # for if you pass a datetime instead of a date
+        if hasattr(date, 'date'):
+            date = date.date()
+
         if date not in self._get_forecast_dates():
             self.forecasts.append(self._get_forecast(date))
 
