@@ -107,7 +107,7 @@ class MiscTest(unittest.TestCase):
 
     def test_dayset(self):
         ds = dayset(start=pd.Timestamp('20160101'), end=pd.Timestamp('20160131'))
-        comp = [dt.datetime(year=2016, month=1, day=day) for day in range(1, 32)]
+        comp = [dt.date(year=2016, month=1, day=day) for day in range(1, 32)]
         self.assertEqual(ds, comp)
 
     def test_split_irregular_date_list(self):
@@ -115,10 +115,10 @@ class MiscTest(unittest.TestCase):
         d2 = dayset(start=pd.Timestamp('20160101'), end=pd.Timestamp('20160103'))
         date_list = d1 + d2
         split = split_irregular_date_list(date_list=date_list)
-        self.assertEqual(split[0][0], dt.datetime(year=2016, month=1, day=1))
-        self.assertEqual(split[0][1], dt.datetime(year=2016, month=1, day=3))
-        self.assertEqual(split[1][0], dt.datetime(year=2016, month=4, day=1))
-        self.assertEqual(split[1][1], dt.datetime(year=2016, month=4, day=5))
+        self.assertEqual(split[0][0], dt.date(year=2016, month=1, day=1))
+        self.assertEqual(split[0][1], dt.date(year=2016, month=1, day=3))
+        self.assertEqual(split[1][0], dt.date(year=2016, month=4, day=1))
+        self.assertEqual(split[1][1], dt.date(year=2016, month=4, day=5))
 
 
 if __name__ == '__main__':

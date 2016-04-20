@@ -120,7 +120,7 @@ def dayset(start, end):
 
     res = []
     for day in rrule.rrule(rrule.DAILY, dtstart=start, until=end):
-        res.append(day)
+        res.append(day.date())
     return sorted(set(res))
 
 
