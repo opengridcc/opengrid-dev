@@ -155,13 +155,18 @@ class Weather():
 
             Parameters
             ----------
-            date : datetime-like object
+            date : datetime.date
 
             Returns
             -------
             forecastio forecast
         """
-        return forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
+        # Forecast takes a dt.datetime
+        # conversion from dt.date to dt.datetime, there must be a better way, right?
+        time = dt.datetime(year=date.year, month=date.month, day=date.day)
+
+        return forecastio.load_forecast(key=self.api_key, lat=self.location.latitude, lng=self.location.longitude,
+                                        time=time)
 
     def _get_forecast_dates(self):
         """
@@ -189,9 +194,9 @@ class Weather():
 
         Parameters
         ----------
-        date: datetime-like object
+        date : dt.date
         """
-        if date.date() not in self._get_forecast_dates():
+        if date not in self._get_forecast_dates():
             self.forecasts.append(self._get_forecast(date))
 
     def _forecast_to_hour_series(self, forecast):
