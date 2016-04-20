@@ -2,12 +2,14 @@ __author__ = 'Jan Pecinovsky'
 
 import datetime as dt
 from copy import copy
-
 import forecastio
 import geopy
 import numpy as np
 import pandas as pd
+import pytz
+
 from .misc import dayset
+
 
 class Weather():
     """
@@ -169,7 +171,17 @@ class Weather():
         -------
         set of datetime.date
         """
-        return {forecast.currently().time.date() for forecast in self.forecasts}
+        dates = []
+        for forecast in self.forecasts:
+            tz_string = forecast.json['timezone']
+            time = forecast.currently().time
+
+            # the time is in UTC, we need to localize it.
+            tz = pytz.timezone(tz_string)
+            time_utc = tz.fromutc(time)
+
+            dates.append(time_utc.date())
+        return set(dates)
 
     def _add_forecast(self, date):
         """
