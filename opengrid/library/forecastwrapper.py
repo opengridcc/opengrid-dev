@@ -50,12 +50,12 @@ class Weather():
             self.location = geopy.location.Location(
                 point=geopy.location.Point(latitude=location[0], longitude=location[1]))
 
+        self.forecasts = [self._get_forecast(date=date) for date in dayset(start=start, end=end)]
+
         if tz is not None:
             self.tz = tz
         else:
             self.tz = self.lookup_timezone()
-
-        self.forecasts = [self._get_forecast(date=date) for date in dayset(start=start, end=end)]
 
     def days(self,
              include_average_temperature=True,
@@ -178,11 +178,10 @@ class Weather():
         """
         dates = []
         for forecast in self.forecasts:
-            tz_string = forecast.json['timezone']
             time = forecast.currently().time
 
             # the time is in UTC, we need to localize it.
-            tz = pytz.timezone(tz_string)
+            tz = pytz.timezone(self.lookup_timezone())
             time_utc = tz.fromutc(time)
 
             dates.append(time_utc.date())
@@ -237,14 +236,14 @@ class Weather():
 
     def lookup_timezone(self):
         """
-        Lookup the timezone using the location information
+        Lookup the timezone in the JSON of the first forecast
 
         Returns
         -------
         String (Pytz timezone)
         """
-        tz = self._get_geolocator().timezone((self.location.latitude, self.location.longitude))
-        return tz.zone
+        tz = self.forecasts[0].json['timezone']
+        return tz
 
     def _forecast_to_day_series(
             self,
