@@ -57,6 +57,13 @@ class Weather():
         else:
             self.tz = self.lookup_timezone()
 
+        if self.start.tzinfo is None:
+            tz = pytz.timezone(self.tz)
+            self.start = tz.localize(self.start)
+        if self.end.tzinfo is None:
+            tz = pytz.timezone(self.tz)
+            self.end = tz.localize(self.end)
+
     def days(self,
              include_average_temperature=True,
              include_temperature_equivalent=True,
@@ -123,7 +130,7 @@ class Weather():
         if include_cooling_degree_days:
             frame = self._add_cooling_degree_days(df=frame, base_temperatures=cooling_base_temperatures)
 
-        return frame.truncate(before=self.start, after=self.end)
+        return frame
 
     def hours(self):
         """
@@ -135,7 +142,7 @@ class Weather():
         """
         day_list = [self._forecast_to_hour_series(forecast) for forecast in self.forecasts]
         frame = pd.concat(day_list)
-        return self._fix_index(frame).truncate(before=self.start, after=self.end)
+        return self._fix_index(frame).sort_index().truncate(before=self.start, after=self.end)
 
     def _get_geolocator(self):
         """
