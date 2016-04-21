@@ -2,12 +2,14 @@ __author__ = 'Jan Pecinovsky'
 
 import datetime as dt
 from copy import copy
-
 import forecastio
 import geopy
 import numpy as np
 import pandas as pd
+import pytz
+
 from .misc import dayset
+
 
 class Weather():
     """
@@ -48,12 +50,19 @@ class Weather():
             self.location = geopy.location.Location(
                 point=geopy.location.Point(latitude=location[0], longitude=location[1]))
 
+        self.forecasts = [self._get_forecast(date=date) for date in dayset(start=start, end=end)]
+
         if tz is not None:
             self.tz = tz
         else:
             self.tz = self.lookup_timezone()
 
-        self.forecasts = [self._get_forecast(date=date) for date in dayset(start=start, end=end)]
+        if hasattr(self.start, 'tzinfo') and self.start.tzinfo is None:
+            tz = pytz.timezone(self.tz)
+            self.start = tz.localize(self.start)
+        if hasattr(self.end, 'tzinfo') and self.end.tzinfo is None:
+            tz = pytz.timezone(self.tz)
+            self.end = tz.localize(self.end)
 
     def days(self,
              include_average_temperature=True,
@@ -121,7 +130,7 @@ class Weather():
         if include_cooling_degree_days:
             frame = self._add_cooling_degree_days(df=frame, base_temperatures=cooling_base_temperatures)
 
-        return frame.truncate(before=self.start, after=self.end)
+        return frame
 
     def hours(self):
         """
@@ -133,7 +142,7 @@ class Weather():
         """
         day_list = [self._forecast_to_hour_series(forecast) for forecast in self.forecasts]
         frame = pd.concat(day_list)
-        return self._fix_index(frame).truncate(before=self.start, after=self.end)
+        return self._fix_index(frame).sort_index().truncate(before=self.start, after=self.end)
 
     def _get_geolocator(self):
         """
@@ -153,13 +162,18 @@ class Weather():
 
             Parameters
             ----------
-            date : datetime-like object
+            date : datetime.date
 
             Returns
             -------
             forecastio forecast
         """
-        return forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
+        # Forecast takes a dt.datetime
+        # conversion from dt.date to dt.datetime, there must be a better way, right?
+        time = dt.datetime(year=date.year, month=date.month, day=date.day)
+
+        return forecastio.load_forecast(key=self.api_key, lat=self.location.latitude, lng=self.location.longitude,
+                                        time=time)
 
     def _get_forecast_dates(self):
         """
@@ -169,7 +183,16 @@ class Weather():
         -------
         set of datetime.date
         """
-        return {forecast.currently().time.date() for forecast in self.forecasts}
+        dates = []
+        for forecast in self.forecasts:
+            time = forecast.currently().time
+
+            # the time is in UTC, we need to localize it.
+            tz = pytz.timezone(self.lookup_timezone())
+            time_utc = tz.fromutc(time)
+
+            dates.append(time_utc.date())
+        return set(dates)
 
     def _add_forecast(self, date):
         """
@@ -177,9 +200,13 @@ class Weather():
 
         Parameters
         ----------
-        date: datetime-like object
+        date : dt.date
         """
-        if date.date() not in self._get_forecast_dates():
+        # for if you pass a datetime instead of a date
+        if hasattr(date, 'date'):
+            date = date.date()
+
+        if date not in self._get_forecast_dates():
             self.forecasts.append(self._get_forecast(date))
 
     def _forecast_to_hour_series(self, forecast):
@@ -220,14 +247,14 @@ class Weather():
 
     def lookup_timezone(self):
         """
-        Lookup the timezone using the location information
+        Lookup the timezone in the JSON of the first forecast
 
         Returns
         -------
         String (Pytz timezone)
         """
-        tz = self._get_geolocator().timezone((self.location.latitude, self.location.longitude))
-        return tz.zone
+        tz = self.forecasts[0].json['timezone']
+        return tz
 
     def _forecast_to_day_series(
             self,
