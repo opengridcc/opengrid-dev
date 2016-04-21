@@ -74,7 +74,8 @@ class CacheTest(unittest.TestCase):
         
         df = ch.get([mysensor], start = '20160707', end='20160708')
         self.assertTrue((df.index == pd.DatetimeIndex(start='20160707', freq='D', periods=2, tz='UTC')).all())
-        self.assertFalse(df.index.tz is None, "Returned dataframe is tz-naive")
+        # self.assertFalse(df.index.tz is None, "Returned dataframe is tz-naive") #Removed this test on 21/04/16 after pull request #136 and discussion in #135.
+        # However, we need to finalise the discussion: a date is also timezone dependent...
 
 
                          
