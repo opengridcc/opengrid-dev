@@ -8,6 +8,7 @@ from opengrid import ureg
 import pandas as pd
 from dateutil import rrule
 import datetime as dt
+from itertools import groupby, count
 
 
 def parse_date(d):
@@ -119,5 +120,28 @@ def dayset(start, end):
 
     res = []
     for day in rrule.rrule(rrule.DAILY, dtstart=start, until=end):
-        res.append(day)
+        res.append(day.date())
     return sorted(set(res))
+
+
+def split_irregular_date_list(date_list):
+    """
+    Takes a list of dates and groups it into blocks of continuous dates.
+    It returns the begin and end of those blocks
+
+    eg. A list with continuous dates from januari to march and september to october will be split into two lists
+
+    Parameters
+    ----------
+    date_list : list of datetime.date
+
+    Returns
+    -------
+    list of tuples of datetime.date
+    """
+    date_list = sorted(date_list)
+    def as_range(g):
+        l = list(g)
+        return l[0], l[-1]
+
+    return [as_range(g) for _, g in groupby(date_list, key=lambda n, c=count(): n - dt.timedelta(days=next(c)))]

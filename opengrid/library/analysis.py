@@ -22,7 +22,7 @@ class Analysis(object):
         self.df = df
         self.do_analysis(*args, **kwargs)
 
-    def do_analysis(self):
+    def do_analysis(self, *args, **kwargs):
         # To be overwritten by inheriting class
         self.result = self.df.copy()
 
@@ -47,7 +47,6 @@ class DailyAgg(Analysis):
             If None, use begin of day/end of day respectively
         """
         super(DailyAgg, self).__init__(df, agg, starttime=starttime, endtime=endtime)
-
 
     def do_analysis(self, agg, starttime=dt.time.min, endtime=dt.time.max):
         if not self.df.empty:
