@@ -17,3 +17,5 @@ coverage
 pint
 beautifulsoup4
 iso8601
+geocoder
+astral
