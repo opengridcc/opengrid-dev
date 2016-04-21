@@ -12,6 +12,7 @@ Created on Thu Jan  7 09:34:04 2016
 import os
 import numpy as np
 import pandas as pd
+import dateutil
 from opengrid import config
 cfg = config.Config()
 from opengrid.library import misc
@@ -77,8 +78,7 @@ class Cache(object):
             #print("Could not find {}".format(path))
             return pd.DataFrame()
         
-        df = pd.read_csv(path, index_col = 0, header=0, parse_dates=True)
-        df.index = df.index.tz_localize('UTC')
+        df = pd.read_csv(path, index_col = 0, header=0, parse_dates=True, date_parser=dateutil.parser.parse)
         return df
     
     
