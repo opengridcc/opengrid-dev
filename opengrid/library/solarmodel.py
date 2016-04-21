@@ -5,7 +5,7 @@ import astral
 import math
 import pandas as pd
 
-class SolarInsolation():
+class SolarInsolation(object):
     """
         Module to calculate Solar Insolation (direct intensity, global intensity, air mass) and
         basic solar parameters (angle) based on a location and a date.
