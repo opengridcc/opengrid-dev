@@ -2,12 +2,23 @@ import requests
 import bs4
 import datetime as dt
 import pandas as pd
+from opengrid.library.misc import calculate_temperature_equivalent, calculate_degree_days
 
 
-def get_kmi_current_month():
+def get_kmi_current_month(include_temperature_equivalent=True, include_heating_degree_days=True,
+                          heating_base_temperatures=[16.5], include_cooling_degree_days=True,
+                          cooling_base_temperatures=[18]):
     """
     Gets the current month table from http://www.meteo.be/meteo/view/nl/123763-Huidige+maand.html
     and parse it into a Pandas DataFrame
+
+    Parameters
+    ----------
+    include_temperature_equivalent : bool
+    include_heating_degree_days : bool
+    heating_base_temperatures : list of floats
+    include_cooling_degree_days : bool
+    cooling_base_temperatures : list of floats
 
     Returns
     -------
@@ -15,7 +26,24 @@ def get_kmi_current_month():
     """
     # start out by getting the html from the website
     html = fetch_website()
-    return parse(html)
+    df = parse(html)
+
+    if include_temperature_equivalent or include_heating_degree_days or include_cooling_degree_days:
+        temp_equiv = calculate_temperature_equivalent(temperatures=df.temp_gem)
+    if include_temperature_equivalent:
+        df = df.join(temp_equiv)
+
+    if include_heating_degree_days:
+        for base_temperature in heating_base_temperatures:
+            degree_days = calculate_degree_days(temperature_equivalent=temp_equiv, base_temperature=base_temperature)
+            df = df.join(degree_days)
+    if include_cooling_degree_days:
+        for base_temperature in cooling_base_temperatures:
+            degree_days = calculate_degree_days(temperature_equivalent=temp_equiv, base_temperature=base_temperature,
+                                                cooling=True)
+            df = df.join(degree_days)
+
+    return df
 
 
 def fetch_website(url="http://www.meteo.be/meteo/view/nl/123763-Huidige+maand.html"):
