@@ -2,7 +2,7 @@ import requests
 import bs4
 import datetime as dt
 import pandas as pd
-from opengrid.library.misc import calculate_temperature_equivalent, calculate_degree_days
+from .misc import calculate_temperature_equivalent, calculate_degree_days
 
 
 def get_kmi_current_month(include_temperature_equivalent=True, include_heating_degree_days=True,
