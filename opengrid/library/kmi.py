@@ -7,7 +7,7 @@ from opengrid.library.misc import calculate_temperature_equivalent, calculate_de
 
 def get_kmi_current_month(include_temperature_equivalent=True, include_heating_degree_days=True,
                           heating_base_temperatures=[16.5], include_cooling_degree_days=True,
-                          cooling_base_temperatures=[18]):
+                          cooling_base_temperatures=[18], solar_duration_as_minutes=False):
     """
     Gets the current month table from http://www.meteo.be/meteo/view/nl/123763-Huidige+maand.html
     and parse it into a Pandas DataFrame
@@ -19,6 +19,7 @@ def get_kmi_current_month(include_temperature_equivalent=True, include_heating_d
     heating_base_temperatures : list of floats
     include_cooling_degree_days : bool
     cooling_base_temperatures : list of floats
+    solar_duration_as_minutes : bool
 
     Returns
     -------
@@ -26,7 +27,7 @@ def get_kmi_current_month(include_temperature_equivalent=True, include_heating_d
     """
     # start out by getting the html from the website
     html = fetch_website()
-    df = parse(html)
+    df = parse(html=html, solar_duration_as_minutes=solar_duration_as_minutes)
 
     if include_temperature_equivalent or include_heating_degree_days or include_cooling_degree_days:
         temp_equiv = calculate_temperature_equivalent(temperatures=df.temp_gem)
@@ -63,13 +64,14 @@ def fetch_website(url="http://www.meteo.be/meteo/view/nl/123763-Huidige+maand.ht
         raise Exception("Seems like you got code {}".format(r.status_code))
 
 
-def parse(html):
+def parse(html, solar_duration_as_minutes=False):
     """
     Parse the html from http://www.meteo.be/meteo/view/nl/123763-Huidige+maand.html to a Pandas DataFrame
 
     Parameters
     ----------
     html : str
+    solar_duration_as_minutes : bool
 
     Returns
     -------
@@ -100,7 +102,10 @@ def parse(html):
             elif title == 'zon_duur':
                 try:
                     hour, minute = td.text.split(":")
-                    time = dt.time(hour=int(hour), minute=int(minute))
+                    if solar_duration_as_minutes:
+                        time = int(hour)*60 + int(minute)
+                    else:
+                        time = dt.time(hour=int(hour), minute=int(minute))
                 except ValueError:
                     time = pd.NaT
                 values.append(time)
