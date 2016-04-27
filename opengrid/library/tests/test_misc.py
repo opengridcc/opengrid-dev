@@ -120,6 +120,24 @@ class MiscTest(unittest.TestCase):
         self.assertEqual(split[1][0], dt.date(year=2016, month=4, day=1))
         self.assertEqual(split[1][1], dt.date(year=2016, month=4, day=5))
 
+    def test_calculate_temperature_equivalent(self):
+        temps = [8.3, 8.7, 9.2]
+        t_equiv = calculate_temperature_equivalent(pd.Series(temps))
+        last = t_equiv.iloc[-1]
+        last_man = 0.6*temps[2] + 0.3*temps[1] + 0.1*temps[0]
+        self.assertEqual(last, last_man)
+        self.assertEqual(t_equiv.name, 'temp_equivalent')
+
+    def test_calculate_degree_days(self):
+        temp_equivs = [-5.0, 1.5, 25.5]
+        hdd = calculate_degree_days(temperature_equivalent=pd.Series(temp_equivs), base_temperature=16.5)
+        self.assertEqual(hdd.tolist(), [21.5, 15.0, 0.0])
+        self.assertEqual(hdd.name, 'heating_degree_days_16.5')
+
+        cdd = calculate_degree_days(temperature_equivalent=pd.Series(temp_equivs), base_temperature=24, cooling=True)
+        self.assertEqual(cdd.tolist(), [0.0, 0.0, 1.5])
+        self.assertEqual(cdd.name, 'cooling_degree_days_24')
+
 
 if __name__ == '__main__':
     # http://stackoverflow.com/questions/4005695/changing-order-of-unit-tests-in-python
