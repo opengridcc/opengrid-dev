@@ -7,7 +7,8 @@ from .misc import calculate_temperature_equivalent, calculate_degree_days
 
 def get_kmi_current_month(include_temperature_equivalent=True, include_heating_degree_days=True,
                           heating_base_temperatures=[16.5], include_cooling_degree_days=True,
-                          cooling_base_temperatures=[18], solar_duration_as_minutes=False):
+                          cooling_base_temperatures=[18], solar_duration_as_minutes=False,
+                          include_wind_power=False):
     """
     Gets the current month table from http://www.meteo.be/meteo/view/nl/123763-Huidige+maand.html
     and parse it into a Pandas DataFrame
@@ -20,6 +21,7 @@ def get_kmi_current_month(include_temperature_equivalent=True, include_heating_d
     include_cooling_degree_days : bool
     cooling_base_temperatures : list of floats
     solar_duration_as_minutes : bool
+    include_wind_power : bool
 
     Returns
     -------
@@ -43,6 +45,8 @@ def get_kmi_current_month(include_temperature_equivalent=True, include_heating_d
             degree_days = calculate_degree_days(temperature_equivalent=temp_equiv, base_temperature=base_temperature,
                                                 cooling=True)
             df = df.join(degree_days)
+    if include_wind_power:
+        df['wind_power'] = df.wind_snelh ** 3
 
     return df
 
