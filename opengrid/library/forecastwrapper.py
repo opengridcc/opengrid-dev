@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytz
 
-from .misc import dayset
+from .misc import dayset, calculate_temperature_equivalent, calculate_degree_days
 
 
 class Weather():
@@ -122,13 +122,20 @@ class Weather():
         frame = self._fix_index(frame).sort_index()
 
         if include_temperature_equivalent:
-            frame = self._add_temperature_equivalent(frame)
+            frame['temperatureEquivalent'] = calculate_temperature_equivalent(temperatures=frame.temperature)
+            frame.dropna(subset=['temperatureEquivalent'], inplace=True)
 
         if include_heating_degree_days:
-            frame = self._add_heating_degree_days(df=frame, base_temperatures=heating_base_temperatures)
+            for base in heating_base_temperatures:
+                frame['heatingDegreeDays{}'.format(base)] = calculate_degree_days(
+                    temperature_equivalent=frame.temperatureEquivalent, base_temperature=base
+                )
 
         if include_cooling_degree_days:
-            frame = self._add_cooling_degree_days(df=frame, base_temperatures=cooling_base_temperatures)
+            for base in cooling_base_temperatures:
+                frame['coolingDegreeDays{}'.format(base)] = calculate_degree_days(
+                    temperature_equivalent=frame.temperatureEquivalent, base_temperature=base, cooling=True
+                )
 
         return frame
 
@@ -344,78 +351,3 @@ class Weather():
 
         # return mean of truncated timeseries
         return round(ts.mean(), 2)
-
-    def _add_temperature_equivalent(self, df):
-        """
-        Adds the temperature equivalent to the data frame
-        according to the formula: 0.6 * tempDay0 + 0.3 * tempDay-1 + 0.1 * tempDay-2
-        Because we need the two previous days to calculate day0, the resulting dataframe will be 2 days shorter
-        (you should pass dataframes that have two days more than you want)
-
-        Parameters
-        ----------
-        df : Pandas Dataframe
-
-        Returns
-        -------
-        Pandas Dataframe
-        """
-
-        # select temperature column from dataframe
-        temperature = df['temperature']
-        # calculate the temperature equivalent, using two days before day0
-        temperature_equivalent = [
-            0.6 * temperature.values[ix] + 0.3 * temperature.values[ix - 1] + 0.1 * temperature.values[ix - 2] for ix in
-            range(0, len(df)) if ix > 1]
-
-        # the response will be 2 days shorter
-        res = copy(df[2:])
-
-        # add the temperature equivalent to the response
-        res['temperatureEquivalent'] = temperature_equivalent
-
-        return res
-
-    def _add_heating_degree_days(self, df, base_temperatures):
-        """
-        Add heating degree days to the dataframe.
-        They are calculated by subtracting the temperature equivalent from a base temperature
-        Note: Degree days cannot be negative
-
-        Parameters
-        ----------
-        df : Pandas Dataframe
-        base_temperatures : list of numbers
-
-        Returns
-        -------
-        Pandas Dataframe
-        """
-
-        for base in base_temperatures:
-            df['heatingDegreeDays{}'.format(base)] = [max(0, base - equivalent) for equivalent in
-                                                      df['temperatureEquivalent']]
-
-        return df
-
-    def _add_cooling_degree_days(self, df, base_temperatures):
-        """
-        Add cooling degree days to the dataframe.
-        They are calculated by subtracting a base temperature from the temperature equivalent.
-        Note: Degree days cannot be negative
-
-        Parameters
-        ----------
-        df : Pandas Dataframe
-        base_temperatures : list of numbers
-
-        Returns
-        -------
-        Pandas Dataframe
-        """
-
-        for base in base_temperatures:
-            df['coolingDegreeDays{}'.format(base)] = [max(0, equivalent - base) for equivalent in
-                                                      df['temperatureEquivalent']]
-
-        return df
