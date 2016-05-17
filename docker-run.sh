@@ -1,4 +1,7 @@
 #!/bin/bash
+if docker-machine  >/dev/null; then
+    eval $(docker-machine env default)
+fi
 if docker ps -a | grep -q opengrid-release; then
 	echo "Stopping and/or removing existing opengrid-release container."
 	docker stop opengrid-release > /dev/null
