@@ -107,14 +107,48 @@ class MiscTest(unittest.TestCase):
 
     def test_dayset(self):
         ds = dayset(start=pd.Timestamp('20160101'), end=pd.Timestamp('20160131'))
-        comp = [dt.datetime(year=2016, month=1, day=day) for day in range(1, 32)]
+        comp = [dt.date(year=2016, month=1, day=day) for day in range(1, 32)]
         self.assertEqual(ds, comp)
+
+    def test_split_irregular_date_list(self):
+        d1 = dayset(start=pd.Timestamp('20160401'), end=pd.Timestamp('20160405'))
+        d2 = dayset(start=pd.Timestamp('20160101'), end=pd.Timestamp('20160103'))
+        date_list = d1 + d2
+        split = split_irregular_date_list(date_list=date_list)
+        self.assertEqual(split[0][0], dt.date(year=2016, month=1, day=1))
+        self.assertEqual(split[0][1], dt.date(year=2016, month=1, day=3))
+        self.assertEqual(split[1][0], dt.date(year=2016, month=4, day=1))
+        self.assertEqual(split[1][1], dt.date(year=2016, month=4, day=5))
+
+    def test_calculate_temperature_equivalent(self):
+        temps = [8.3, 8.7, 9.2]
+        t_equiv = calculate_temperature_equivalent(pd.Series(temps))
+        last = t_equiv.iloc[-1]
+        last_man = 0.6*temps[2] + 0.3*temps[1] + 0.1*temps[0]
+        self.assertEqual(last, last_man)
+        self.assertEqual(t_equiv.name, 'temp_equivalent')
+
+    def test_calculate_degree_days(self):
+        temp_equivs = [-5.0, 1.5, 25.5]
+        hdd = calculate_degree_days(temperature_equivalent=pd.Series(temp_equivs), base_temperature=16.5)
+        self.assertEqual(hdd.tolist(), [21.5, 15.0, 0.0])
+        self.assertEqual(hdd.name, 'heating_degree_days_16.5')
+
+        cdd = calculate_degree_days(temperature_equivalent=pd.Series(temp_equivs), base_temperature=24, cooling=True)
+        self.assertEqual(cdd.tolist(), [0.0, 0.0, 1.5])
+        self.assertEqual(cdd.name, 'cooling_degree_days_24')
 
 
 if __name__ == '__main__':
     # http://stackoverflow.com/questions/4005695/changing-order-of-unit-tests-in-python
-    ln = lambda f: getattr(MiscTest, f).im_func.func_code.co_firstlineno
-    lncmp = lambda _, a, b: cmp(ln(a), ln(b))
+    if sys.version_info.major >= 3:  # compatibility python 3
+        ln = lambda f: getattr(MiscTest, f).__code__.co_firstlineno  # functions have renamed attributes
+        lncmp = lambda _, a, b: (ln(a) > ln(b)) - (
+        ln(a) < ln(b))  # cmp() was deprecated, see https://docs.python.org/3.0/whatsnew/3.0.html
+    else:
+        ln = lambda f: getattr(MiscTest, f).im_func.func_code.co_firstlineno
+        lncmp = lambda _, a, b: cmp(ln(a), ln(b))
+
     unittest.TestLoader.sortTestMethodsUsing = lncmp
 
     suite1 = unittest.TestLoader().loadTestsFromTestCase(MiscTest)

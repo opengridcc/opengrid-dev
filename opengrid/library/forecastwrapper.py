@@ -2,12 +2,14 @@ __author__ = 'Jan Pecinovsky'
 
 import datetime as dt
 from copy import copy
-
 import forecastio
 import geopy
 import numpy as np
 import pandas as pd
-from .misc import dayset
+import pytz
+
+from .misc import dayset, calculate_temperature_equivalent, calculate_degree_days
+
 
 class Weather():
     """
@@ -48,12 +50,19 @@ class Weather():
             self.location = geopy.location.Location(
                 point=geopy.location.Point(latitude=location[0], longitude=location[1]))
 
+        self.forecasts = [self._get_forecast(date=date) for date in dayset(start=start, end=end)]
+
         if tz is not None:
             self.tz = tz
         else:
             self.tz = self.lookup_timezone()
 
-        self.forecasts = [self._get_forecast(date=date) for date in dayset(start=start, end=end)]
+        if hasattr(self.start, 'tzinfo') and self.start.tzinfo is None:
+            tz = pytz.timezone(self.tz)
+            self.start = tz.localize(self.start)
+        if hasattr(self.end, 'tzinfo') and self.end.tzinfo is None:
+            tz = pytz.timezone(self.tz)
+            self.end = tz.localize(self.end)
 
     def days(self,
              include_average_temperature=True,
@@ -113,15 +122,22 @@ class Weather():
         frame = self._fix_index(frame).sort_index()
 
         if include_temperature_equivalent:
-            frame = self._add_temperature_equivalent(frame)
+            frame['temperatureEquivalent'] = calculate_temperature_equivalent(temperatures=frame.temperature)
+            frame.dropna(subset=['temperatureEquivalent'], inplace=True)
 
         if include_heating_degree_days:
-            frame = self._add_heating_degree_days(df=frame, base_temperatures=heating_base_temperatures)
+            for base in heating_base_temperatures:
+                frame['heatingDegreeDays{}'.format(base)] = calculate_degree_days(
+                    temperature_equivalent=frame.temperatureEquivalent, base_temperature=base
+                )
 
         if include_cooling_degree_days:
-            frame = self._add_cooling_degree_days(df=frame, base_temperatures=cooling_base_temperatures)
+            for base in cooling_base_temperatures:
+                frame['coolingDegreeDays{}'.format(base)] = calculate_degree_days(
+                    temperature_equivalent=frame.temperatureEquivalent, base_temperature=base, cooling=True
+                )
 
-        return frame.truncate(before=self.start, after=self.end)
+        return frame
 
     def hours(self):
         """
@@ -133,7 +149,7 @@ class Weather():
         """
         day_list = [self._forecast_to_hour_series(forecast) for forecast in self.forecasts]
         frame = pd.concat(day_list)
-        return self._fix_index(frame).truncate(before=self.start, after=self.end)
+        return self._fix_index(frame).sort_index().truncate(before=self.start, after=self.end)
 
     def _get_geolocator(self):
         """
@@ -153,13 +169,18 @@ class Weather():
 
             Parameters
             ----------
-            date : datetime-like object
+            date : datetime.date
 
             Returns
             -------
             forecastio forecast
         """
-        return forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
+        # Forecast takes a dt.datetime
+        # conversion from dt.date to dt.datetime, there must be a better way, right?
+        time = dt.datetime(year=date.year, month=date.month, day=date.day)
+
+        return forecastio.load_forecast(key=self.api_key, lat=self.location.latitude, lng=self.location.longitude,
+                                        time=time)
 
     def _get_forecast_dates(self):
         """
@@ -169,7 +190,16 @@ class Weather():
         -------
         set of datetime.date
         """
-        return {forecast.currently().time.date() for forecast in self.forecasts}
+        dates = []
+        for forecast in self.forecasts:
+            time = forecast.currently().time
+
+            # the time is in UTC, we need to localize it.
+            tz = pytz.timezone(self.lookup_timezone())
+            time_utc = tz.fromutc(time)
+
+            dates.append(time_utc.date())
+        return set(dates)
 
     def _add_forecast(self, date):
         """
@@ -177,9 +207,13 @@ class Weather():
 
         Parameters
         ----------
-        date: datetime-like object
+        date : dt.date
         """
-        if date.date() not in self._get_forecast_dates():
+        # for if you pass a datetime instead of a date
+        if hasattr(date, 'date'):
+            date = date.date()
+
+        if date not in self._get_forecast_dates():
             self.forecasts.append(self._get_forecast(date))
 
     def _forecast_to_hour_series(self, forecast):
@@ -220,14 +254,14 @@ class Weather():
 
     def lookup_timezone(self):
         """
-        Lookup the timezone using the location information
+        Lookup the timezone in the JSON of the first forecast
 
         Returns
         -------
         String (Pytz timezone)
         """
-        tz = self._get_geolocator().timezone((self.location.latitude, self.location.longitude))
-        return tz.zone
+        tz = self.forecasts[0].json['timezone']
+        return tz
 
     def _forecast_to_day_series(
             self,
@@ -317,78 +351,3 @@ class Weather():
 
         # return mean of truncated timeseries
         return round(ts.mean(), 2)
-
-    def _add_temperature_equivalent(self, df):
-        """
-        Adds the temperature equivalent to the data frame
-        according to the formula: 0.6 * tempDay0 + 0.3 * tempDay-1 + 0.1 * tempDay-2
-        Because we need the two previous days to calculate day0, the resulting dataframe will be 2 days shorter
-        (you should pass dataframes that have two days more than you want)
-
-        Parameters
-        ----------
-        df : Pandas Dataframe
-
-        Returns
-        -------
-        Pandas Dataframe
-        """
-
-        # select temperature column from dataframe
-        temperature = df['temperature']
-        # calculate the temperature equivalent, using two days before day0
-        temperature_equivalent = [
-            0.6 * temperature.values[ix] + 0.3 * temperature.values[ix - 1] + 0.1 * temperature.values[ix - 2] for ix in
-            range(0, len(df)) if ix > 1]
-
-        # the response will be 2 days shorter
-        res = copy(df[2:])
-
-        # add the temperature equivalent to the response
-        res['temperatureEquivalent'] = temperature_equivalent
-
-        return res
-
-    def _add_heating_degree_days(self, df, base_temperatures):
-        """
-        Add heating degree days to the dataframe.
-        They are calculated by subtracting the temperature equivalent from a base temperature
-        Note: Degree days cannot be negative
-
-        Parameters
-        ----------
-        df : Pandas Dataframe
-        base_temperatures : list of numbers
-
-        Returns
-        -------
-        Pandas Dataframe
-        """
-
-        for base in base_temperatures:
-            df['heatingDegreeDays{}'.format(base)] = [max(0, base - equivalent) for equivalent in
-                                                      df['temperatureEquivalent']]
-
-        return df
-
-    def _add_cooling_degree_days(self, df, base_temperatures):
-        """
-        Add cooling degree days to the dataframe.
-        They are calculated by subtracting a base temperature from the temperature equivalent.
-        Note: Degree days cannot be negative
-
-        Parameters
-        ----------
-        df : Pandas Dataframe
-        base_temperatures : list of numbers
-
-        Returns
-        -------
-        Pandas Dataframe
-        """
-
-        for base in base_temperatures:
-            df['coolingDegreeDays{}'.format(base)] = [max(0, equivalent - base) for equivalent in
-                                                      df['temperatureEquivalent']]
-
-        return df

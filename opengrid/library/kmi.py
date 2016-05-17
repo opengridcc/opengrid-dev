@@ -2,12 +2,26 @@ import requests
 import bs4
 import datetime as dt
 import pandas as pd
+from .misc import calculate_temperature_equivalent, calculate_degree_days
 
 
-def get_kmi_current_month():
+def get_kmi_current_month(include_temperature_equivalent=True, include_heating_degree_days=True,
+                          heating_base_temperatures=[16.5], include_cooling_degree_days=True,
+                          cooling_base_temperatures=[18], solar_duration_as_minutes=False,
+                          include_wind_power=False):
     """
     Gets the current month table from http://www.meteo.be/meteo/view/nl/123763-Huidige+maand.html
     and parse it into a Pandas DataFrame
+
+    Parameters
+    ----------
+    include_temperature_equivalent : bool
+    include_heating_degree_days : bool
+    heating_base_temperatures : list of floats
+    include_cooling_degree_days : bool
+    cooling_base_temperatures : list of floats
+    solar_duration_as_minutes : bool
+    include_wind_power : bool
 
     Returns
     -------
@@ -15,7 +29,26 @@ def get_kmi_current_month():
     """
     # start out by getting the html from the website
     html = fetch_website()
-    return parse(html)
+    df = parse(html=html, solar_duration_as_minutes=solar_duration_as_minutes)
+
+    if include_temperature_equivalent or include_heating_degree_days or include_cooling_degree_days:
+        temp_equiv = calculate_temperature_equivalent(temperatures=df.temp_gem)
+    if include_temperature_equivalent:
+        df = df.join(temp_equiv)
+
+    if include_heating_degree_days:
+        for base_temperature in heating_base_temperatures:
+            degree_days = calculate_degree_days(temperature_equivalent=temp_equiv, base_temperature=base_temperature)
+            df = df.join(degree_days)
+    if include_cooling_degree_days:
+        for base_temperature in cooling_base_temperatures:
+            degree_days = calculate_degree_days(temperature_equivalent=temp_equiv, base_temperature=base_temperature,
+                                                cooling=True)
+            df = df.join(degree_days)
+    if include_wind_power:
+        df['wind_power'] = df.wind_snelh ** 3
+
+    return df
 
 
 def fetch_website(url="http://www.meteo.be/meteo/view/nl/123763-Huidige+maand.html"):
@@ -35,13 +68,14 @@ def fetch_website(url="http://www.meteo.be/meteo/view/nl/123763-Huidige+maand.ht
         raise Exception("Seems like you got code {}".format(r.status_code))
 
 
-def parse(html):
+def parse(html, solar_duration_as_minutes=False):
     """
     Parse the html from http://www.meteo.be/meteo/view/nl/123763-Huidige+maand.html to a Pandas DataFrame
 
     Parameters
     ----------
     html : str
+    solar_duration_as_minutes : bool
 
     Returns
     -------
@@ -72,7 +106,10 @@ def parse(html):
             elif title == 'zon_duur':
                 try:
                     hour, minute = td.text.split(":")
-                    time = dt.time(hour=int(hour), minute=int(minute))
+                    if solar_duration_as_minutes:
+                        time = int(hour)*60 + int(minute)
+                    else:
+                        time = dt.time(hour=int(hour), minute=int(minute))
                 except ValueError:
                     time = pd.NaT
                 values.append(time)

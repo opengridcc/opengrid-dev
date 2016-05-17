@@ -8,6 +8,7 @@ from opengrid import ureg
 import pandas as pd
 from dateutil import rrule
 import datetime as dt
+from itertools import groupby, count
 
 
 def parse_date(d):
@@ -119,5 +120,77 @@ def dayset(start, end):
 
     res = []
     for day in rrule.rrule(rrule.DAILY, dtstart=start, until=end):
-        res.append(day)
+        res.append(day.date())
     return sorted(set(res))
+
+
+def split_irregular_date_list(date_list):
+    """
+    Takes a list of dates and groups it into blocks of continuous dates.
+    It returns the begin and end of those blocks
+
+    eg. A list with continuous dates from januari to march and september to october will be split into two lists
+
+    Parameters
+    ----------
+    date_list : list of datetime.date
+
+    Returns
+    -------
+    list of tuples of datetime.date
+    """
+    date_list = sorted(date_list)
+    def as_range(g):
+        l = list(g)
+        return l[0], l[-1]
+
+    return [as_range(g) for _, g in groupby(date_list, key=lambda n, c=count(): n - dt.timedelta(days=next(c)))]
+
+
+def calculate_temperature_equivalent(temperatures):
+    """
+    Calculates the temperature equivalent from a series of average daily temperatures
+    according to the formula: 0.6 * tempDay0 + 0.3 * tempDay-1 + 0.1 * tempDay-2
+
+    Parameters
+    ----------
+    series : Pandas Series
+
+    Returns
+    -------
+    Pandas Series
+    """
+
+    ret = 0.6*temperatures + 0.3*temperatures.shift(1) + 0.1*temperatures.shift(2)
+    ret.name = 'temp_equivalent'
+    return ret
+
+
+def calculate_degree_days(temperature_equivalent, base_temperature, cooling=False):
+    """
+    Calculates degree days, starting with a series of temperature equivalent values
+
+    Parameters
+    ----------
+    temperature_equivalent : Pandas Series
+    base_temperature : float
+    cooling : bool
+        Set True if you want cooling degree days instead of heating degree days
+
+    Returns
+    -------
+    Pandas Series
+    """
+
+    if cooling:
+        ret = temperature_equivalent - base_temperature
+    else:
+        ret = base_temperature - temperature_equivalent
+
+    # degree days cannot be negative
+    ret[ret < 0] = 0
+
+    prefix = 'cooling' if cooling else 'heating'
+    ret.name = '{}_degree_days_{}'.format(prefix, base_temperature)
+
+    return ret
