@@ -1,5 +1,5 @@
 #!/bin/bash
-if docker-machine  >/dev/null; then
+if docker-machine  > /dev/null 2>&1; then
     eval $(docker-machine env default)
 fi
 if docker ps -a | grep -q opengrid-release; then
