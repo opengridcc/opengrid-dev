@@ -6,25 +6,9 @@ RUN pip install -U pip jupyter
 # install opengrid
 RUN pip install opengrid
 
-# Remove Ubuntu-specific line that exits the .bashrc when it is not interactive 
-RUN /bin/bash -c "sed -i 's/^\[ \-z.*//g' ~/.bashrc"
-
-# download opengrid release and save the .tar.gz 
-RUN pip download opengrid -d ~/temp/opengrid
-
 # create a working dir and copy notebooks
 VOLUME /usr/local/opengrid
 WORKDIR /usr/local/opengrid/notebooks
-
-# create environment variables for the path to the archive and the release (opengrid-x.y.z)
-RUN /bin/bash -c 'OPENGRID_ARCHIVE=$(ls /root/temp/opengrid/*.tar.gz) && \
-				  cd /root/temp/opengrid && \
-				  FILENAME=$(basename $OPENGRID_ARCHIVE) && \
-				  echo "export OPENGRID_RELEASE=${FILENAME%???????}" >> $HOME/.bashrc && \
-				  echo "export OPENGRID_ARCHIVE=$OPENGRID_ARCHIVE" >> $HOME/.bashrc'
-
-# copy notebooks to work dir !! NOT WORKING
-RUN /bin/bash -c 'source $HOME/.bashrc && \
-				  tar xzf $OPENGRID_ARCHIVE -C /usr/local/opengrid --strip-components=1 $OPENGRID_RELEASE/notebooks'
+ADD notebooks /usr/local/opengrid/notebooks
 
 CMD jupyter notebook --ip='*'
