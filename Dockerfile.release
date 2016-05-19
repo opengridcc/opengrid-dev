@@ -1,0 +1,26 @@
+FROM ubuntu:14.04
+
+RUN apt-get update && apt-get -y install python-numpy python-scipy python-matplotlib python-pandas python-pip
+RUN pip install -U pip jupyter
+
+# install opengrid
+RUN pip install opengrid
+
+# download opengrid release and save the .tar.gz 
+RUN pip download opengrid -d ~/temp/opengrid
+
+# create environment variables for the path to the archive and the release (opengrid-x.y.z)
+RUN /bin/bash -c 'OPENGRID_ARCHIVE=$(ls /root/temp/opengrid/*.tar.gz) && \
+				  cd /root/temp/opengrid && \
+				  FILENAME=$(basename $OPENGRID_ARCHIVE) && \
+				  echo "export OPENGRID_RELEASE=${FILENAME%???????}" >> $HOME/.bashrc && \
+				  echo "export OPENGRID_ARCHIVE=$OPENGRID_ARCHIVE" >> $HOME/.bashrc'
+
+# create a working dir and copy notebooks
+VOLUME /usr/local/opengrid
+WORKDIR /usr/local/opengrid/notebooks
+
+RUN /bin/bash -c 'source $HOME/.bashrc && \
+				  tar xzf $OPENGRID_ARCHIVE -C /usr/local/opengrid --strip-components=1 $OPENGRID_RELEASE/notebooks'
+
+CMD jupyter notebook --ip='*'
