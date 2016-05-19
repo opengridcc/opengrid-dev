@@ -10,7 +10,7 @@ if docker ps -a | grep -q opengrid-release; then
 	docker rm opengrid-release > /dev/null
 fi
 # Start the docker, publish port 8888 to host and mount current folder to /usr/local/opengrid in the container
-CID=$(docker run -d -p 8888:8888 -v $(pwd -P):/usr/local/opengrid --name opengrid-release opengrid/release:latest)
+CID=$(docker run -d -p 8888:8888 -v $(pwd -P)/notebooks:/usr/local/opengrid/notebooks/user --name opengrid-release opengrid/release:latest)
 
 echo "Opengrid notebook server running on http://$(docker inspect --format '{{ .NetworkSettings.IPAddress }}' ${CID}):8888"
 echo "Please enter this in your browser to access the jupyter notebooks."
