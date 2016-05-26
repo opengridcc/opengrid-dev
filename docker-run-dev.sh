@@ -12,5 +12,19 @@ fi
 # Start the docker, publish port 8888 to host and mount current folder to /usr/local/opengrid in the container
 CID=$(docker run -d -p 8888:8888 -v $(pwd -P):/usr/local/opengrid --name opengrid-dev opengrid/dev:latest)
 
-echo "Opengrid notebook server running on http://$(docker inspect --format '{{ .NetworkSettings.IPAddress }}' ${CID}):8888"
-echo "Please enter this in your browser to access the jupyter notebooks."
+# Give it some time
+sleep 1s 
+
+URL=http://$(docker inspect --format '{{ .NetworkSettings.IPAddress }}' ${CID}):8888
+echo "Opengrid notebook server running on $URL"
+echo "We will attempt to open your browser on this page."
+echo "If it fails, enter this in a browser to access the jupyter notebook server."
+
+# open the browser
+if which xdg-open > /dev/null
+then
+  xdg-open $URL/tree
+elif which gnome-open > /dev/null
+then
+  gnome-open $URL/tree
+fi

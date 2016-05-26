@@ -9,7 +9,8 @@ jupyter
 charts
 python-forecastio
 geopy
-oauth2client
+oauth2client==1.5.2
+pyopenssl
 tmpo
 jsonpickle
 python-coveralls 
