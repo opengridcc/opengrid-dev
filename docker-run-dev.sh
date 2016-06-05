@@ -9,8 +9,11 @@ if docker ps -a | grep -q opengrid-dev; then
 	docker stop opengrid-dev > /dev/null
 	docker rm opengrid-dev > /dev/null
 fi
-# Start the docker, publish port 8888 to host and mount current folder to /usr/local/opengrid in the container
-CID=$(docker run -d -p 8888:8888 -v $(pwd -P):/usr/local/opengrid --name opengrid-dev opengrid/dev:latest)
+# Start the docker, publish port 8888 to host 
+# mount current folder to /usr/local/opengrid in the container
+# for data persistence, mount ./data to the /data folder
+# if you want to store the data in a different location, modify the command below
+CID=$(docker run -d -p 8888:8888 -v $(pwd -P):/usr/local/opengrid  -v $(pwd -P)/data:/data --name opengrid-dev opengrid/dev:latest)
 
 # Give it some time
 sleep 1s 

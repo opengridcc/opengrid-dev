@@ -11,4 +11,7 @@ VOLUME /usr/local/opengrid
 WORKDIR /usr/local/opengrid/notebooks
 ADD notebooks /usr/local/opengrid/notebooks
 
+# create volume for the data
+VOLUME /data
+
 CMD jupyter notebook --ip='*'

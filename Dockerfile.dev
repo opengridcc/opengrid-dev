@@ -3,10 +3,13 @@ FROM ubuntu:14.04
 RUN apt-get update && apt-get -y install build-essential libssl-dev libffi-dev python-dev python-numpy python-scipy python-matplotlib python-pandas python-pip
 RUN pip install -U pip jupyter
 
+# install all dependencies for OpenGrid
 ADD requirements.txt /usr/local/opengrid/requirements.txt
 RUN pip install -r /usr/local/opengrid/requirements.txt
 
+# create volumes: one for the source code and work dir, one for the data
 VOLUME /usr/local/opengrid
+VOLUME /data
 
 ENV PYTHONPATH=/usr/local/opengrid:$PYTHONPATH
 
