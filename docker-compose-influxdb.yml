@@ -1,0 +1,20 @@
+version: '2'
+services:
+  influxdb:
+    image: influxdb
+    ports:
+      - "8083:8083"
+      - "8086:8086"
+  chronograf:
+    image: chronograf
+    depends_on:
+      - influxdb
+    ports:
+      - "10000:10000"
+  opengrid-dev:
+    image: opengrid/dev
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/usr/local/opengrid
+      - ./data:/data
