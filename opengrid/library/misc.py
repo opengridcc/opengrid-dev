@@ -9,6 +9,7 @@ import pandas as pd
 from dateutil import rrule
 import datetime as dt
 from itertools import groupby, count
+import pytz
 
 
 def parse_date(d):
@@ -194,3 +195,24 @@ def calculate_degree_days(temperature_equivalent, base_temperature, cooling=Fals
     ret.name = '{}_degree_days_{}'.format(prefix, base_temperature)
 
     return ret
+
+
+def last_midnight(timezone):
+    """
+    Return the timestamp of the last midnight in a given timezone
+
+    Parameters
+    ----------
+    timezone: str
+        pytz timezone
+
+    Returns
+    -------
+    datetime
+    """
+
+    tz = pytz.timezone(timezone)
+    now = dt.datetime.now(tz=tz)
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    return midnight
