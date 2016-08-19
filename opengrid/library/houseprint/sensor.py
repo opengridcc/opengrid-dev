@@ -1,4 +1,4 @@
-__author__ = 'Jan Pecinovsky'
+__author__ = 'Jan Pecinovsky, Roel De Coninck'
 
 """
 A sensor generates a single data stream.
@@ -10,6 +10,7 @@ This class contains all metadata concerning the function and type of the sensor 
 
 from opengrid.library import misc
 from opengrid import ureg
+import pandas as pd
 
 
 class Sensor(object):
@@ -87,12 +88,17 @@ class Sensor(object):
             target = 'degC'
         elif self.type == 'pressure':
             target = 'Pa'
-        elif self.type in ['voltage']:
+        elif self.type in ['battery']:
             target = 'V'
         elif self.type in ['current']:
             target = 'A'
         elif self.type in ['light']:
             target = 'lux'
+        elif self.type == 'humidity':
+            target = 'percent'
+        elif self.type in ['error', 'vibration', 'proximity']:
+            target = ''
+
         else:
             target = None
 
@@ -139,8 +145,12 @@ class Sensor(object):
             if not diff:
                 source = self.unit
             else:
-                # differentiation
-                source = self.unit + '/' + resample
+                # differentiation. Careful, this is a hack of the unit system.
+                # we have to take care manually of some corner cases
+                if self.unit:
+                    source = self.unit + '/' + resample
+                else:
+                    source = self.unit
 
             return misc.unit_conversion_factor(source, target)
         else:
@@ -182,9 +192,22 @@ class Fluksosensor(Sensor):
                 self.unit = 'liter'
             elif self.type == 'electricity':
                 self.unit = 'Wh'
+            elif self.type == 'pressure':
+                self.unit = 'Pa'
+            elif self.type == 'temperature':
+                self.unit = 'degC'
+            elif self.type == 'battery':
+                self.unit = 'V'
+            elif self.type == 'light':
+                self.unit = 'lux'
+            elif self.type == 'humidity':
+                self.unit = 'percent'
+            elif self.type in ['error', 'vibration', 'proximity']:
+                self.unit = ''
+
 
         if self.cumulative == '' or self.cumulative is None:
-            if self.type in ['water', 'gas', 'electricity']:
+            if self.type in ['water', 'gas', 'electricity', 'vibration']:
                 self.cumulative = True
             else:
                 self.cumulative = False
@@ -227,7 +250,11 @@ class Fluksosensor(Sensor):
                             head=head,
                             tail=tail)
 
-        if not data.dropna().empty and resample != 'raw':
+        if data.dropna().empty:
+            # Return an empty dataframe with correct name
+            return pd.Series(name=self.key)
+
+        elif resample != 'raw':
 
             if resample == 'hour':
                 rule = 'H'

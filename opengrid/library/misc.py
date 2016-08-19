@@ -101,7 +101,12 @@ def unit_conversion_factor(source, target):
 
     """
 
-    return 1 * ureg(source).to(target).magnitude
+    if not source or not target:
+        return 1
+    if source == target:
+        return 1
+    else:
+        return 1 * ureg(source).to(target).magnitude
 
 
 def dayset(start, end):
