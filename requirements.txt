@@ -1,7 +1,7 @@
 numpy
 scipy
 matplotlib
-pandas
+pandas==0.17.1
 gspread==0.2.5
 requests
 requests_futures
@@ -9,8 +9,9 @@ jupyter
 charts
 python-forecastio
 geopy
-oauth2client
-tmpo
+oauth2client==1.5.2
+pyopenssl
+tmpo==0.2.2
 jsonpickle
 python-coveralls 
 coverage 

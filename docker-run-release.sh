@@ -4,16 +4,16 @@ if docker-machine  > /dev/null 2>&1; then
     eval $(docker-machine env default)
 fi
 # Stop and/or remove existing opengrid-dev container, if any
-if docker ps -a | grep -q opengrid-dev; then
-	echo "Stopping and/or removing existing opengrid-dev container."
-	docker stop opengrid-dev > /dev/null
-	docker rm opengrid-dev > /dev/null
+if docker ps -a | grep -q opengrid-release; then
+	echo "Stopping and/or removing existing opengrid-release container."
+	docker stop opengrid-release > /dev/null
+	docker rm opengrid-release > /dev/null
 fi
 # Start the docker, publish port 8888 to host 
 # mount current folder to /usr/local/opengrid in the container
 # for data persistence, mount ./data to the /data folder
 # if you want to store the data in a different location, modify the command below
-CID=$(docker run -d -p 8888:8888 -v $(pwd -P):/usr/local/opengrid  -v $(pwd -P)/data:/data --name opengrid-dev opengrid/dev:latest)
+CID=$(docker run -d -p 8888:8888 -v $(pwd -P)/notebooks:/usr/local/opengrid/notebooks/User -v $(pwd -P)/data:/data --name opengrid-release opengrid/release:latest)
 
 # Give it some time
 sleep 1s 
