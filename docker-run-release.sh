@@ -34,3 +34,5 @@ elif gnome-open $URL > /dev/null 2>&1; then
 else
 	echo “Opening notebook server in browser failed, surf to $URL“
 fi
+
+echo "To stop the docker machine run 'docker-machine stop'"
