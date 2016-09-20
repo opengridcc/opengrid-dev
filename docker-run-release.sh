@@ -15,19 +15,21 @@ fi
 # mount current folder to /usr/local/opengrid in the container
 # for data persistence, mount ./data to the /data folder
 # if you want to store the data in a different location, modify the command below
-CID=$(docker run -d -p 8888:8888 -v $(pwd -P)/notebooks:/usr/local/opengrid/notebooks/User -v $(pwd -P)/data:/data --name opengrid-release opengrid/release:latest)
 
 # Give it some time
 sleep 1s 
 
 URL=http://$(docker-machine ip default):8888
-echo "Opengrid notebook server running on $URL"
-echo "We will attempt to open your browser on this page."
-echo "If it fails, enter this in a browser to access the jupyter notebook server."
 
 # open the browser
-command --search $start >/dev/null; and begin
-    start $URL
-end; or begin
-    open $URL
-end
+if start $URL > /dev/null 2>&1; then
+	echo “Notebook server opened in browser”
+elif open $URL > /dev/null 2>&1; then
+	echo “Notebook server opened in browser”
+elif xdg-open $URL > /dev/null 2>&1; then
+	echo “Notebook server opened in browser”
+elif gnome-open $URL > /dev/null 2>&1; then
+	echo “Notebook server opened in browser”
+else
+	echo “Opening notebook server in browser failed, surf to $URL“
+fi
