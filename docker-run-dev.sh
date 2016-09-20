@@ -34,3 +34,5 @@ echo “Notebook server opened in browser”
 else
 echo “Opening notebook server in browser failed, surf to $URL“
 fi
+
+echo "To stop the docker machine run 'docker-machine stop'"
