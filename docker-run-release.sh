@@ -26,8 +26,4 @@ echo "We will attempt to open your browser on this page."
 echo "If it fails, enter this in a browser to access the jupyter notebook server."
 
 # open the browser
-command --search $start >/dev/null; and begin
-    start $URL
-end; or begin
-    open $URL
-end
+python -mwebbrowser $URL
