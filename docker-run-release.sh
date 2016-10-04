@@ -22,6 +22,11 @@ sleep 1s
 
 URL=http://$(docker-machine ip default):8888
 
+if [ -z "$(docker-machine ip default)"]; then
+	URL="http://localhost:8888"
+fi
+echo "Open the notebook server on $URL"
+
 # open the browser
 if start $URL > /dev/null 2>&1; then
 	echo “Notebook server opened in browser”
