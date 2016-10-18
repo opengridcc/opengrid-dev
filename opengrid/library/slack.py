@@ -47,7 +47,19 @@ class Slack(object):
 
         Returns
         -------
-        request.Response
+        requests.Response
         """
         payload = {"text": "\n".join(text)}
         return self._post(p=payload)
+
+    def post_json(self, j):
+        """
+        Parameters
+        ----------
+        j : dict
+
+        Returns
+        -------
+        requests.Response
+        """
+        return self._post(j)
