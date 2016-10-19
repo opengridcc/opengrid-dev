@@ -438,6 +438,10 @@ class Houseprint(object):
             self.init_tmpo()
             return self._tmpos
 
+    @property
+    def tmpos(self):
+        return self.get_tmpos()
+
     def sync_tmpos(self):
         """
             Add all Flukso sensors to the TMPO session and sync

@@ -14,7 +14,9 @@ import pandas as pd
 
 
 class Sensor(object):
-    def __init__(self, key, device, site, type, description, system, quantity, unit, direction, tariff, cumulative):
+    def __init__(self, key=None, device=None, site=None, type=None,
+                 description=None, system=None, quantity=None, unit=None,
+                 direction=None, tariff=None, cumulative=None):
         self.key = key
         self.device = device
         self.site = site
@@ -167,7 +169,9 @@ class Sensor(object):
 
 
 class Fluksosensor(Sensor):
-    def __init__(self, key, token, device, type, description, system, quantity, unit, direction, tariff, cumulative):
+    def __init__(self, key=None, token=None, device=None, type=None,
+                 description=None, system=None, quantity=None, unit=None,
+                 direction=None, tariff=None, cumulative=None, tmpos=None):
 
         # invoke init method of abstract Sensor
         super(Fluksosensor, self).__init__(key=key,
@@ -212,6 +216,17 @@ class Fluksosensor(Sensor):
             else:
                 self.cumulative = False
 
+        self._tmpos = tmpos
+
+    @property
+    def tmpos(self):
+        if self._tmpos is not None:
+            return self._tmpos
+        elif self.device is not None:
+            return self.device.tmpos
+        else:
+            raise AttributeError('TMPO session not defined')
+
     def get_data(self, head=None, tail=None, diff='default', resample='min', unit='default'):
         """
         Connect to tmpo and fetch a data series
@@ -239,16 +254,12 @@ class Fluksosensor(Sensor):
         the string representation of the unit of the data.
         """
 
-        tmpos = self.site.hp.get_tmpos()
-
         if head is None:
             head = 0
         if tail is None:
             tail = 2147483647  # tmpo epochs max
 
-        data = tmpos.series(sid=self.key,
-                            head=head,
-                            tail=tail)
+        data = self.tmpos.series(sid=self.key, head=head, tail=tail)
 
         if data.dropna().empty:
             # Return an empty dataframe with correct name
