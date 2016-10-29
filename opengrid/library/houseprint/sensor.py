@@ -1,4 +1,4 @@
-__author__ = 'Jan Pecinovsky'
+__author__ = 'Jan Pecinovsky, Roel De Coninck'
 
 """
 A sensor generates a single data stream.
@@ -10,6 +10,7 @@ This class contains all metadata concerning the function and type of the sensor 
 
 from opengrid.library import misc
 from opengrid import ureg
+import pandas as pd
 
 
 class Sensor(object):
@@ -58,6 +59,7 @@ class Sensor(object):
     def _get_default_unit(self, diff=True, resample='min'):
         """
         Return a string representation of the default unit for the requested operation
+        If there is no unit, returns None
 
         Parameters
         ----------
@@ -68,11 +70,11 @@ class Sensor(object):
 
         Returns
         -------
-        target : str
+        target : str or None
             String representation of the target unit, eg m3/h, kW, ...
         """
 
-        if self.type == 'electricity':
+        if self.type in ['electricity', 'gas', 'heat', 'energy']:
             if diff:
                 target = 'W'
             else:
@@ -82,11 +84,23 @@ class Sensor(object):
                 target = 'l/min'
             else:
                 target = 'liter'
-        elif self.type == 'gas':
-            if diff:
-                target = 'W'
-            else:
-                target = 'kWh'
+        elif self.type == 'temperature':
+            target = 'degC'
+        elif self.type == 'pressure':
+            target = 'Pa'
+        elif self.type in ['battery']:
+            target = 'V'
+        elif self.type in ['current']:
+            target = 'A'
+        elif self.type in ['light']:
+            target = 'lux'
+        elif self.type == 'humidity':
+            target = 'percent'
+        elif self.type in ['error', 'vibration', 'proximity']:
+            target = ''
+
+        else:
+            target = None
 
         return target
 
@@ -98,6 +112,8 @@ class Sensor(object):
 
         For gas, a default calorific value of 10 kWh/liter is used.
 
+        For some units, unit conversion does not apply, and 1.0 is returned.
+
         Parameters
         ----------
         diff : True (default) or False
@@ -106,6 +122,7 @@ class Sensor(object):
             Sampling rate, if any.  Use 'raw' if no resampling.
         target : str , default='default'
             String representation of the target unit, eg m3/h, kW, ...
+            If None, 1.0 is returned
 
         Returns
         -------
@@ -116,6 +133,8 @@ class Sensor(object):
         # get the target
         if target == 'default':
             target = self._get_default_unit(diff=diff, resample=resample)
+        if target is None:
+            return 1.0
 
         if resample == 'raw':
             if diff:
@@ -126,8 +145,12 @@ class Sensor(object):
             if not diff:
                 source = self.unit
             else:
-                # differentiation
-                source = self.unit + '/' + resample
+                # differentiation. Careful, this is a hack of the unit system.
+                # we have to take care manually of some corner cases
+                if self.unit:
+                    source = self.unit + '/' + resample
+                else:
+                    source = self.unit
 
             return misc.unit_conversion_factor(source, target)
         else:
@@ -169,9 +192,22 @@ class Fluksosensor(Sensor):
                 self.unit = 'liter'
             elif self.type == 'electricity':
                 self.unit = 'Wh'
+            elif self.type == 'pressure':
+                self.unit = 'Pa'
+            elif self.type == 'temperature':
+                self.unit = 'degC'
+            elif self.type == 'battery':
+                self.unit = 'V'
+            elif self.type == 'light':
+                self.unit = 'lux'
+            elif self.type == 'humidity':
+                self.unit = 'percent'
+            elif self.type in ['error', 'vibration', 'proximity']:
+                self.unit = ''
+
 
         if self.cumulative == '' or self.cumulative is None:
-            if self.type in ['water', 'gas', 'electricity']:
+            if self.type in ['water', 'gas', 'electricity', 'vibration']:
                 self.cumulative = True
             else:
                 self.cumulative = False
@@ -214,7 +250,11 @@ class Fluksosensor(Sensor):
                             head=head,
                             tail=tail)
 
-        if not data.dropna().empty and resample != 'raw':
+        if data.dropna().empty:
+            # Return an empty dataframe with correct name
+            return pd.Series(name=self.key)
+
+        elif resample != 'raw':
 
             if resample == 'hour':
                 rule = 'H'

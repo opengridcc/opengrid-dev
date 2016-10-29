@@ -5,17 +5,17 @@ if docker-machine  > /dev/null 2>&1; then
     docker-machine env
     eval $(docker-machine env default)
 fi
-# Stop and/or remove existing opengrid-dev container, if any
-if docker ps -a | grep -q opengrid-dev; then
-	echo "Stopping and/or removing existing opengrid-dev container."
-	docker stop opengrid-dev > /dev/null
-	docker rm opengrid-dev > /dev/null
+# Stop and/or remove existing opengrid-release container, if any
+if docker ps -a | grep -q opengrid-release; then
+	echo "Stopping and/or removing existing opengrid-release container."
+	docker stop opengrid-release > /dev/null
+	docker rm opengrid-release > /dev/null
 fi
 # Start the docker, publish port 8888 to host 
 # mount current folder to /usr/local/opengrid in the container
 # for data persistence, mount ./data to the /data folder
 # if you want to store the data in a different location, modify the command below
-docker run -d -p 8888:8888 -v $(pwd -P):/usr/local/opengrid  -v $(pwd -P)/data:/data --name opengrid-dev opengrid/dev:latest
+docker run -d -p 8888:8888 -v $(pwd -P)/notebooks:/usr/local/opengrid/notebooks/User -v $(pwd -P)/data:/data --name opengrid-release opengrid/release:latest
 
 # Give it some time
 sleep 1s 
@@ -28,17 +28,16 @@ fi
 echo "Open the notebook server on $URL"
 
 # open the browser
-if gnome-open $URL > /dev/null 2>&1; then
-echo “Notebook server opened in browser”
-elif start $URL > /dev/null 2>&1; then
-echo “Notebook server opened in browser”
+if start $URL > /dev/null 2>&1; then
+	echo “Notebook server opened in browser”
 elif open $URL > /dev/null 2>&1; then
-echo “Notebook server opened in browser”
+	echo “Notebook server opened in browser”
 elif xdg-open $URL > /dev/null 2>&1; then
-echo “Notebook server opened in browser”
-
+	echo “Notebook server opened in browser”
+elif gnome-open $URL > /dev/null 2>&1; then
+	echo “Notebook server opened in browser”
 else
-echo “Opening notebook server in browser failed, surf to $URL“
+	echo “Opening notebook server in browser failed, surf to $URL“
 fi
 
 echo "To stop the docker machine run 'docker-machine stop'"
