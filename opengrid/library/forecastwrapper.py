@@ -7,6 +7,7 @@ import geopy
 import numpy as np
 import pandas as pd
 import pytz
+import tqdm
 
 from .misc import dayset, calculate_temperature_equivalent, calculate_degree_days
 
@@ -50,7 +51,10 @@ class Weather():
             self.location = geopy.location.Location(
                 point=geopy.location.Point(latitude=location[0], longitude=location[1]))
 
-        self.forecasts = [self._get_forecast(date=date) for date in dayset(start=start, end=end)]
+        self.forecasts = []
+        # wrap the dayset in a tqdm so you get a progress bar of the download
+        for date in tqdm.tqdm(dayset(start=start, end=end)):
+            self.forecasts.append(self._get_forecast(date=date))
 
         if tz is not None:
             self.tz = tz
