@@ -2,15 +2,21 @@ __author__ = 'Jan Pecinovsky'
 
 import datetime as dt
 import forecastio
+from forecastio.models import Forecast
 import geopy
 import numpy as np
 import pandas as pd
 import pytz
 from cached_property import cached_property
 from tqdm import tqdm
+import os
+import pickle
+
 
 from .misc import dayset, calculate_temperature_equivalent, \
     calculate_degree_days
+from opengrid import config
+cfg = config.Config()
 
 
 class Weather():
@@ -19,7 +25,7 @@ class Weather():
         NOTE: Forecast.io allows 1000 requests per day, after that you have to pay. Each requested day is 1 request.
     """
 
-    def __init__(self, api_key, location, start, end=None, tz=None):
+    def __init__(self, api_key, location, start, end=None, tz=None, cache=True):
         """
             Constructor
 
@@ -37,12 +43,15 @@ class Weather():
             tz : str, optional
                 tz specifies the timezone of the response.
                 If none, response will be in the timezone of the location
+            cache : bool
+                use the cache or not
         """
         self.api_key = api_key
         self._location = location
         self._start = start
         self._end = end
         self._tz = tz
+        self.cache = cache
 
         self._forecasts = []
 
@@ -233,8 +242,19 @@ class Weather():
         # conversion from dt.date to dt.datetime, there must be a better way, right?
         time = dt.datetime(year=date.year, month=date.month, day=date.day)
 
-        return forecastio.load_forecast(key=self.api_key, lat=self.location.latitude, lng=self.location.longitude,
-                                        time=time)
+        f = None
+        if self.cache:
+            f = self._load_from_cache(date)
+
+        if not f:
+            f = forecastio.load_forecast(key=self.api_key,
+                                         lat=self.location.latitude,
+                                         lng=self.location.longitude,
+                                         time=time)
+            if self.cache:
+                self._save_in_cache(f, date)
+
+        return f
 
     def _get_forecast_dates(self):
         """
@@ -405,3 +425,49 @@ class Weather():
 
         # return mean of truncated timeseries
         return round(ts.mean(), 2)
+
+    @property
+    def cache_folder(self):
+        folder = os.path.join(os.path.abspath(cfg.get('data', 'folder')),
+                            'forecasts')
+
+        if not os.path.exists(folder):
+            print("This folder does not exist: {}, it will be created".format(folder))
+            os.mkdir(folder)
+
+        return folder
+
+    def _pickle_filename(self, date):
+        return str(date) + '_' + str(self.location.latitude) + '_' + str(
+            self.location.longitude) + '.pkl'
+
+    def _save_in_cache(self, f, date):
+        """
+        Save Forecast object to cache
+
+        Parameters
+        ----------
+        f : Forecast
+        date : datetime.date
+        """
+
+        path = os.path.join(self.cache_folder, self._pickle_filename(date))
+        pickle.dump(f, open(path, "wb"))
+
+    def _load_from_cache(self, date):
+        """
+        Load Forecast object from cache
+
+        Parameters
+        ----------
+        date : datetime.date
+
+        Returns
+        -------
+        Forecast
+        """
+        path = os.path.join(self.cache_folder, self._pickle_filename(date))
+        if os.path.exists(path):
+            return pickle.load(open(path, "rb"))
+        else:
+            return None
