@@ -441,8 +441,9 @@ class Weather():
 
     @property
     def cache_folder(self):
+        location_str = str(self.location.latitude) + '_' + str(self.location.longitude)
         folder = os.path.join(os.path.abspath(cfg.get('data', 'folder')),
-                            'forecasts')
+                            'forecasts', location_str)
 
         if not os.path.exists(folder):
             print("This folder does not exist: {}, it will be created".format(folder))
@@ -450,9 +451,10 @@ class Weather():
 
         return folder
 
-    def _pickle_filename(self, date):
-        return str(date) + '_' + str(self.location.latitude) + '_' + str(
-            self.location.longitude) + '.pkl'
+    def _pickle_path(self, date):
+        filename = str(date) + '.pkl'
+        path = os.path.join(self.cache_folder, filename)
+        return path
 
     def _save_in_cache(self, f, date):
         """
@@ -464,8 +466,7 @@ class Weather():
         date : datetime.date
         """
 
-        path = os.path.join(self.cache_folder, self._pickle_filename(date))
-        pickle.dump(f, open(path, "wb"))
+        pickle.dump(f, open(self._pickle_path(date), "wb"))
 
     def _load_from_cache(self, date):
         """
@@ -479,7 +480,7 @@ class Weather():
         -------
         Forecast
         """
-        path = os.path.join(self.cache_folder, self._pickle_filename(date))
+        path = self._pickle_path(date)
         if os.path.exists(path):
             return pickle.load(open(path, "rb"))
         else:
