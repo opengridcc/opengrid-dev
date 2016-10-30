@@ -1,0 +1,27 @@
+FROM ubuntu:14.04
+
+RUN apt-get update && apt-get -y install python-numpy python-scipy python-matplotlib python-pandas python-pip libssl-dev
+RUN pip install -U pip jupyter
+
+# install opengrid
+RUN pip install opengrid
+
+# Additional installation, add to first RUN command later
+RUN apt-get -y install pandoc texlive
+RUN apt-get -y install texlive-latex-extra
+RUN apt-get -y install wkhtmltopdf
+RUN pip install seaborn pdfkit 
+
+RUN pip install https://github.com/ipython-contrib/jupyter_contrib_nbextensions/tarball/master
+RUN jupyter contrib nbextension install --user
+RUN jupyter nbextensions_configurator enable --user
+
+# create a working dir and copy notebooks
+VOLUME /usr/local/opengrid
+WORKDIR /usr/local/opengrid/notebooks
+ADD notebooks /usr/local/opengrid/notebooks
+
+# create volume for the data
+VOLUME /data
+
+CMD jupyter notebook --ip='*'
