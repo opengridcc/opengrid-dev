@@ -1,14 +1,16 @@
 __author__ = 'Jan Pecinovsky'
 
 import datetime as dt
-from copy import copy
 import forecastio
 import geopy
 import numpy as np
 import pandas as pd
 import pytz
+from cached_property import cached_property
+from tqdm import tqdm
 
-from .misc import dayset, calculate_temperature_equivalent, calculate_degree_days
+from .misc import dayset, calculate_temperature_equivalent, \
+    calculate_degree_days
 
 
 class Weather():
@@ -23,46 +25,98 @@ class Weather():
 
             Parameters
             ----------
-            api_key : string
+            api_key : str
                 Forecast.io API Key
-            location : string OR iterable with 2 floats, latitude and longitude
-                String can be City, address, POI. Iterable = [lat,lng]
-            start : datetime-like object
+            location : str | tuple(float, float)
+                String can be City, address, POI. tuple = (lat, lng)
+            start : datetime.datetime | pandas.Timestamp
                 start of the interval to be searched
-            end : datetime-like object (optional, default=None)
-                end of the interval to be searched, if None, use current time
-            tz : timezone string (optional)
+            end : datetime.datetime | pandas.Timestamp, optional
+                end of the interval to be searched
+                if None, use current time
+            tz : str, optional
                 tz specifies the timezone of the response.
                 If none, response will be in the timezone of the location
         """
-
-        self.start = start
-        if end is None:
-            end = pd.Timestamp('now', tz=tz)
-        self.end = end
-
         self.api_key = api_key
+        self._location = location
+        self._start = start
+        self._end = end
+        self._tz = tz
 
-        # input location
-        if isinstance(location, str):
-            self.location = self._get_geolocator().geocode(location)
+        self._forecasts = []
+
+    @cached_property
+    def location(self):
+        """
+        Get the location, but as a geopy location object
+
+        Returns
+        -------
+        geopy.location.Location
+        """
+        if isinstance(self._location, str):
+            return self._get_geolocator().geocode(self._location)
+        elif hasattr(self._location, '__iter__'):
+            lat, long = self._location
+            return geopy.location.Location(
+                point=geopy.location.Point(latitude=lat, longitude=long))
         else:
-            self.location = geopy.location.Location(
-                point=geopy.location.Point(latitude=location[0], longitude=location[1]))
+            return ValueError('Invalid location')
 
-        self.forecasts = [self._get_forecast(date=date) for date in dayset(start=start, end=end)]
+    @property
+    def start(self):
+        """
+        Get the start time, but localized
 
-        if tz is not None:
-            self.tz = tz
+        Returns
+        -------
+        datetime.datetime | pandas.Timestamp
+        """
+        if hasattr(self._start, 'tzinfo') and self._start.tzinfo is None:
+            tz = pytz.timezone(self.tz)
+            return tz.localize(self._start)
         else:
-            self.tz = self.lookup_timezone()
+            return self._start
 
-        if hasattr(self.start, 'tzinfo') and self.start.tzinfo is None:
+    @property
+    def end(self):
+        """
+        Get the end time, but localized.
+
+        Returns
+        -------
+        datetime.datetime | pandas.Timestamp
+        """
+        if self._end is None:
+            return pd.Timestamp('now', tz=self.tz)
+        elif hasattr(self._end, 'tzinfo') and self._end.tzinfo is None:
             tz = pytz.timezone(self.tz)
-            self.start = tz.localize(self.start)
-        if hasattr(self.end, 'tzinfo') and self.end.tzinfo is None:
-            tz = pytz.timezone(self.tz)
-            self.end = tz.localize(self.end)
+            return tz.localize(self._end)
+
+    @property
+    def tz(self):
+        if self._tz is not None:
+            return self._tz
+        elif self._forecasts:
+            return self.lookup_timezone()
+        else:
+            return 'Europe/Brussels'
+
+    @property
+    def forecasts(self):
+        """
+        Get a list of all forecast objects
+
+        Returns
+        -------
+        list(forecastio.Forecast)
+        """
+        if not self._forecasts:
+            for date in tqdm(dayset(start=self.start, end=self.end)):
+                self._forecasts.append(self._get_forecast(date=date))
+        return self._forecasts
+
 
     def days(self,
              include_average_temperature=True,
@@ -214,7 +268,7 @@ class Weather():
             date = date.date()
 
         if date not in self._get_forecast_dates():
-            self.forecasts.append(self._get_forecast(date))
+            self._forecasts.append(self._get_forecast(date))
 
     def _forecast_to_hour_series(self, forecast):
         """
