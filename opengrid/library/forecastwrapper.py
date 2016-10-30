@@ -3,7 +3,7 @@ __author__ = 'Jan Pecinovsky'
 import datetime as dt
 import forecastio
 from forecastio.models import Forecast
-import geopy
+from geopy import Location, Point, GoogleV3
 import numpy as np
 import pandas as pd
 import pytz
@@ -55,62 +55,85 @@ class Weather():
 
         self._forecasts = []
 
-    @cached_property
+    @cached_property  # so we don't have to lookup every time it is called
     def location(self):
         """
         Get the location, but as a geopy location object
 
         Returns
         -------
-        geopy.location.Location
+        Location
         """
+        # if the input was a string, we do a google lookup
         if isinstance(self._location, str):
-            return self._get_geolocator().geocode(self._location)
+            location = GoogleV3().geocode(self._location)
+
+        # if the input was an iterable, it is latitude and longitude
         elif hasattr(self._location, '__iter__'):
             lat, long = self._location
-            return geopy.location.Location(
-                point=geopy.location.Point(latitude=lat, longitude=long))
+            gepoint = Point(latitude=lat, longitude=long)
+            location = Location(point=gepoint)
+
         else:
-            return ValueError('Invalid location')
+            raise ValueError('Invalid location')
+
+        return location
 
     @property
     def start(self):
         """
-        Get the start time, but localized
+        Return localized start time
 
         Returns
         -------
         datetime.datetime | pandas.Timestamp
         """
-        if hasattr(self._start, 'tzinfo') and self._start.tzinfo is None:
-            tz = pytz.timezone(self.tz)
-            return tz.localize(self._start)
+        if self._start.tzinfo is None:
+            return self.tz.localize(self._start)
         else:
             return self._start
 
     @property
     def end(self):
         """
-        Get the end time, but localized.
+        Return localized end time
 
         Returns
         -------
         datetime.datetime | pandas.Timestamp
         """
         if self._end is None:
-            return pd.Timestamp('now', tz=self.tz)
-        elif hasattr(self._end, 'tzinfo') and self._end.tzinfo is None:
-            tz = pytz.timezone(self.tz)
-            return tz.localize(self._end)
+            return pd.Timestamp('now', tz=self.tz.zone)
+        elif self._end.tzinfo is None:
+            return self.tz.localize(self._end)
+        else:
+            return self._end
 
     @property
     def tz(self):
+        """
+        Get the timezone
+
+        Returns
+        -------
+        pytz.timezone
+        """
+
+        # if the user has specified a zone, use that one
         if self._tz is not None:
-            return self._tz
+            tz = self._tz
+
+        # if there already are some forecasts, the timezone is in there
         elif self._forecasts:
-            return self.lookup_timezone()
+            tz = self._lookup_timezone()
+
+        # use Google geocoder to lookup timezone
         else:
-            return 'Europe/Brussels'
+            lat, long, _alt = self.location.point
+            tz = GoogleV3().timezone(location=(lat, long)).zone
+
+        # return as a pytz object
+        return pytz.timezone(tz)
 
     @property
     def forecasts(self):
@@ -119,13 +142,17 @@ class Weather():
 
         Returns
         -------
-        list(forecastio.Forecast)
+        list(Forecast)
         """
+        # we stick the list in self._forecasts, only if it is still empty
         if not self._forecasts:
-            for date in tqdm(dayset(start=self.start, end=self.end)):
+            # get list of seperate days
+            days = dayset(start=self.start, end=self.end)
+            # wrap in a tqdm so we get the progress bar
+            for date in tqdm(days):
                 self._forecasts.append(self._get_forecast(date=date))
-        return self._forecasts
 
+        return self._forecasts
 
     def days(self,
              include_average_temperature=True,
@@ -214,18 +241,6 @@ class Weather():
         frame = pd.concat(day_list)
         return self._fix_index(frame).sort_index().truncate(before=self.start, after=self.end)
 
-    def _get_geolocator(self):
-        """
-            Only create the geolocator if needed
-
-            Returns
-            -------
-            geopy.geolocator
-        """
-        if not hasattr(self, 'geolocator'):
-            self.geolocator = geopy.GoogleV3()
-        return self.geolocator
-
     def _get_forecast(self, date):
         """
             Get the raw forecast object for a given date
@@ -269,7 +284,7 @@ class Weather():
             time = forecast.currently().time
 
             # the time is in UTC, we need to localize it.
-            tz = pytz.timezone(self.lookup_timezone())
+            tz = pytz.timezone(self._lookup_timezone())
             time_utc = tz.fromutc(time)
 
             dates.append(time_utc.date())
@@ -281,7 +296,7 @@ class Weather():
 
         Parameters
         ----------
-        date : dt.date
+        date : dt.date | dt.datetime | pd.Timestamp
         """
         # for if you pass a datetime instead of a date
         if hasattr(date, 'date'):
@@ -323,10 +338,10 @@ class Weather():
         frame['time'] = pd.DatetimeIndex(frame['time'].astype('datetime64[s]'))
         frame.set_index('time', inplace=True)
         frame = frame.tz_localize('UTC')
-        frame = frame.tz_convert(self.tz)
+        frame = frame.tz_convert(self.tz.zone)
         return frame
 
-    def lookup_timezone(self):
+    def _lookup_timezone(self):
         """
         Lookup the timezone in the JSON of the first forecast
 
