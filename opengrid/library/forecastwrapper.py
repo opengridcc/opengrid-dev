@@ -25,14 +25,12 @@ class Weather():
         NOTE: Forecast.io allows 1000 requests per day, after that you have to pay. Each requested day is 1 request.
     """
 
-    def __init__(self, api_key, location, start, end=None, tz=None, cache=True):
+    def __init__(self, location, start, end=None, tz=None, cache=True):
         """
             Constructor
 
             Parameters
             ----------
-            api_key : str
-                Forecast.io API Key
             location : str | tuple(float, float)
                 String can be City, address, POI. tuple = (lat, lng)
             start : datetime.datetime | pandas.Timestamp
@@ -46,7 +44,7 @@ class Weather():
             cache : bool
                 use the cache or not
         """
-        self.api_key = api_key
+        self.api_key = cfg.get('Forecast.io', 'apikey')
         self._location = location
         self._start = start
         self._end = end
