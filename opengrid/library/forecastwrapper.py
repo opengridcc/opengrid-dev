@@ -441,15 +441,19 @@ class Weather():
 
     @property
     def cache_folder(self):
-        location_str = str(self.location.latitude) + '_' + str(self.location.longitude)
-        folder = os.path.join(os.path.abspath(cfg.get('data', 'folder')),
-                            'forecasts', location_str)
+        location_str = "{}_{}".format(round(self.location.latitude, 4),
+                                      round(self.location.longitude, 4))
 
-        if not os.path.exists(folder):
-            print("This folder does not exist: {}, it will be created".format(folder))
-            os.mkdir(folder)
+        forecast_folder = os.path.join(os.path.abspath(cfg.get('data', 'folder')),
+                            'forecasts')
+        location_folder = os.path.join(forecast_folder, location_str)
 
-        return folder
+        for folder in [forecast_folder, location_folder]:
+            if not os.path.exists(folder):
+                print("This folder does not exist: {}, it will be created".format(folder))
+                os.mkdir(folder)
+
+        return location_folder
 
     def _pickle_path(self, date):
         filename = str(date) + '.pkl'
