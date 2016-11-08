@@ -20,3 +20,5 @@ beautifulsoup4
 iso8601
 geocoder
 astral
+tqdm
+cached_property
