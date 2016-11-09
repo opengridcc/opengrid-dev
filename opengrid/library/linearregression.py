@@ -3,6 +3,7 @@ import logging
 from scipy import stats
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 
 class LinearRegression(analysis.Analysis):
@@ -10,18 +11,15 @@ class LinearRegression(analysis.Analysis):
     Calculate a simple linear regression given a dataframe with X and Y values
     """
 
-    def __init__(self, df, independent_var, dependent_var, *args, **kwargs):
+    def __init__(self, independent, dependent, *args, **kwargs):
         """
         Parameters
         ----------
-        df : Pandas Dataframe
-        independent_var : str
-            column name of the independent variable
-        dependent_var : str
-            column name of the dependent variable
+        independent : pandas.Series
+        dependent : pandas.Series
         """
-        self.column_names = {independent_var: 'independent', dependent_var: 'dependent'}
-        df = df.rename(columns=self.column_names)
+        df = pd.concat([independent, dependent], axis=1).dropna()
+        df.columns = ['independent', 'dependent']
         self._check_df(df=df)
         super(LinearRegression, self).__init__(df=df, *args, **kwargs)
 
@@ -274,22 +272,20 @@ class LinearRegression2(LinearRegression):
         Calculate a linear regression that uses a predefined breakpoint to break between regression and baseload
     """
 
-    def __init__(self, df, breakpoint, independent_var, dependent_var, *args, **kwargs):
+    def __init__(self, independent, dependent, breakpoint, *args, **kwargs):
         """
         Parameters
         ----------
-        data: Pandas Dataframe
-        breakpoint: number
+        independent : pandas.Series
+        dependent : pandas.Series
+        breakpoint : int | float
             value on the x-axis where to break between regression and baseload
-        independent_var : str
-            column name of the independent variable
-        dependent_var : str
-            column name of the dependent variable
         """
 
         self.breakpoint = breakpoint
-        super(LinearRegression2, self).__init__(df=df, independent_var=independent_var, dependent_var=dependent_var,
-                                                *args, **kwargs)
+        super(LinearRegression2, self).__init__(independent=independent,
+                                                dependent=dependent, *args,
+                                                **kwargs)
 
     def do_analysis(self, *args, **kwargs):
         # base_load is the mean of all y values where x is below the breakpoint
@@ -430,27 +426,26 @@ class LinearRegression3(LinearRegression2):
     yet exclude values in a certain range (percentage of the baseload) from the regression
     """
 
-    def __init__(self, df, breakpoint, percentage, independent_var, dependent_var, include_end_of_base_load=True,
-                 *args, **kwargs):
+    def __init__(self, independent, dependent, breakpoint, percentage,
+                 include_end_of_base_load=True, *args, **kwargs):
         """
         Parameters
         ----------
-        df: Pandas Dataframe
-        breakpoint: number
+        independent : pandas.Series
+        dependent : pandas.Series
+        breakpoint : int | float
             point on the x-axis where to break between baseload and regression
         percentage: float
             y-values that are in this range to the baseload are excluded from the regression
-        independent_var : str
-            column name of the independent variable
-        dependent_var : str
-            column name of the dependent variable
-        include_end_of_base_load: boolean
+        include_end_of_base_load : bool
         """
 
         self.percentage = percentage
         self.include_end_of_base_load = include_end_of_base_load
-        super(LinearRegression3, self).__init__(df=df, breakpoint=breakpoint, independent_var=independent_var,
-                                                dependent_var=dependent_var, *args, **kwargs)
+        super(LinearRegression3, self).__init__(independent=independent,
+                                                dependent=dependent,
+                                                breakpoint=breakpoint, *args,
+                                                **kwargs)
 
     def _calculate_regression_data(self):
         """
