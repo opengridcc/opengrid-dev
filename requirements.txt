@@ -3,7 +3,7 @@ scipy
 matplotlib
 pandas==0.17.1
 gspread==0.2.5
-requests
+requests>=2.12
 requests_futures
 jupyter
 charts

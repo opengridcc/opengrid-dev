@@ -1,0 +1,46 @@
+# Example configuration file for using the OpenGrid code through the docker container.
+# Rename this file to opengrid.cfg but do not commit it in order not to mess-up 
+# other developers config files.  
+#
+# You need a configuration file in the opengrid library
+# directory, in the 'current' directory and/or pass it to the 
+# constructor of the Config class. The latter always takes
+# precedence over the former.
+
+[data]
+# Used for all kind of data files that are saved locally, eg by the cache.py module
+# For the daily cache, a subfolder called cache_day will be created in the folder specified below
+folder: /data
+
+[opengrid_server]
+password: CHANGE_ME
+
+[houseprint]
+# Approved members of the OpenGrid github group can 
+# obtain this file from https://www.opengrid.be after logging in. 
+# Download this file and save in the cloned github repo in opengrid/config
+# Don't modify the path below: this folder is mounted to 
+# /usr/local/opengrid/opengrid/config in the docker container
+json: /usr/local/opengrid/opengrid/config/houseprint-d74f58100c93.json
+
+[Wunderground]
+apikey: CHANGE_ME
+
+[Forecast.io]
+apikey: CHANGE_ME
+
+[Slack]
+# Used for testing our alerting services. 
+webhook: https://hooks.slack.com/services/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
+
+[tmpo]
+folder: /data
+
+[env]
+# type can be dev or prod.  
+# Use this in your scripts to avoid execution of detailed analysis for jobs on the server
+type: dev 
+# plots can be inline (default) or qt.  
+# Use qt if you want all plots to be rendered in a separate window.
+# This can be useful for zooming or panning.
+plots: inline
