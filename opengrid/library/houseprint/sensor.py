@@ -1,4 +1,4 @@
-__author__ = 'Jan Pecinovsky'
+__author__ = 'Jan Pecinovsky, Roel De Coninck'
 
 """
 A sensor generates a single data stream.
@@ -8,8 +8,13 @@ It is an abstract class definition which has to be overridden (by eg. a Fluksose
 This class contains all metadata concerning the function and type of the sensor (eg. electricity - solar, ...)
 """
 
+from opengrid.library import misc
+from opengrid import ureg
+import pandas as pd
+
+
 class Sensor(object):
-    def __init__(self, key, device, site, type, description, system, quantity, unit, direction, tariff):
+    def __init__(self, key, device, site, type, description, system, quantity, unit, direction, tariff, cumulative):
         self.key = key
         self.device = device
         self.site = site
@@ -20,6 +25,7 @@ class Sensor(object):
         self.unit = unit
         self.direction = direction
         self.tariff = tariff
+        self.cumulative = cumulative
 
     def __repr__(self):
         return """
@@ -29,84 +35,264 @@ class Sensor(object):
     """.format(self.__class__.__name__,
                self.key,
                self.type
-              )
+               )
 
-    def get_data(self, head = None, tail = None, resample = 'min'):
+    def get_data(self, head=None, tail=None, resample='min'):
         """
-            Return a Pandas Series with measurement data
+        Return a Pandas Series with measurement data
 
-            Parameters
-            ----------
-            head, tail: timestamps for the begin and end of the interval
+        Parameters
+        ----------
+        head, tail: timestamps for the begin and end of the interval
 
-            Notes
-            -----
-            This is an abstract method, because each type of sensor has a different way of fetching the data.
+        Notes
+        -----
+        This is an abstract method, because each type of sensor has a different way of fetching the data.
 
-            Returns
-            -------
-            Pandas Series
+        Returns
+        -------
+        Pandas Series
         """
 
         raise NotImplementedError("Subclass must implement abstract method")
 
-class Fluksosensor(Sensor):
-    def __init__(self, key, token, device, type, description, system, quantity, unit, direction, tariff):
+    def _get_default_unit(self, diff=True, resample='min'):
+        """
+        Return a string representation of the default unit for the requested operation
+        If there is no unit, returns None
 
-        #invoke init method of abstract Sensor
-        super(Fluksosensor, self).__init__(key = key,
-                                           device = device,
-                                           site = device.site,
-                                           type = type,
-                                           description = description,
-                                           system = system,
-                                           quantity = quantity,
-                                          unit = unit,
-                                          direction = direction,
-                                          tariff = tariff)
+        Parameters
+        ----------
+        diff : True (default) or False
+            If True, the original data has been differentiated
+        resample : str (default='min')
+            Sampling rate, if any.  Use 'raw' if no resampling.
+
+        Returns
+        -------
+        target : str or None
+            String representation of the target unit, eg m3/h, kW, ...
+        """
+
+        if self.type in ['electricity', 'gas', 'heat', 'energy']:
+            if diff:
+                target = 'W'
+            else:
+                target = 'kWh'
+        elif self.type == 'water':
+            if diff:
+                target = 'l/min'
+            else:
+                target = 'liter'
+        elif self.type == 'temperature':
+            target = 'degC'
+        elif self.type == 'pressure':
+            target = 'Pa'
+        elif self.type in ['battery']:
+            target = 'V'
+        elif self.type in ['current']:
+            target = 'A'
+        elif self.type in ['light']:
+            target = 'lux'
+        elif self.type == 'humidity':
+            target = 'percent'
+        elif self.type in ['error', 'vibration', 'proximity']:
+            target = ''
+
+        else:
+            target = None
+
+        return target
+
+    def _unit_conversion_factor(self, diff=True, resample='min', target='default'):
+        """
+        Return a conversion factor to convert the obtained data
+        The method starts from the unit of the sensor, and takes
+        into account sampling, differentiation (if any) and target unit.
+
+        For gas, a default calorific value of 10 kWh/liter is used.
+
+        For some units, unit conversion does not apply, and 1.0 is returned.
+
+        Parameters
+        ----------
+        diff : True (default) or False
+            If True, the original data has been differentiated
+        resample : str (default='min')
+            Sampling rate, if any.  Use 'raw' if no resampling.
+        target : str , default='default'
+            String representation of the target unit, eg m3/h, kW, ...
+            If None, 1.0 is returned
+
+        Returns
+        -------
+        cf : float
+            Multiplication factor for the original data to the target unit
+        """
+
+        # get the target
+        if target == 'default':
+            target = self._get_default_unit(diff=diff, resample=resample)
+        if target is None:
+            return 1.0
+
+        if resample == 'raw':
+            if diff:
+                raise NotImplementedError("Differentiation always needs a sampled dataframe")
+
+        # get the source
+        if not self.type == 'gas':
+            if not diff:
+                source = self.unit
+            else:
+                # differentiation. Careful, this is a hack of the unit system.
+                # we have to take care manually of some corner cases
+                if self.unit:
+                    source = self.unit + '/' + resample
+                else:
+                    source = self.unit
+
+            return misc.unit_conversion_factor(source, target)
+        else:
+            # for gas, we need to take into account the calorific value
+            # as of now, we use 10 kWh/l by default
+            CALORIFICVALUE = 10
+            q_src = 1 * ureg(self.unit)
+            q_int = q_src * ureg('Wh/liter')
+            if not diff:
+                source = str(q_int.units)  # string representing the unit, mostly kWh
+            else:
+                source = str(q_int.units) + '/' + resample
+            return CALORIFICVALUE * misc.unit_conversion_factor(source, target)
+
+
+class Fluksosensor(Sensor):
+    def __init__(self, key, token, device, type, description, system, quantity, unit, direction, tariff, cumulative):
+
+        # invoke init method of abstract Sensor
+        super(Fluksosensor, self).__init__(key=key,
+                                           device=device,
+                                           site=device.site,
+                                           type=type,
+                                           description=description,
+                                           system=system,
+                                           quantity=quantity,
+                                           unit=unit,
+                                           direction=direction,
+                                           tariff=tariff,
+                                           cumulative=cumulative)
 
         if token != '':
             self.token = token
         else:
             self.token = device.mastertoken
 
-    # @Override :-D
-    def get_data(self, head = None, tail = None, resample = 'min'):
-        '''
-            Connect to tmpo and fetch a data series
+        if self.unit == '' or self.unit is None:
+            if self.type in ['water', 'gas']:
+                self.unit = 'liter'
+            elif self.type == 'electricity':
+                self.unit = 'Wh'
+            elif self.type == 'pressure':
+                self.unit = 'Pa'
+            elif self.type == 'temperature':
+                self.unit = 'degC'
+            elif self.type == 'battery':
+                self.unit = 'V'
+            elif self.type == 'light':
+                self.unit = 'lux'
+            elif self.type == 'humidity':
+                self.unit = 'percent'
+            elif self.type in ['error', 'vibration', 'proximity']:
+                self.unit = ''
 
-            Parameters
-            ----------
-            head, tail: optional timestamps
 
-            Returns
-            -------
-            Pandas Series
-        '''
+        if self.cumulative == '' or self.cumulative is None:
+            if self.type in ['water', 'gas', 'electricity', 'vibration']:
+                self.cumulative = True
+            else:
+                self.cumulative = False
+
+    @property
+    def has_data(self):
+        """
+        Checks if a sensor actually has data by checking the length of the
+        tmpo block list
+
+        Returns
+        -------
+        bool
+        """
+        tmpos = self.site.hp.get_tmpos()
+        return len(tmpos.list(self.key)[0]) != 0
+
+    def get_data(self, head=None, tail=None, diff='default', resample='min', unit='default'):
+        """
+        Connect to tmpo and fetch a data series
+
+        Parameters
+        ----------
+        sensors : list of Sensor objects
+            If None, use sensortype to make a selection
+        sensortype : string (optional)
+            gas, water, electricity. If None, and Sensors = None,
+            all available sensors in the houseprint are fetched
+        head, tail: timestamps,
+        diff : bool or 'default'
+            If True, the original data will be differentiated
+            If 'default', the sensor will decide: if it has the attribute
+            cumulative==True, the data will be differentiated.
+        resample : str (default='min')
+            Sampling rate, if any.  Use 'raw' if no resampling.
+        unit : str , default='default'
+            String representation of the target unit, eg m**3/h, kW, ...
+
+        Returns
+        -------
+        Pandas Series with additional attribute 'unit' set to
+        the string representation of the unit of the data.
+        """
 
         tmpos = self.site.hp.get_tmpos()
 
         if head is None:
             head = 0
         if tail is None:
-            tail = 2147483647 #tmpo epochs max
+            tail = 2147483647  # tmpo epochs max
 
-        data = tmpos.series(sid = self.key,
-                           head = head,
-                           tail = tail)
+        data = tmpos.series(sid=self.key,
+                            head=head,
+                            tail=tail)
 
-        if resample == 'raw':
-            return data
+        if data.dropna().empty:
+            # Return an empty dataframe with correct name
+            return pd.Series(name=self.key)
 
-        if not data.dropna().empty:
+        elif resample != 'raw':
 
-            #interpolate on seconds
-            newindex = data.resample('s').index
-            data = data.reindex(data.index + newindex)
+            if resample == 'hour':
+                rule = 'H'
+            elif resample == 'day':
+                rule = 'D'
+            else:
+                rule = resample
+
+            # interpolate to requested frequency
+            newindex = data.resample(rule).index
+            data = data.reindex(data.index.union(newindex))
             data = data.interpolate(method='time')
             data = data.reindex(newindex)
 
-            #resample as requested
-            data = data.resample(resample)
+            if diff == 'default':
+                diff = self.cumulative
+
+            if diff:
+                data = data.diff()
+
+        # unit conversion
+        if unit == 'default':
+            unit = self._get_default_unit(diff=diff, resample=resample)
+        ucf = self._unit_conversion_factor(diff=diff, resample=resample, target=unit)
+        data *= ucf
+        data.unit = unit
 
         return data

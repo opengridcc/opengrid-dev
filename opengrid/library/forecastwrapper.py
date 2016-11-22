@@ -1,13 +1,22 @@
 __author__ = 'Jan Pecinovsky'
 
 import datetime as dt
-from copy import copy
-
 import forecastio
-import geopy
+from forecastio.models import Forecast
+from geopy import Location, Point, GoogleV3
 import numpy as np
 import pandas as pd
-from dateutil import rrule
+import pytz
+from cached_property import cached_property
+from tqdm import tqdm
+import os
+import pickle
+
+
+from .misc import dayset, calculate_temperature_equivalent, \
+    calculate_degree_days
+from opengrid import config
+cfg = config.Config()
 
 
 class Weather():
@@ -16,45 +25,132 @@ class Weather():
         NOTE: Forecast.io allows 1000 requests per day, after that you have to pay. Each requested day is 1 request.
     """
 
-    def __init__(self, api_key, location, start, end=None, tz=None):
+    def __init__(self, location, start, end=None, tz=None, cache=True):
         """
             Constructor
 
             Parameters
             ----------
-            api_key : string
-                Forecast.io API Key
-            location : string OR iterable with 2 floats, latitude and longitude
-                String can be City, address, POI. Iterable = [lat,lng]
-            start : datetime-like object
+            location : str | tuple(float, float)
+                String can be City, address, POI. tuple = (lat, lng)
+            start : datetime.datetime | pandas.Timestamp
                 start of the interval to be searched
-            end : datetime-like object (optional, default=None)
-                end of the interval to be searched, if None, use current time
-            tz : timezone string (optional)
+            end : datetime.datetime | pandas.Timestamp, optional
+                end of the interval to be searched
+                if None, use current time
+            tz : str, optional
                 tz specifies the timezone of the response.
                 If none, response will be in the timezone of the location
+            cache : bool
+                use the cache or not
+        """
+        self.api_key = cfg.get('Forecast.io', 'apikey')
+        self._location = location
+        self._start = start
+        self._end = end
+        self._tz = tz
+        self.cache = cache
+
+        self._forecasts = []
+
+    @cached_property  # so we don't have to lookup every time it is called
+    def location(self):
+        """
+        Get the location, but as a geopy location object
+
+        Returns
+        -------
+        Location
+        """
+        # if the input was a string, we do a google lookup
+        if isinstance(self._location, str):
+            location = GoogleV3().geocode(self._location)
+
+        # if the input was an iterable, it is latitude and longitude
+        elif hasattr(self._location, '__iter__'):
+            lat, long = self._location
+            gepoint = Point(latitude=lat, longitude=long)
+            location = Location(point=gepoint)
+
+        else:
+            raise ValueError('Invalid location')
+
+        return location
+
+    @property
+    def start(self):
+        """
+        Return localized start time
+
+        Returns
+        -------
+        datetime.datetime | pandas.Timestamp
+        """
+        if self._start.tzinfo is None:
+            return self.tz.localize(self._start)
+        else:
+            return self._start
+
+    @property
+    def end(self):
+        """
+        Return localized end time
+
+        Returns
+        -------
+        datetime.datetime | pandas.Timestamp
+        """
+        if self._end is None:
+            return pd.Timestamp('now', tz=self.tz.zone)
+        elif self._end.tzinfo is None:
+            return self.tz.localize(self._end)
+        else:
+            return self._end
+
+    @property
+    def tz(self):
+        """
+        Get the timezone
+
+        Returns
+        -------
+        pytz.timezone
         """
 
-        self.start = start
-        if end is None:
-            end = pd.Timestamp('now', tz=tz)
-        self.end = end
+        # if the user has specified a zone, use that one
+        if self._tz is not None:
+            tz = self._tz
 
-        self.api_key = api_key
+        # if there already are some forecasts, the timezone is in there
+        elif self._forecasts:
+            tz = self._lookup_timezone()
 
-        # input location
-        if isinstance(location, str):
-            self.location = self._get_geolocator().geocode(location)
+        # use Google geocoder to lookup timezone
         else:
-            self.location = geopy.location.Location(
-                point=geopy.location.Point(latitude=location[0], longitude=location[1]))
+            lat, long, _alt = self.location.point
+            tz = GoogleV3().timezone(location=(lat, long)).zone
 
-        if tz is not None:
-            self.tz = tz
-        else:
-            self.tz = self.lookup_timezone()
+        # return as a pytz object
+        return pytz.timezone(tz)
 
-        self.forecasts = [self._get_forecast(date=date) for date in self._dayset(start=start, end=end)]
+    @property
+    def forecasts(self):
+        """
+        Get a list of all forecast objects
+
+        Returns
+        -------
+        list(Forecast)
+        """
+        # we stick the list in self._forecasts, only if it is still empty
+        if not self._forecasts:
+            # get list of seperate days
+            days = dayset(start=self.start, end=self.end)
+            # wrap in a tqdm so we get the progress bar
+            for date in tqdm(days):
+                self._forecasts.append(self._get_forecast(date=date))
+
+        return self._forecasts
 
     def days(self,
              include_average_temperature=True,
@@ -114,15 +210,22 @@ class Weather():
         frame = self._fix_index(frame).sort_index()
 
         if include_temperature_equivalent:
-            frame = self._add_temperature_equivalent(frame)
+            frame['temperatureEquivalent'] = calculate_temperature_equivalent(temperatures=frame.temperature)
+            frame.dropna(subset=['temperatureEquivalent'], inplace=True)
 
         if include_heating_degree_days:
-            frame = self._add_heating_degree_days(df=frame, base_temperatures=heating_base_temperatures)
+            for base in heating_base_temperatures:
+                frame['heatingDegreeDays{}'.format(base)] = calculate_degree_days(
+                    temperature_equivalent=frame.temperatureEquivalent, base_temperature=base
+                )
 
         if include_cooling_degree_days:
-            frame = self._add_cooling_degree_days(df=frame, base_temperatures=cooling_base_temperatures)
+            for base in cooling_base_temperatures:
+                frame['coolingDegreeDays{}'.format(base)] = calculate_degree_days(
+                    temperature_equivalent=frame.temperatureEquivalent, base_temperature=base, cooling=True
+                )
 
-        return frame.truncate(before=self.start, after=self.end)
+        return frame
 
     def hours(self):
         """
@@ -134,38 +237,7 @@ class Weather():
         """
         day_list = [self._forecast_to_hour_series(forecast) for forecast in self.forecasts]
         frame = pd.concat(day_list)
-        return self._fix_index(frame).truncate(before=self.start, after=self.end)
-
-    def _get_geolocator(self):
-        """
-            Only create the geolocator if needed
-
-            Returns
-            -------
-            geopy.geolocator
-        """
-        if not hasattr(self, 'geolocator'):
-            self.geolocator = geopy.GoogleV3()
-        return self.geolocator
-
-    def _dayset(self, start, end):
-        """
-            Takes a start and end date and returns a set containing all dates between start and end
-
-            Parameters
-            ----------
-            start : datetime-like object
-            end : datetime-like object
-
-            Returns
-            -------
-            set of datetime objects
-        """
-
-        res = []
-        for dt in rrule.rrule(rrule.DAILY, dtstart=start, until=end):
-            res.append(dt)
-        return sorted(set(res))
+        return self._fix_index(frame).sort_index().truncate(before=self.start, after=self.end)
 
     def _get_forecast(self, date):
         """
@@ -173,13 +245,29 @@ class Weather():
 
             Parameters
             ----------
-            date : datetime-like object
+            date : datetime.date
 
             Returns
             -------
             forecastio forecast
         """
-        return forecastio.load_forecast(self.api_key, self.location.latitude, self.location.longitude, date)
+        # Forecast takes a dt.datetime
+        # conversion from dt.date to dt.datetime, there must be a better way, right?
+        time = dt.datetime(year=date.year, month=date.month, day=date.day)
+
+        f = None
+        if self.cache:
+            f = self._load_from_cache(date)
+
+        if not f:
+            f = forecastio.load_forecast(key=self.api_key,
+                                         lat=self.location.latitude,
+                                         lng=self.location.longitude,
+                                         time=time)
+            if self.cache:
+                self._save_in_cache(f, date)
+
+        return f
 
     def _get_forecast_dates(self):
         """
@@ -189,7 +277,16 @@ class Weather():
         -------
         set of datetime.date
         """
-        return {forecast.currently().time.date() for forecast in self.forecasts}
+        dates = []
+        for forecast in self.forecasts:
+            time = forecast.currently().time
+
+            # the time is in UTC, we need to localize it.
+            tz = pytz.timezone(self._lookup_timezone())
+            time_utc = tz.fromutc(time)
+
+            dates.append(time_utc.date())
+        return set(dates)
 
     def _add_forecast(self, date):
         """
@@ -197,10 +294,14 @@ class Weather():
 
         Parameters
         ----------
-        date: datetime-like object
+        date : dt.date | dt.datetime | pd.Timestamp
         """
-        if date.date() not in self._get_forecast_dates():
-            self.forecasts.append(self._get_forecast(date))
+        # for if you pass a datetime instead of a date
+        if hasattr(date, 'date'):
+            date = date.date()
+
+        if date not in self._get_forecast_dates():
+            self._forecasts.append(self._get_forecast(date))
 
     def _forecast_to_hour_series(self, forecast):
         """
@@ -235,19 +336,19 @@ class Weather():
         frame['time'] = pd.DatetimeIndex(frame['time'].astype('datetime64[s]'))
         frame.set_index('time', inplace=True)
         frame = frame.tz_localize('UTC')
-        frame = frame.tz_convert(self.tz)
+        frame = frame.tz_convert(self.tz.zone)
         return frame
 
-    def lookup_timezone(self):
+    def _lookup_timezone(self):
         """
-        Lookup the timezone using the location information
+        Lookup the timezone in the JSON of the first forecast
 
         Returns
         -------
         String (Pytz timezone)
         """
-        tz = self._get_geolocator().timezone((self.location.latitude, self.location.longitude))
-        return tz.zone
+        tz = self.forecasts[0].json['timezone']
+        return tz
 
     def _forecast_to_day_series(
             self,
@@ -338,77 +439,53 @@ class Weather():
         # return mean of truncated timeseries
         return round(ts.mean(), 2)
 
-    def _add_temperature_equivalent(self, df):
+    @property
+    def cache_folder(self):
+        location_str = "{}_{}".format(round(self.location.latitude, 4),
+                                      round(self.location.longitude, 4))
+
+        forecast_folder = os.path.join(os.path.abspath(cfg.get('data', 'folder')),
+                            'forecasts')
+        location_folder = os.path.join(forecast_folder, location_str)
+
+        for folder in [forecast_folder, location_folder]:
+            if not os.path.exists(folder):
+                print("This folder does not exist: {}, it will be created".format(folder))
+                os.mkdir(folder)
+
+        return location_folder
+
+    def _pickle_path(self, date):
+        filename = str(date) + '.pkl'
+        path = os.path.join(self.cache_folder, filename)
+        return path
+
+    def _save_in_cache(self, f, date):
         """
-        Adds the temperature equivalent to the data frame
-        according to the formula: 0.6 * tempDay0 + 0.3 * tempDay-1 + 0.1 * tempDay-2
-        Because we need the two previous days to calculate day0, the resulting dataframe will be 2 days shorter
-        (you should pass dataframes that have two days more than you want)
+        Save Forecast object to cache
 
         Parameters
         ----------
-        df : Pandas Dataframe
-
-        Returns
-        -------
-        Pandas Dataframe
+        f : Forecast
+        date : datetime.date
         """
 
-        # select temperature column from dataframe
-        temperature = df['temperature']
-        # calculate the temperature equivalent, using two days before day0
-        temperature_equivalent = [
-            0.6 * temperature.values[ix] + 0.3 * temperature.values[ix - 1] + 0.1 * temperature.values[ix - 2] for ix in
-            range(0, len(df)) if ix > 1]
+        pickle.dump(f, open(self._pickle_path(date), "wb"))
 
-        # the response will be 2 days shorter
-        res = copy(df[2:])
-
-        # add the temperature equivalent to the response
-        res['temperatureEquivalent'] = temperature_equivalent
-
-        return res
-
-    def _add_heating_degree_days(self, df, base_temperatures):
+    def _load_from_cache(self, date):
         """
-        Add heating degree days to the dataframe.
-        They are calculated by subtracting the temperature equivalent from a base temperature
-        Note: Degree days cannot be negative
+        Load Forecast object from cache
 
         Parameters
         ----------
-        df : Pandas Dataframe
-        base_temperatures : list of numbers
+        date : datetime.date
 
         Returns
         -------
-        Pandas Dataframe
+        Forecast
         """
-
-        for base in base_temperatures:
-            df['heatingDegreeDays{}'.format(base)] = [max(0, base - equivalent) for equivalent in
-                                                      df['temperatureEquivalent']]
-
-        return df
-
-    def _add_cooling_degree_days(self, df, base_temperatures):
-        """
-        Add cooling degree days to the dataframe.
-        They are calculated by subtracting a base temperature from the temperature equivalent.
-        Note: Degree days cannot be negative
-
-        Parameters
-        ----------
-        df : Pandas Dataframe
-        base_temperatures : list of numbers
-
-        Returns
-        -------
-        Pandas Dataframe
-        """
-
-        for base in base_temperatures:
-            df['coolingDegreeDays{}'.format(base)] = [max(0, equivalent - base) for equivalent in
-                                                      df['temperatureEquivalent']]
-
-        return df
+        path = self._pickle_path(date)
+        if os.path.exists(path):
+            return pickle.load(open(path, "rb"))
+        else:
+            return None

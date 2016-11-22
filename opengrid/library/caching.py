@@ -12,6 +12,7 @@ Created on Thu Jan  7 09:34:04 2016
 import os
 import numpy as np
 import pandas as pd
+import dateutil
 from opengrid import config
 cfg = config.Config()
 from opengrid.library import misc
@@ -24,24 +25,24 @@ class Cache(object):
     The file format for the data is result_sensor.csv
     """
     
-    def __init__(self, result, folder=None):
+    def __init__(self, variable, folder=None):
         """
-        Create a cache object specifically for the specified result
+        Create a cache object specifically for the specified variable
         
         Arguments
         ---------
-        result : str
-            The name of the aggregated result to be stored.
+        variable : str
+            The name of the aggregated variable to be stored.
             Examples: elec_standby, water_max, ...
         folder : path
             Path where the files are stored
             If None, use the path specified in the opengrid configuration
             
         """
-        self.result = result
+        self.variable = variable
         if folder is None:
             try:
-                self.folder = os.path.abspath(cfg.get('data', 'folder'))
+                self.folder = os.path.join(os.path.abspath(cfg.get('data', 'folder')),'cache_day')
             except:
                 raise ValueError("Specify a folder, either in the opengrid.cfg or when creating this cache object.")
         else:
@@ -51,7 +52,7 @@ class Cache(object):
             print("This folder does not exist: {}, it will be created".format(self.folder))
             os.mkdir(self.folder)
             
-        print("Cache object created for result: {}".format(self.result))
+        print("Cache object created for variable: {}".format(self.variable))
 
    
     def _load(self, sensorkey):
@@ -70,15 +71,14 @@ class Cache(object):
         
         """
         # Find the file and read into a dataframe
-        filename = self.result + '_' + sensorkey + '.csv'
+        filename = self.variable + '_' + sensorkey + '.csv'
         path = os.path.join(self.folder, filename)
         
         if not os.path.exists(path):
-            print("Could not find {}".format(path))
+            #print("Could not find {}".format(path))
             return pd.DataFrame()
         
-        df = pd.read_csv(path, index_col = 0, header=0, parse_dates=True)
-        df.index = df.index.tz_localize('UTC')
+        df = pd.read_csv(path, index_col = 0, header=0, parse_dates=True, date_parser=dateutil.parser.parse)
         return df
     
     
@@ -103,11 +103,11 @@ class Cache(object):
 
         sensor = df_temp.columns[0]
         # Find the file and read into a dataframe
-        filename = self.result + '_' + sensor + '.csv'
+        filename = self.variable + '_' + sensor + '.csv'
         path = os.path.join(self.folder, filename)
         
         df_temp.to_csv(path)
-        print("Values for {} written to {}".format(sensor, path))
+        #print("Values for {} written to {}".format(sensor, path))
         return True
 
     def _write(self, df):
@@ -186,7 +186,7 @@ class Cache(object):
     
     def check_df(self, df):
         """
-        Verify that the dataframe is acceptable as a daily aggregation result
+        Verify that the dataframe is acceptable as a daily aggregation variable
         
         Arguments
         ---------
@@ -200,7 +200,7 @@ class Cache(object):
 
         """
         if len(df) == 0:
-            print("Empty dataframe")
+            #print("Empty dataframe")
             return False
         
         if df.index.freqstr != 'D':
@@ -287,7 +287,7 @@ class Cache(object):
             return True
 
 
-def cache(hp, sensors, function, resultname, **kwargs):
+def cache_results(hp, sensors, resultname, AnalysisClass, **kwargs):
     """
     Run an analysis on a set of sensors and cache the results
 
@@ -295,12 +295,12 @@ def cache(hp, sensors, function, resultname, **kwargs):
     ----------
     sensors : list with Sensor objects
         Each element is a Sensor object with attribute 'key' as sensor_id
-    function : string (functionname)
-        method from the analysis library
+    AnalysisClass : object
+        Class from the analysis library for the doing the analysis
     resultname : string
         Name of the cached variable, eg. elect_standby or water_daily_max
     kwargs : dict
-        Additional keyword arguments are passed to the call of the analysis method
+        Additional keyword arguments are passed to the instantiation of the analysis class
 
     Returns
     -------
@@ -313,7 +313,7 @@ def cache(hp, sensors, function, resultname, **kwargs):
     # Therefore, we create a for loop over the sensor ids
 
     import importlib
-    cache = Cache(result=resultname)
+    cache = Cache(variable=resultname)
 
     for sensor in sensors:
         # Get whatever is available as cache
@@ -325,12 +325,10 @@ def cache(hp, sensors, function, resultname, **kwargs):
             last_day = 0
 
         # get new data, full resolution
-        # Todo: for non-counter values, diff() is not needed!!
-        df_new = hp.get_data(sensors = [sensor], head=last_day).diff()
+        df_new = hp.get_data(sensors = [sensor], head=last_day)
 
         # apply the method
-        method = getattr(analysis, function)
-        df_day = method(df_new, **kwargs)
+        df_day = AnalysisClass(df_new, **kwargs).result
 
         # cache the results
         cache.update(df_day)

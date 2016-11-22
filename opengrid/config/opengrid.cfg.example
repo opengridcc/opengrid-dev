@@ -6,8 +6,9 @@
 # precedence over the former.
 
 [data]
-# Used for CSV files that are saved locally, eg by the cache.py module
-folder: path_to_csv_files
+# Used for all kind of data files that are saved locally, eg by the cache.py module
+# For the daily cache, a subfolder called cache_day will be created in the folder specified below
+folder: path
 
 [opengrid_server]
 password: CHANGE_ME
@@ -35,3 +36,6 @@ type: dev
 # Use qt if you want all plots to be rendered in a separate window.
 # This can be useful for zooming or panning.
 plots: inline
+
+[Slack]
+webhook: Get the webhook URL from an OpenGrid developer

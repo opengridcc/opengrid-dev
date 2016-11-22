@@ -35,4 +35,7 @@ install:
   - python setup.py install
 
 
-script: nosetests --exclude needpassword
+script: nosetests --with-coverage --exclude needpassword
+
+after_success:
+  - coveralls
