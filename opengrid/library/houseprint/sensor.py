@@ -277,7 +277,7 @@ class Fluksosensor(Sensor):
                 rule = resample
 
             # interpolate to requested frequency
-            newindex = data.resample(rule).first().index
+            newindex = data.resample(rule).index
             data = data.reindex(data.index.union(newindex))
             data = data.interpolate(method='time')
             data = data.reindex(newindex)
