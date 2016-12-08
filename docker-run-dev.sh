@@ -15,15 +15,15 @@ fi
 # mount current folder to /usr/local/opengrid in the container
 # for data persistence, mount ./data to the /data folder
 # if you want to store the data in a different location, modify the command below
-docker run -d -p 8888:8888 -v $(pwd -P):/usr/local/opengrid  -v $(pwd -P)/data:/data --name opengrid-dev opengrid/dev:latest
+docker run -d -p 8899:8888 -v $(pwd -P):/usr/local/opengrid  -v $(pwd -P)/data:/data --name opengrid-dev opengrid/dev:python3
 
 # Give it some time
 sleep 1s 
 
-URL=http://$(docker-machine ip default):8888
+URL=http://$(docker-machine ip default):8899
 
 if [ -z "$(docker-machine ip default)"]; then
-	URL="http://localhost:8888"
+	URL="http://localhost:8899"
 fi
 echo "Open the notebook server on $URL"
 
