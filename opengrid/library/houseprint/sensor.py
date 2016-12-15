@@ -212,6 +212,19 @@ class Fluksosensor(Sensor):
             else:
                 self.cumulative = False
 
+    @property
+    def has_data(self):
+        """
+        Checks if a sensor actually has data by checking the length of the
+        tmpo block list
+
+        Returns
+        -------
+        bool
+        """
+        tmpos = self.site.hp.get_tmpos()
+        return len(tmpos.list(self.key)[0]) != 0
+
     def get_data(self, head=None, tail=None, diff='default', resample='min', unit='default'):
         """
         Connect to tmpo and fetch a data series
@@ -264,7 +277,7 @@ class Fluksosensor(Sensor):
                 rule = resample
 
             # interpolate to requested frequency
-            newindex = data.resample(rule).index
+            newindex = data.resample(rule).first().index
             data = data.reindex(data.index.union(newindex))
             data = data.interpolate(method='time')
             data = data.reindex(newindex)

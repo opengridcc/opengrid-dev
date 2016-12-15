@@ -471,6 +471,10 @@ class Houseprint(object):
         if sensors is None:
             sensors = self.get_sensors(sensortype)
         series = [sensor.get_data(head=head, tail=tail, diff=diff, resample=resample, unit=unit) for sensor in sensors]
+
+        # workaround for https://github.com/pandas-dev/pandas/issues/12985
+        series = [s for s in series if not s.empty]
+
         df = pd.concat(series, axis=1)
 
         # Add unit as string to each series in the df.  This is not persistent: the attribute unit will get
