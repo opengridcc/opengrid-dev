@@ -490,6 +490,47 @@ class Houseprint(object):
 
         return df
 
+    def get_data_dynamic(self, sensors=None, sensortype=None, head=None,
+                         tail=None, diff='default', resample='min',
+                         unit='default'):
+        """
+        Yield Pandas Series for the given sensors
+
+        Parameters
+        ----------
+        sensors : list(Sensor), optional
+            If None, use sensortype to make a selection
+        sensortype : str, optional
+            gas, water, electricity. If None, and Sensors = None,
+            all available sensors in the houseprint are fetched
+        head : dt.datetime | pd.Timestamp | int, optional
+        tail : dt.datetime | pd.Timestamp | int, optional
+        diff : bool | str('default')
+            If True, the original data will be differentiated
+            If 'default', the sensor will decide: if it has the attribute
+            cumulative==True, the data will be differentiated.
+        resample : str
+            default='min'
+            Sampling rate, if any.  Use 'raw' if no resampling.
+        unit : str
+            default='default'
+            String representation of the target unit, eg m**3/h, kW, ...
+
+        Yields
+        ------
+        Pandas.Series
+        """
+        if sensors is None:
+            sensors = self.get_sensors(sensortype)
+
+        for sensor in sensors:
+            ts = sensor.get_data(head=head, tail=tail, diff=diff,
+                                  resample=resample, unit=unit)
+            if ts.empty:
+                continue
+            else:
+                yield ts
+
 
 def load_houseprint_from_file(filename):
     """
