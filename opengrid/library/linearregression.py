@@ -64,7 +64,7 @@ class LinearRegression(analysis.Analysis):
 
     def _set_slope(self, slope):
         """
-        Sets slope attribute, but throws a warning when it is negative
+        Sets slope attribute, but throws an error when it is negative
 
         Parameters
         ----------
@@ -73,7 +73,7 @@ class LinearRegression(analysis.Analysis):
         """
         self.slope = slope
         if slope < 0:
-            logging.warning("Negative slope")
+            raise ValueError("Negative slope!")
 
     def _set_r_value(self, r_value):
         """
