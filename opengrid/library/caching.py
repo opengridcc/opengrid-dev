@@ -326,7 +326,7 @@ def cache_results(hp, sensors, resultname, AnalysisClass, chunk=True, **kwargs):
         try:
             last_day = df_cached.index[-1]
         except IndexError:
-            last_day = '1977-01-01'
+            last_day = pd.Timestamp('2013-01-01', tz='UTC')
 
         if chunk:
             for d in pd.DatetimeIndex(start=last_day, freq='D', end=pd.Timestamp.today()):
