@@ -328,9 +328,19 @@ def cache_results(hp, sensors, resultname, AnalysisClass, chunk=True, **kwargs):
         except IndexError:
             last_day = '1977-01-01'
 
-        for d in pd.DatetimeIndex(start=last_day, freq='D', end=pd.Timestamp.today()):
-            # get new data for a single day, full resolution
-            df_new = hp.get_data(sensors = [sensor], head=d, tail=d + pd.Timedelta(days=1))
+        if chunk:
+            for d in pd.DatetimeIndex(start=last_day, freq='D', end=pd.Timestamp.today()):
+                # get new data for a single day, full resolution
+                df_new = hp.get_data(sensors = [sensor], head=d, tail=d + pd.Timedelta(days=1))
+
+                # apply the method
+                df_day = AnalysisClass(df_new, **kwargs).result
+
+                # cache the results
+                cache.update(df_day)
+        else:
+            # get new data, full resolution
+            df_new = hp.get_data(sensors=[sensor], head=last_day)
 
             # apply the method
             df_day = AnalysisClass(df_new, **kwargs).result
