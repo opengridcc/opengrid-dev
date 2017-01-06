@@ -471,7 +471,14 @@ class Houseprint(object):
         if sensors is None:
             sensors = self.get_sensors(sensortype)
         series = [sensor.get_data(head=head, tail=tail, diff=diff, resample=resample, unit=unit) for sensor in sensors]
-        df = pd.concat(series, axis=1)
+
+        # workaround for https://github.com/pandas-dev/pandas/issues/12985
+        series = [s for s in series if not s.empty]
+
+        if series:
+            df = pd.concat(series, axis=1)
+        else:
+            df = pd.DataFrame()
 
         # Add unit as string to each series in the df.  This is not persistent: the attribute unit will get
         # lost when doing operations with df, but at least it can be checked once.
@@ -482,6 +489,47 @@ class Houseprint(object):
                 pass
 
         return df
+
+    def get_data_dynamic(self, sensors=None, sensortype=None, head=None,
+                         tail=None, diff='default', resample='min',
+                         unit='default'):
+        """
+        Yield Pandas Series for the given sensors
+
+        Parameters
+        ----------
+        sensors : list(Sensor), optional
+            If None, use sensortype to make a selection
+        sensortype : str, optional
+            gas, water, electricity. If None, and Sensors = None,
+            all available sensors in the houseprint are fetched
+        head : dt.datetime | pd.Timestamp | int, optional
+        tail : dt.datetime | pd.Timestamp | int, optional
+        diff : bool | str('default')
+            If True, the original data will be differentiated
+            If 'default', the sensor will decide: if it has the attribute
+            cumulative==True, the data will be differentiated.
+        resample : str
+            default='min'
+            Sampling rate, if any.  Use 'raw' if no resampling.
+        unit : str
+            default='default'
+            String representation of the target unit, eg m**3/h, kW, ...
+
+        Yields
+        ------
+        Pandas.Series
+        """
+        if sensors is None:
+            sensors = self.get_sensors(sensortype)
+
+        for sensor in sensors:
+            ts = sensor.get_data(head=head, tail=tail, diff=diff,
+                                  resample=resample, unit=unit)
+            if ts.empty:
+                continue
+            else:
+                yield ts
 
 
 def load_houseprint_from_file(filename):

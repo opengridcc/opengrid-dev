@@ -10,6 +10,7 @@
 [data]
 # Used for all kind of data files that are saved locally, eg by the cache.py module
 # For the daily cache, a subfolder called cache_day will be created in the folder specified below
+# The folder for the tmpo database is specified separately in the [tmpo] section
 folder: /data
 
 [opengrid_server]
@@ -34,7 +35,7 @@ apikey: CHANGE_ME
 webhook: https://hooks.slack.com/services/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
 
 [tmpo]
-folder: /data
+data: /data
 
 [env]
 # type can be dev or prod.  
