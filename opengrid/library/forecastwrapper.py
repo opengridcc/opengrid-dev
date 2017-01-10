@@ -160,7 +160,8 @@ class Weather():
              include_cooling_degree_days=True,
              cooling_base_temperatures=[18],
              include_daytime_cloud_cover=True,
-             include_daytime_temperature=True
+             include_daytime_temperature=True,
+             include_sum_ghi=True
              ):
         """
         Create a dataframe with all weather data in daily resolution
@@ -183,6 +184,9 @@ class Weather():
             Include average Cloud Cover during daytime hours (from sunrise to sunset)
         include_daytime_temperature : bool (optional, default: True)
             Include average Temperature during daytime hours (from sunrise to sunset)
+        include_sum_ghi : bool (optional)
+            default True
+            Include the sum of the Global Horizontal Irradiance (in W/m^2)
 
         Returns
         -------
@@ -200,11 +204,14 @@ class Weather():
             self._add_forecast(self.start - pd.Timedelta(days=1))
             self._add_forecast(self.start - pd.Timedelta(days=2))
 
-        day_list = [self._forecast_to_day_series(forecast=forecast,
-                                                 include_average_temperature=include_average_temperature,
-                                                 include_daytime_cloud_cover=include_daytime_cloud_cover,
-                                                 include_daytime_temperature=include_daytime_temperature
-                                                 ) for forecast in self.forecasts]
+        day_list = [
+            self._forecast_to_day_series(
+                forecast=forecast,
+                include_average_temperature=include_average_temperature,
+                include_daytime_cloud_cover=include_daytime_cloud_cover,
+                include_daytime_temperature=include_daytime_temperature,
+                include_sum_ghi=include_sum_ghi
+            ) for forecast in self.forecasts]
 
         frame = pd.concat(day_list)
         frame = self._fix_index(frame).sort_index()
@@ -321,31 +328,41 @@ class Weather():
         Pandas Dataframe
 
         """
-        def flatten(j):
-            """
-            Extracts the 'solar' part from the response json,
-            renames the fields and includes them along with everything else
-            """
-            try:
-                solar = j.pop('solar')
-            except KeyError:
-                return j
-            else:
-                # give the properties some more verbose names
-                new_names = {'altitude': 'SolarAltitude',
-                             'dni': 'DirectNormalIrradiance',
-                             'ghi': 'GlobalHorizontalIrradiance',
-                             'dhi': 'DiffuseHorizontalIrradiance',
-                             'etr': 'ExtraTerrestrialRadiation',
-                             'azimuth': 'SolarAzimuth'
-                             }
-                solar = {new_names[key]: val for key, val in solar.items()}
-                j.update(solar)
-                return j
 
-        hour_list = [pd.Series(flatten(hour.d)) for hour in forecast.hourly().data]
+        hour_list = [pd.Series(self._flatten_solar(hour.d)) for hour in forecast.hourly().data]
         frame = pd.concat(hour_list, axis=1).T
         return frame
+
+    @staticmethod
+    def _flatten_solar(j):
+        """
+        Extracts the 'solar' part from the response json,
+        renames the fields and includes them along with everything else
+
+        Parameters
+        ----------
+        j : dict
+
+        Returns
+        -------
+        dict
+        """
+        try:
+            solar = j.pop('solar')
+        except KeyError:
+            return j
+        else:
+            # give the properties some more verbose names
+            new_names = {'altitude': 'SolarAltitude',
+                         'dni': 'DirectNormalIrradiance',
+                         'ghi': 'GlobalHorizontalIrradiance',
+                         'dhi': 'DiffuseHorizontalIrradiance',
+                         'etr': 'ExtraTerrestrialRadiation',
+                         'azimuth': 'SolarAzimuth'
+                         }
+            solar = {new_names[key]: val for key, val in solar.items()}
+            j.update(solar)
+            return j
 
     def _fix_index(self, frame):
         """
@@ -382,27 +399,30 @@ class Weather():
             forecast,
             include_average_temperature,
             include_daytime_cloud_cover,
-            include_daytime_temperature
+            include_daytime_temperature,
+            include_sum_ghi
     ):
         """
         Transforms the daily data of a forecast object to a pandas dataframe
 
         Parameters
         ----------
+        forecast : forecastio.models.Forecast
         include_daytime_cloud_cover : bool
         include_daytime_temperature : bool
         include_average_temperature : bool
-        forecast : Forecast Object
+        include_sum_ghi : bool
+            include the total sum of Global Horizontal Irradiance
 
         Returns
         -------
-        Pandas dataframe
+        pandas.DataFrame
 
         """
         data = forecast.daily().data[0].d
 
         if include_average_temperature:
-            average_temperature = self._get_daily_average(forecast=forecast, key='temperature')
+            average_temperature = self._get_daily_aggregate(forecast=forecast, key='temperature')
             data.update({'temperature': average_temperature})
         if include_daytime_cloud_cover:
             daytime_cloud_cover = self._get_daytime_average(forecast=forecast, key='cloudCover')
@@ -410,27 +430,45 @@ class Weather():
         if include_daytime_temperature:
             daytime_temperature = self._get_daytime_average(forecast=forecast, key='temperature')
             data.update({'daytimeTemperature': daytime_temperature})
+        if include_sum_ghi:
+            sum_ghi = self._get_daily_aggregate(forecast=forecast,
+                                                key='GlobalHorizontalIrradiance',
+                                                agg='sum')
+            data.update({'GlobalHorizontalIrradiance': sum_ghi})
 
         frame = [pd.Series(data)]
         return pd.concat(frame, axis=1).T
 
-    def _get_daily_average(self, forecast, key):
+    def _get_daily_aggregate(self, forecast, key, agg='mean'):
         """
-        Calculate the average daily value for a given forecast and a given key from the hourly values
+        Calculate the daily aggregated value for a given forecast
+        and a given key from the hourly values
 
         Parameters
         ----------
-        forecast : Forecast object
-        key : String
+        forecast : forecastio.models.Forecast
+        key : str
+        agg : str
+            'mean' | 'sum'
 
         Returns
         -------
         float
         """
         # make a list of all hourly values for the given key
-        values = [hour.d[key] for hour in forecast.hourly().data]
-        # calculate the mean, round to 2 significant figures and return
-        return round(np.mean(values), 2)
+        values = [self._flatten_solar(hour.d).get(key) for hour in forecast.hourly().data]
+        values = [val for val in values if val is not None]
+
+        # calculate the aggregate
+        if agg == 'mean':
+            res = np.mean(values)
+        elif agg == 'sum':
+            res = np.sum(values)
+        else:
+            raise NotImplementedError('Aggregation method not supported')
+
+        # round to 2 significant figures and return
+        return round(res, 2)
 
     def _get_daytime_average(self, forecast, key):
         """
