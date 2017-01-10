@@ -260,10 +260,15 @@ class Weather():
             f = self._load_from_cache(date)
 
         if not f:
+            # We specifically ask for si units,
+            # so we can inject the SOLAR argument to get solar data
+            # which is in beta (januari 2017)
             f = forecastio.load_forecast(key=self.api_key,
                                          lat=self.location.latitude,
                                          lng=self.location.longitude,
-                                         time=time)
+                                         time=time,
+                                         units='si&solar'
+                                         )
             if self.cache:
                 self._save_in_cache(f, date)
 
@@ -316,7 +321,29 @@ class Weather():
         Pandas Dataframe
 
         """
-        hour_list = [pd.Series(hour.d) for hour in forecast.hourly().data]
+        def flatten(j):
+            """
+            Extracts the 'solar' part from the response json,
+            renames the fields and includes them along with everything else
+            """
+            try:
+                solar = j.pop('solar')
+            except KeyError:
+                return j
+            else:
+                # give the properties some more verbose names
+                new_names = {'altitude': 'SolarAltitude',
+                             'dni': 'DirectNormalIrradiance',
+                             'ghi': 'GlobalHorizontalIrradiance',
+                             'dhi': 'DiffuseHorizontalIrradiance',
+                             'etr': 'ExtraTerrestrialRadiation',
+                             'azimuth': 'SolarAzimuth'
+                             }
+                solar = {new_names[key]: val for key, val in solar.items()}
+                j.update(solar)
+                return j
+
+        hour_list = [pd.Series(flatten(hour.d)) for hour in forecast.hourly().data]
         frame = pd.concat(hour_list, axis=1).T
         return frame
 
