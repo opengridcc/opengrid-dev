@@ -453,11 +453,13 @@ class Weather():
 
         Returns
         -------
-        float
+        float | None
         """
         # make a list of all hourly values for the given key
         values = [self._flatten_solar(hour.d).get(key) for hour in forecast.hourly().data]
         values = [val for val in values if val is not None]
+        if len(values) == 0:
+            return None
 
         # calculate the aggregate
         if agg == 'mean':
