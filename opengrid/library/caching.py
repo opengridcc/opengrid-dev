@@ -17,6 +17,7 @@ from opengrid import config
 cfg = config.Config()
 from opengrid.library import misc
 from opengrid.library import analysis
+from tqdm import tqdm
 
 class Cache(object):
     """
@@ -287,7 +288,7 @@ class Cache(object):
             return True
 
 
-def cache_results(hp, sensors, resultname, AnalysisClass, **kwargs):
+def cache_results(hp, sensors, resultname, AnalysisClass, chunk=True, **kwargs):
     """
     Run an analysis on a set of sensors and cache the results
 
@@ -301,6 +302,8 @@ def cache_results(hp, sensors, resultname, AnalysisClass, **kwargs):
         Name of the cached variable, eg. elect_standby or water_daily_max
     kwargs : dict
         Additional keyword arguments are passed to the instantiation of the analysis class
+    chunk : boolean, default=True
+        If True, cache day_by_day to reduce memory use.
 
     Returns
     -------
@@ -311,27 +314,39 @@ def cache_results(hp, sensors, resultname, AnalysisClass, **kwargs):
     # The method would run perfectly on all sensorids at once.
     # However, this leads to large dataframes and large RAM use.
     # Therefore, we create a for loop over the sensor ids
+    # update: to reduce RAM use, we add another loop to run over the days
 
     import importlib
     cache = Cache(variable=resultname)
 
-    for sensor in sensors:
+    for sensor in tqdm(sensors):
         # Get whatever is available as cache
         # and only extract timeseries from tmpos since the last day
         df_cached = cache.get([sensor])
         try:
             last_day = df_cached.index[-1]
         except IndexError:
-            last_day = 0
+            last_day = pd.Timestamp('2013-01-01', tz='UTC')
 
-        # get new data, full resolution
-        df_new = hp.get_data(sensors = [sensor], head=last_day)
+        if chunk:
+            for d in pd.DatetimeIndex(start=last_day, freq='D', end=pd.Timestamp.today()):
+                # get new data for a single day, full resolution
+                df_new = hp.get_data(sensors = [sensor], head=d, tail=d + pd.Timedelta(days=1))
 
-        # apply the method
-        df_day = AnalysisClass(df_new, **kwargs).result
+                # apply the method
+                df_day = AnalysisClass(df_new, **kwargs).result
 
-        # cache the results
-        cache.update(df_day)
+                # cache the results
+                cache.update(df_day)
+        else:
+            # get new data, full resolution
+            df_new = hp.get_data(sensors=[sensor], head=last_day)
+
+            # apply the method
+            df_day = AnalysisClass(df_new, **kwargs).result
+
+            # cache the results
+            cache.update(df_day)
     return True
 
 
