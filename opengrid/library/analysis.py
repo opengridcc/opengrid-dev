@@ -56,3 +56,12 @@ class DailyAgg(Analysis):
         else:
             self.result = pd.DataFrame()
 
+
+
+
+
+
+
+
+
+
