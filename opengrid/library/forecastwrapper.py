@@ -37,9 +37,6 @@ class Weather():
             end : datetime.datetime | pandas.Timestamp, optional
                 end of the interval to be searched
                 if None, use current time
-            tz : str, optional
-                tz specifies the timezone of the response.
-                If none, response will be in the timezone of the location
             cache : bool
                 use the cache or not
         """
