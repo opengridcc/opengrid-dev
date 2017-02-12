@@ -12,7 +12,6 @@ from tqdm import tqdm
 import os
 import pickle
 
-
 from .misc import dayset, calculate_temperature_equivalent, \
     calculate_degree_days
 from opengrid import config
@@ -25,7 +24,7 @@ class Weather():
         NOTE: Forecast.io allows 1000 requests per day, after that you have to pay. Each requested day is 1 request.
     """
 
-    def __init__(self, location, start, end=None, tz=None, cache=True):
+    def __init__(self, location, start, end=None, cache=True):
         """
             Constructor
 
@@ -48,7 +47,6 @@ class Weather():
         self._location = location
         self._start = start
         self._end = end
-        self._tz = tz
         self.cache = cache
 
         self._forecasts = []
@@ -110,19 +108,14 @@ class Weather():
     @property
     def tz(self):
         """
-        Get the timezone
+        Get the local timezone of the requested location
 
         Returns
         -------
         pytz.timezone
         """
-
-        # if the user has specified a zone, use that one
-        if self._tz is not None:
-            tz = self._tz
-
         # if there already are some forecasts, the timezone is in there
-        elif self._forecasts:
+        if self._forecasts:
             tz = self._lookup_timezone()
 
         # use Google geocoder to lookup timezone
@@ -152,99 +145,97 @@ class Weather():
 
         return self._forecasts
 
-    def days(self,
-             include_average_temperature=True,
-             include_temperature_equivalent=True,
-             include_heating_degree_days=True,
-             heating_base_temperatures=[16.5],
-             include_cooling_degree_days=True,
-             cooling_base_temperatures=[18],
-             include_daytime_cloud_cover=True,
-             include_daytime_temperature=True,
-             include_sum_ghi=True
-             ):
+    def days(
+            self,
+            heating_base_temperatures=[16.5],
+            cooling_base_temperatures=[18],
+            irradiances=None):
         """
         Create a dataframe with all weather data in daily resolution
 
         Parameters
         ----------
-        include_average_temperature : bool (optional, default: True)
-            Include automatic calculation of average temperature from hourly data
-        include_temperature_equivalent : bool (optional, default: True)
-            Include Temperature Equivalent to dataframe
-        include_heating_degree_days : bool (optional, default: True)
-            Add heating degree days to the dataframe
         heating_base_temperatures : list of numbers (optional, default 16.5)
             List of possible base temperatures for which to calculate heating degree days
-        include_cooling_degree_days : bool (optional, default: False)
-            Add cooling degree days to the dataframe
         cooling_base_temperatures : list of numbers (optional, default 18)
             List of possible base temperatures for which to calculate cooling degree days
-        include_daytime_cloud_cover : bool (optional, default: True)
-            Include average Cloud Cover during daytime hours (from sunrise to sunset)
-        include_daytime_temperature : bool (optional, default: True)
-            Include average Temperature during daytime hours (from sunrise to sunset)
-        include_sum_ghi : bool (optional)
-            default True
-            Include the sum of the Global Horizontal Irradiance (in W/m^2)
+        irradiances : list[tuple], optional
+            Calculate the global solar irradiance for multiple surfaces with a
+            given orientation and tilt (in Wh/m^2)
+            List with tuples. tuple = (orientation, tilt)
+            Orientation in degrees from north (0 = north, 90 = east, ...)
+            Tilt in degrees (0 = horizontal, 90 = vertical)
 
         Returns
         -------
         Pandas Dataframe
         """
-        if include_heating_degree_days or include_cooling_degree_days:
-            include_temperature_equivalent = True
 
-        if include_temperature_equivalent:
-            include_average_temperature = True
+        # add 2 days before to calculate degree days
+        self._add_forecast(self.start - pd.Timedelta(days=1))
+        self._add_forecast(self.start - pd.Timedelta(days=2))
 
-        # if temperature_equivalent is needed,
-        # we need to add 2 days before the start
-        if include_temperature_equivalent:
-            self._add_forecast(self.start - pd.Timedelta(days=1))
-            self._add_forecast(self.start - pd.Timedelta(days=2))
-
-        day_list = [
-            self._forecast_to_day_series(
-                forecast=forecast,
-                include_average_temperature=include_average_temperature,
-                include_daytime_cloud_cover=include_daytime_cloud_cover,
-                include_daytime_temperature=include_daytime_temperature,
-                include_sum_ghi=include_sum_ghi
-            ) for forecast in self.forecasts]
-
+        # create a dataframe from the daily observations
+        day_list = [self._forecast_to_day_series(forecast=forecast) for forecast in self.forecasts]
         frame = pd.concat(day_list)
         frame = self._fix_index(frame).sort_index()
 
-        if include_temperature_equivalent:
-            frame['temperatureEquivalent'] = calculate_temperature_equivalent(temperatures=frame.temperature)
-            frame.dropna(subset=['temperatureEquivalent'], inplace=True)
+        # add aggregates from hourly observations to the dataframe
+        hourly_frame = self.hours(irradiances=irradiances, no_truncate=True)
+        temperature = hourly_frame.temperature.resample('d').mean()
+        ghi = hourly_frame.GlobalHorizontalIrradiance.dropna().resample('d').sum()
+        tilted_gi = hourly_frame.filter(like='GlobalIrradiance').dropna().resample('d').sum()
+        frame = pd.concat([frame, temperature, ghi, tilted_gi], axis=1)
+        frame = frame.tz_convert(self.tz.zone) # because the concat loses tz info
 
-        if include_heating_degree_days:
-            for base in heating_base_temperatures:
-                frame['heatingDegreeDays{}'.format(base)] = calculate_degree_days(
-                    temperature_equivalent=frame.temperatureEquivalent, base_temperature=base
-                )
+        # add temperature equivalent and degree days
+        frame['temperatureEquivalent'] = calculate_temperature_equivalent(temperatures=frame.temperature)
+        frame.dropna(subset=['temperatureEquivalent'], inplace=True)
 
-        if include_cooling_degree_days:
-            for base in cooling_base_temperatures:
-                frame['coolingDegreeDays{}'.format(base)] = calculate_degree_days(
-                    temperature_equivalent=frame.temperatureEquivalent, base_temperature=base, cooling=True
-                )
+        for base in heating_base_temperatures:
+            frame['heatingDegreeDays{}'.format(base)] = calculate_degree_days(
+                temperature_equivalent=frame.temperatureEquivalent, base_temperature=base
+            )
+
+        for base in cooling_base_temperatures:
+            frame['coolingDegreeDays{}'.format(base)] = calculate_degree_days(
+                temperature_equivalent=frame.temperatureEquivalent, base_temperature=base, cooling=True
+            )
 
         return frame
 
-    def hours(self):
+    def hours(self, irradiances=None, no_truncate=False):
         """
         Create a dataframe with all weather data in hourly resolution
 
+        Parameters
+        ----------
+        irradiances : list[tuple], optional
+            Calculate the global solar irradiance for multiple surfaces with a
+            given orientation and tilt
+            List with tuples. tuple = (orientation, tilt)
+            Orientation in degrees from north (0 = north, 90 = east, ...)
+            Tilt in degrees (0 = horizontal, 90 = vertical)
+        no_truncate : bool
+            do not truncate to the exact timestamps
+            useful for when using the hour dataframe to do aggregations
+
         Returns
         -------
-        Pandas Dataframe
+        pandas.DataFrame
         """
         day_list = [self._forecast_to_hour_series(forecast) for forecast in self.forecasts]
         frame = pd.concat(day_list)
-        return self._fix_index(frame).sort_index().truncate(before=self.start, after=self.end)
+        frame = self._fix_index(frame)
+        frame.sort_index(inplace=True)
+        if not no_truncate:
+            frame = frame.truncate(before=self.start, after=self.end)
+
+        if irradiances is not None:
+            for ir in irradiances:
+                frame = self._add_irradiance(frame=frame, orient=ir[0], tilt=ir[1])
+
+        return frame
 
     def _get_forecast(self, date):
         """
@@ -331,6 +322,7 @@ class Weather():
 
         hour_list = [pd.Series(self._flatten_solar(hour.d)) for hour in forecast.hourly().data]
         frame = pd.concat(hour_list, axis=1).T
+        frame.temperature = frame.temperature.astype(float)
         return frame
 
     @staticmethod
@@ -362,6 +354,11 @@ class Weather():
                          }
             solar = {new_names[key]: val for key, val in solar.items()}
             j.update(solar)
+
+            # workaround for the 90 bug by Dark Sky
+            # add 90 and take modulo 360 to stay between 0 and 360
+            j.update({'SolarAzimuth': (j.get('SolarAzimuth') + 90) % 360})
+
             return j
 
     def _fix_index(self, frame):
@@ -394,25 +391,13 @@ class Weather():
         tz = self.forecasts[0].json['timezone']
         return tz
 
-    def _forecast_to_day_series(
-            self,
-            forecast,
-            include_average_temperature,
-            include_daytime_cloud_cover,
-            include_daytime_temperature,
-            include_sum_ghi
-    ):
+    def _forecast_to_day_series(self, forecast):
         """
         Transforms the daily data of a forecast object to a pandas dataframe
 
         Parameters
         ----------
         forecast : forecastio.models.Forecast
-        include_daytime_cloud_cover : bool
-        include_daytime_temperature : bool
-        include_average_temperature : bool
-        include_sum_ghi : bool
-            include the total sum of Global Horizontal Irradiance
 
         Returns
         -------
@@ -420,91 +405,8 @@ class Weather():
 
         """
         data = forecast.daily().data[0].d
-
-        if include_average_temperature:
-            average_temperature = self._get_daily_aggregate(forecast=forecast, key='temperature')
-            data.update({'temperature': average_temperature})
-        if include_daytime_cloud_cover:
-            daytime_cloud_cover = self._get_daytime_average(forecast=forecast, key='cloudCover')
-            data.update({'daytimeCloudCover': daytime_cloud_cover})
-        if include_daytime_temperature:
-            daytime_temperature = self._get_daytime_average(forecast=forecast, key='temperature')
-            data.update({'daytimeTemperature': daytime_temperature})
-        if include_sum_ghi:
-            sum_ghi = self._get_daily_aggregate(forecast=forecast,
-                                                key='GlobalHorizontalIrradiance',
-                                                agg='sum')
-            data.update({'GlobalHorizontalIrradiance': sum_ghi})
-
         frame = [pd.Series(data)]
         return pd.concat(frame, axis=1).T
-
-    def _get_daily_aggregate(self, forecast, key, agg='mean'):
-        """
-        Calculate the daily aggregated value for a given forecast
-        and a given key from the hourly values
-
-        Parameters
-        ----------
-        forecast : forecastio.models.Forecast
-        key : str
-        agg : str
-            'mean' | 'sum'
-
-        Returns
-        -------
-        float | None
-        """
-        # make a list of all hourly values for the given key
-        values = [self._flatten_solar(hour.d).get(key) for hour in forecast.hourly().data]
-        values = [val for val in values if val is not None]
-        if len(values) == 0:
-            return None
-
-        # calculate the aggregate
-        if agg == 'mean':
-            res = np.mean(values)
-        elif agg == 'sum':
-            res = np.sum(values)
-        else:
-            raise NotImplementedError('Aggregation method not supported')
-
-        # round to 2 significant figures and return
-        return round(res, 2)
-
-    def _get_daytime_average(self, forecast, key):
-        """
-        Calculate the average for a given value during daytime hours (from sunrise to sunset)
-
-        Parameters
-        ----------
-        forecast : Forecast Object
-        key : String
-
-        Returns
-        -------
-        float
-        """
-        # extract values from forecast
-        try:
-            values = [hour.d[key] for hour in forecast.hourly().data]
-        except KeyError:
-            return None
-
-        # make a time series
-        time = [hour.d['time'] for hour in forecast.hourly().data]
-        ts = pd.Series(data=values, index=time)
-        ts.index = pd.DatetimeIndex(ts.index.astype('datetime64[s]'))
-
-        # get sunrise and sunset
-        sunrise = dt.datetime.utcfromtimestamp(forecast.daily().data[0].d['sunriseTime'])
-        sunset = dt.datetime.utcfromtimestamp(forecast.daily().data[0].d['sunsetTime'])
-
-        # truncate timeseries
-        ts = ts.truncate(before=sunrise, after=sunset)
-
-        # return mean of truncated timeseries
-        return round(ts.mean(), 2)
 
     @property
     def cache_folder(self):
@@ -556,3 +458,71 @@ class Weather():
             return pickle.load(open(path, "rb"))
         else:
             return None
+
+    @staticmethod
+    def irradiance_on_tilted_surface(dni, dhi, altitude, azimuth, orient, tilt):
+        """
+        Calculate the global solar radiation on a tilted surface
+
+        Parameters
+        ----------
+        dni : pandas.Series
+            Direct Normal Irradiance
+        dhi : pandas.Series
+            Diffuse Horizontal Irradiance
+        altitude : pandas.Series
+            altitude of the sun above the horizon (in degrees)
+            0 = horizon, 90 = right above
+        azimuth : pandas.Series
+            location of the sun in respect to North (in degrees)
+            0 = North, 90 = East, 180 = South, 270 = West
+        orient : int|float
+            orientation of the surface
+            0 = North, 90 = East, 180 = South, 270 = West
+        tilt : int|float
+            tilt of the surface
+            0 = Horizontal, 90 = Vertical
+
+        Returns
+        -------
+        pandas.Series
+        """
+        a = np.radians(altitude.astype(float))
+        b = np.radians(float(tilt))
+        c = np.radians(float(orient))
+        d = np.radians(azimuth.astype(float))
+
+        direct = dni * (np.cos(a) * np.sin(b) * np.cos(c - d) + np.sin(a) * np.cos(b))
+        direct[direct < 0] = 0
+        return direct + dhi
+
+    def _add_irradiance(self, frame, orient, tilt):
+        """
+        Add a column to the frame with the global irradiance on a surface for
+        a given orientation and tilt
+
+        Parameters
+        ----------
+        frame : pandas.DataFrame
+        orient : float|int
+            in degrees from north
+        tilt : float|int
+            in degrees from horizontal
+
+        Returns
+        -------
+        pandas.DataFrame
+        """
+        new_col = self.irradiance_on_tilted_surface(
+            dni=frame.DirectNormalIrradiance,
+            dhi=frame.DiffuseHorizontalIrradiance,
+            altitude=frame.SolarAltitude,
+            azimuth=frame.SolarAzimuth,
+            orient=orient,
+            tilt=tilt
+        )
+        name = "GlobalIrradianceO{}T{}".format(int(orient), int(tilt))
+
+        frame[name] = new_col
+
+        return frame
