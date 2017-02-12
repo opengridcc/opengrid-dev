@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 __author__ = 'Jan Pecinovsky'
 
 import datetime as dt
@@ -37,9 +38,6 @@ class Weather():
             end : datetime.datetime | pandas.Timestamp, optional
                 end of the interval to be searched
                 if None, use current time
-            tz : str, optional
-                tz specifies the timezone of the response.
-                If none, response will be in the timezone of the location
             cache : bool
                 use the cache or not
         """
@@ -149,7 +147,9 @@ class Weather():
             self,
             heating_base_temperatures=[16.5],
             cooling_base_temperatures=[18],
-            irradiances=None):
+            irradiances=None,
+            wind_orients=None
+    ):
         """
         Create a dataframe with all weather data in daily resolution
 
@@ -165,10 +165,13 @@ class Weather():
             List with tuples. tuple = (orientation, tilt)
             Orientation in degrees from north (0 = north, 90 = east, ...)
             Tilt in degrees (0 = horizontal, 90 = vertical)
+        wind_orients : list[int] | list[float], optional
+            Calculate the wind force on surfaces with a given orientations
+            Orientation in degrees from north (0 = north, 90 = east, ...)
 
         Returns
         -------
-        Pandas Dataframe
+        pandas.DataFrame
         """
 
         # add 2 days before to calculate degree days
@@ -181,12 +184,15 @@ class Weather():
         frame = self._fix_index(frame).sort_index()
 
         # add aggregates from hourly observations to the dataframe
-        hourly_frame = self.hours(irradiances=irradiances, no_truncate=True)
+        hourly_frame = self.hours(irradiances=irradiances,
+                                  no_truncate=True,
+                                  wind_orients=wind_orients)
         temperature = hourly_frame.temperature.resample('d').mean()
         ghi = hourly_frame.GlobalHorizontalIrradiance.dropna().resample('d').sum()
         tilted_gi = hourly_frame.filter(like='GlobalIrradiance').dropna().resample('d').sum()
-        frame = pd.concat([frame, temperature, ghi, tilted_gi], axis=1)
-        frame = frame.tz_convert(self.tz.zone) # because the concat loses tz info
+        wind_force = hourly_frame.filter(like='windForce').dropna().resample('d').sum()
+        frame = pd.concat([frame, temperature, ghi, tilted_gi, wind_force], axis=1)
+        frame = frame.tz_convert(self.tz.zone)  # because the concat loses tz info
 
         # add temperature equivalent and degree days
         frame['temperatureEquivalent'] = calculate_temperature_equivalent(temperatures=frame.temperature)
@@ -204,7 +210,7 @@ class Weather():
 
         return frame
 
-    def hours(self, irradiances=None, no_truncate=False):
+    def hours(self, irradiances=None, no_truncate=False, wind_orients=None):
         """
         Create a dataframe with all weather data in hourly resolution
 
@@ -219,6 +225,9 @@ class Weather():
         no_truncate : bool
             do not truncate to the exact timestamps
             useful for when using the hour dataframe to do aggregations
+        wind_orients : list[int] | list[float], optional
+            Calculate the wind force on surfaces with a given orientations
+            Orientation in degrees from north (0 = north, 90 = east, ...)
 
         Returns
         -------
@@ -234,6 +243,10 @@ class Weather():
         if irradiances is not None:
             for ir in irradiances:
                 frame = self._add_irradiance(frame=frame, orient=ir[0], tilt=ir[1])
+
+        if wind_orients is not None:
+            for orient in wind_orients:
+                frame = self._add_wind_force(frame=frame, orient=orient)
 
         return frame
 
@@ -522,6 +535,56 @@ class Weather():
             tilt=tilt
         )
         name = "GlobalIrradianceO{}T{}".format(int(orient), int(tilt))
+
+        frame[name] = new_col
+
+        return frame
+
+    @staticmethod
+    def wind_on_oriented_face(bearing, speed, orient):
+        """
+        Calculate the wind speed with respect to a given orientation
+        (of a building wall for example)
+
+        Parameters
+        ----------
+        bearing : pandas.Series
+        speed : pandas.Series
+        orient : int | float
+
+        Returns
+        -------
+        pandas.Series
+        """
+        b = np.radians(bearing.astype(float))
+        o = np.radians(float(orient))
+
+        wind = speed * np.cos(b - o)
+        wind[wind < 0] = 0
+        return wind
+
+    def _add_wind_force(self, frame, orient):
+        """
+        Add a column to the frame with the wind force on a building face for
+        a given orientation
+
+        Parameters
+        ----------
+        frame : pandas.DataFrame
+        orient : float|int
+            in degrees from north
+
+        Returns
+        -------
+        pandas.DataFrame
+        """
+        new_col = self.wind_on_oriented_face(
+            bearing=frame.windBearing,
+            speed=frame.windSpeed,
+            orient=orient
+        )
+        new_col = new_col ** 2
+        name = "windForce{}".format(int(orient))
 
         frame[name] = new_col
 
