@@ -225,7 +225,7 @@ class Fluksosensor(Sensor):
         tmpos = self.site.hp.get_tmpos()
         return len(tmpos.list(self.key)[0]) != 0
 
-    def get_data(self, head=None, tail=None, diff='default', resample='min', unit='default'):
+    def get_data(self, head=None, tail=None, diff='default', resample='min', unit='default', tz='UTC'):
         """
         Connect to tmpo and fetch a data series
 
@@ -236,7 +236,8 @@ class Fluksosensor(Sensor):
         sensortype : string (optional)
             gas, water, electricity. If None, and Sensors = None,
             all available sensors in the houseprint are fetched
-        head, tail: timestamps,
+        head, tail: timestamps
+            Can be epoch, datetime of pd.Timestamp, with our without timezone (default=UTC)
         diff : bool or 'default'
             If True, the original data will be differentiated
             If 'default', the sensor will decide: if it has the attribute
@@ -245,6 +246,8 @@ class Fluksosensor(Sensor):
             Sampling rate, if any.  Use 'raw' if no resampling.
         unit : str , default='default'
             String representation of the target unit, eg m**3/h, kW, ...
+        tz : str, default='UTC'
+            Specify the timezone for the index of the returned dataframe
 
         Returns
         -------
@@ -267,7 +270,9 @@ class Fluksosensor(Sensor):
             # Return an empty dataframe with correct name
             return pd.Series(name=self.key)
 
-        elif resample != 'raw':
+        data = data.tz_convert(tz)
+
+        if resample != 'raw':
 
             if resample == 'hour':
                 rule = 'H'

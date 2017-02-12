@@ -4,7 +4,250 @@ from scipy import stats
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import statsmodels.api as sm
+import statsmodels.formula.api as fm
+from statsmodels.sandbox.regression.predstd import wls_prediction_std
+from copy import deepcopy
 
+
+class MVLinReg(analysis.Analysis):
+    """
+    Multi-variable linear regression based on statsmodels and Ordinary Least Squares (ols)
+
+    Pass a dataframe with the variable to be modelled (endogenous variable) and the possible independent (exogenous)
+    variables.  Specify as string the name of the endogenous variable, and optionally pass a list with names of
+    exogenous variables to try (by default all other columns will be tried as exogenous variables).
+
+    The analysis is based on a forward-selection approach: starting from a simple model, the model is iteratively
+    refined and verified until no statistical relevant improvements can be obtained.  Each model in the iteration loop
+    is stored in the attribute self.list_of_fits.  The selected model is self.fit (normally the last element of
+    self.list_of_fits).
+
+    The dataframe can contain daily, weekly, monthly, yearly ... values.  Each row is an instance.
+
+
+    Examples
+    --------
+
+    >> mvlr = MVLinReg(df, 'gas', p_max=0.04)
+    >> mvlr = MVLinReg(df, 'gas', list_of_exog=['heatingDegreeDays14', 'GlobalHorizontalIrradiance', 'WindSpeed'])
+
+
+    """
+
+    def __init__(self, df, endog, **kwargs):
+        """
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Datetimeindex and both endogenous and exogenous variables as columns
+        endog : str
+            Name of the endogeneous variable to model
+        p_max : float (default=0.05)
+            Acceptable p-value of the t-statistic for estimated parameters
+        list_of_exog : list of str (default=None)
+            If None (default), try to build a model with all columns in the dataframe
+            If a list with column names is given, only try these columns as exogenous variables
+        confint : float, default=0.05
+            Two-sided confidence interval for predictions.
+        """
+        self.df = df
+        assert endog in self.df.columns, "The endogenous variable {} is not a column in the dataframe".format(endog)
+        self.endog = endog
+
+        self.p_max = kwargs.get('p_max', 0.05)
+        self.list_of_exog = kwargs.get('list_of_kwargs', self.df.columns.tolist())
+        self.confint = kwargs.get('confint', 0.05)
+        try:
+            self.list_of_exog.remove(self.endog)
+        except:
+            pass
+
+        self.do_analysis()
+
+    def do_analysis(self):
+        """
+        Find the best model (fit) and create self.list_of_fits and self.fit
+
+        """
+
+        self.list_of_fits = []
+        # first model is just the mean
+        self.list_of_fits.append(fm.ols(formula='{} ~ 1'.format(self.endog), data=self.df).fit())
+        # try to improve the model until no improvements can be found
+        all_exog = self.list_of_exog[:]
+        while all_exog:
+            # try each x in all_exog and overwrite the best_fit if we find a better one
+            # the first best_fit is the one from the previous round
+            best_fit = deepcopy(self.list_of_fits[-1])
+            for x in all_exog:
+                # make new_fit, compare with best found so far
+                formula = self.list_of_fits[-1].model.formula + '+{}'.format(x)
+                fit = fm.ols(formula=formula, data=self.df).fit()
+                best_fit = self.find_best_bic([best_fit, fit])
+
+            # Sometimes, the obtained fit may be better, but contains unsignificant parameters.
+            # Correct the fit by removing the unsignificant parameters and estimate again
+            best_fit = self._prune(best_fit, p_max=self.p_max)
+
+            # if best_fit does not contain more variables than last fit in self.list_of_fits, exit
+            if best_fit.model.formula in self.list_of_fits[-1].model.formula:
+                break
+            else:
+                self.list_of_fits.append(best_fit)
+                all_exog.remove(x)
+        self.fit = self.list_of_fits[-1]
+
+
+    def _prune(self, fit, p_max):
+        """
+        If the fit contains statistically insignificant parameters, remove them.
+        Returns a pruned fit where all parameters have p-values of the t-statistic below p_max
+
+        Parameters
+        ----------
+        fit: fm.ols fit object
+            Can contain insignificant parameters
+        p_max : float
+            Maximum allowed probability of the t-statistic
+
+        Returns
+        -------
+        fit: fm.ols fit object
+            Won't contain any insignificant parameters
+
+        """
+
+        for par in fit.pvalues.where(fit.pvalues > p_max).dropna().index:
+
+            corrected_formula = fit.model.formula.replace('+{}'.format(par), '')
+            fit = fm.ols(formula=corrected_formula, data=self.df).fit()
+        return fit
+
+    def find_best_rsquared(self, list_of_fits):
+        """Return the best fit, based on rsquared"""
+        res = sorted(list_of_fits, key=lambda x: x.rsquared)
+        return res[-1]
+
+    def find_best_akaike(self, list_of_fits):
+        """Return the best fit, based on Akaike information criterion"""
+        res = sorted(list_of_fits, key=lambda x: x.aic)
+        return res[0]
+
+    def find_best_bic(self, list_of_fits):
+        """Return the best fit, based on Akaike information criterion"""
+        res = sorted(list_of_fits, key=lambda x: x.bic)
+        return res[0]
+
+
+    def _predict(self, df=None, **kwargs):
+        """
+        Return a df with predictions and confidence interval
+        The df will contain the following columns:
+        - 'predicted': the model output
+        - 'interval_u', 'interval_l': upper and lower confidence bounds.
+
+        Parameters
+        ----------
+        df : pandas DataFrame or None (default)
+            If None, use self.df
+        confint : float (default=0.05)
+            Confidence level for two-sided hypothesis, if given, overrides the default one.
+
+        Returns
+        -------
+        df : pandas DataFrame
+            same as df with additional columns 'predicted', 'interval_u' and 'interval_l'
+        """
+        if df is None:
+            df_ = self.df.copy()
+        else:
+            df_ = df.copy()
+
+        confint = kwargs.get('confint', self.confint)
+
+        # Add model results to data as column 'predictions'
+        if 'Intercept' in self.fit.model.exog_names:
+            df_['Intercept'] = 1.0
+        prstd, interval_l, interval_u = wls_prediction_std(self.fit, df_[self.fit.model.exog_names])
+        df_['interval_l'] = interval_l
+        df_['interval_u'] = interval_u
+        df_['predicted'] = self.fit.predict(df_)
+
+        return df_
+
+    def predict(self, **kwargs):
+        """
+        Add predictions and confidence interval to self.df
+        self.df will contain the following columns:
+        - 'predicted': the model output
+        - 'interval_u', 'interval_l': upper and lower confidence bounds.
+
+        Parameters
+        ----------
+        confint : float (default=0.05)
+            Confidence level for two-sided hypothesis, if given, overrides the default one.
+
+        Returns
+        -------
+        Nothing, adds columns to self.df
+        """
+        self.df = self._predict(df=None, **kwargs)
+
+    def plot(self, model=True, bar=True):
+        """
+        Plot measurements and predictions.
+
+        Parameters
+        ----------
+        model
+        bar
+
+        Returns
+        -------
+
+        """
+        if not 'predicted' in self.df.columns:
+            self.predict()
+
+        if model:
+            # The first variable in the formula is the most significant.  Use it as abcis for the plot
+            try:
+                exog1 = self.fit.model.formula.split('+')[1].strip()
+            except IndexError:
+                exog1 = self.list_of_exog[0]
+
+            plt.figure()
+            # plot dots for the measurements
+            plt.plot(self.df[exog1], self.df[self.endog], 'ro', ms=8)
+            # plot model as an adjusted trendline
+            # get sorted model values
+            dfmodel = self.df[[exog1, 'predicted', 'interval_u', 'interval_l']]
+            dfmodel.index = dfmodel[exog1]
+            dfmodel.sort(inplace=True)
+            plt.plot(dfmodel.index, dfmodel['predicted'], 'b--')
+            plt.plot(dfmodel.index, dfmodel['interval_l'], 'b:')
+            plt.plot(dfmodel.index, dfmodel['interval_u'], 'b:')
+            plt.title('{} - rsquared={} - BIC={}'.format(self.fit.model.formula, self.fit.rsquared, self.fit.bic))
+
+        if bar:
+            ind = np.arange(len(self.df.index))  # the x locations for the groups
+            width = 0.35  # the width of the bars
+
+            fig, ax = plt.subplots()
+            predicted = ax.bar(ind, self.df['predicted'], width*2, color='orange',
+                               yerr=self.df['interval_u'] - self.df['predicted'], label=self.endog + ' predicted')
+            meas = ax.bar(ind+width/2., self.df[self.endog], width, color='red', label=self.endog + ' measured')
+            # add some text for labels, title and axes ticks
+            ax.set_ylabel(self.endog)
+            ax.set_title('Measured and predicted {}'.format(self.endog))
+            ax.set_xticks(ind + width)
+            ax.set_xticklabels([x.strftime('%d-%m-%Y') for x in self.df.index], rotation='vertical')
+
+            plt.legend()
+
+        plt.show()
 
 class LinearRegression(analysis.Analysis):
     """
