@@ -25,7 +25,6 @@ class Site(object):
         self.epc_cert = epc_cert
 
         self.devices = []
-        self.sensors = []
 
         self._tmpos = tmpos
 
@@ -37,6 +36,14 @@ class Site(object):
             return self.hp.tmpos
         else:
             raise AttributeError('TMPO session not defined')
+
+    @property
+    def sensors(self):
+        s = []
+        for device in self.devices:
+            for sensor in device.sensors:
+                s.append(sensor)
+        return s
 
     def __repr__(self):
         return """
@@ -108,3 +115,13 @@ class Site(object):
                 pass
 
         return df
+
+    def add_device(self, device):
+        """
+        Parameters
+        ----------
+        device : Device
+        """
+
+        device.site = self
+        self.devices.append(device)

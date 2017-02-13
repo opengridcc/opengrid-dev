@@ -216,6 +216,17 @@ class Fluksosensor(Sensor):
             else:
                 self.cumulative = False
 
+        self._tmpos = tmpos
+
+    @property
+    def tmpos(self):
+        if self._tmpos is not None:
+            return self._tmpos
+        elif self.device is not None:
+            return self.device.tmpos
+        else:
+            raise AttributeError('TMPO session not defined')
+
     @property
     def has_data(self):
         """

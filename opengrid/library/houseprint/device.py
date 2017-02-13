@@ -99,6 +99,15 @@ class Device(object):
         """
         return len(self.get_sensors(sensortype=sensortype))
 
+    def add_sensor(self, sensor):
+        """
+        Parameters
+        ----------
+        sensor : Sensor
+        """
+        sensor.device = self
+        self.sensors.append(sensor)
+
 
 class Fluksometer(Device):
     def __init__(self, site=None, key=None, mastertoken=None, tmpos=None):

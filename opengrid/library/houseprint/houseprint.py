@@ -36,7 +36,11 @@ It can be pickled, saved and passed around
 
 
 class Houseprint(object):
-    def __init__(self, gjson=None, spreadsheet="Opengrid houseprint (Responses)"):
+    def __init__(self,
+                 gjson=None,
+                 spreadsheet="Opengrid houseprint (Responses)",
+                 empty_init=False
+                 ):
         """
             Parameters
             ---------
@@ -45,13 +49,14 @@ class Houseprint(object):
         """
 
         self.sites = []
-
-        if gjson is None:
-            gjson = config.get('houseprint', 'json')
-        self.gjson = gjson
-        self.spreadsheet = spreadsheet
-        self._parse_sheet()
         self.timestamp = dt.datetime.utcnow()  # Add a timestamp upon creation
+
+        if not empty_init:
+            if gjson is None:
+                gjson = config.get('houseprint', 'json')
+            self.gjson = gjson
+            self.spreadsheet = spreadsheet
+            self._parse_sheet()
 
     def reset(self):
         """
@@ -218,10 +223,7 @@ class Houseprint(object):
             else:
                 raise NotImplementedError('Sensors from {} are not supported'.format(r['manufacturer']))
 
-            # add sensor to device AND site
-            if new_sensor.device is not None:
-                new_sensor.device.sensors.append(new_sensor)
-            new_sensor.site.sensors.append(new_sensor)
+            new_sensor.device.sensors.append(new_sensor)
 
         print('{} sensors created'.format(sum([len(site.sensors) for site in self.sites])))
 
@@ -534,6 +536,15 @@ class Houseprint(object):
                 continue
             else:
                 yield ts
+
+    def add_site(self, site):
+        """
+        Parameters
+        ----------
+        site : Site
+        """
+        site.hp = self
+        self.sites.append(site)
 
 
 def load_houseprint_from_file(filename):
