@@ -166,6 +166,23 @@ class Sensor(object):
                 source = str(q_int.units) + '/' + resample
             return CALORIFICVALUE * misc.unit_conversion_factor(source, target)
 
+    def last_timestamp(self, epoch=False):
+        """
+        Get the last timestamp for a sensor
+
+        Parameters
+        ----------
+        epoch : bool
+            default False
+            If True return as epoch
+            If False return as pd.Timestamp
+
+        Returns
+        -------
+        pd.Timestamp | int
+        """
+        raise NotImplementedError("Subclass must implement abstract method")
+
 
 class Fluksosensor(Sensor):
     def __init__(self, key, token, device, type, description, system, quantity, unit, direction, tariff, cumulative):
