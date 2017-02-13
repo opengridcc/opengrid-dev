@@ -11,6 +11,7 @@ This class contains all metadata concerning the function and type of the sensor 
 from opengrid.library import misc
 from opengrid import ureg
 import pandas as pd
+import tmpo, sqlite3
 
 
 class Sensor(object):
@@ -301,3 +302,40 @@ class Fluksosensor(Sensor):
         data.unit = unit
 
         return data
+
+    def last_timestamp(self, epoch=False):
+        """
+        VERY HACKY CODE, WAITING FOR A PULL-REQUEST IN TMPO TO GO THROUGH
+
+            Get the theoretical last timestamp for a sensor
+            It is the mathematical end of the last block, the actual last sensor stamp may be earlier
+
+            Parameters
+            ----------
+            epoch : bool
+                default False
+                If True return as epoch
+                If False return as pd.Timestamp
+
+            Returns
+            -------
+            pd.Timestamp | int
+        """
+        query = tmpo.SQL_TMPO_LAST
+        sid = self.key
+        tmpos = self.site.hp.get_tmpos()
+
+        dbcon = sqlite3.connect(tmpos.db)
+        dbcur = dbcon.cursor()
+        dbcur.execute(tmpo.SQL_SENSOR_TABLE)
+        dbcur.execute(tmpo.SQL_TMPO_TABLE)
+
+        rid, lvl, bid = dbcur.execute(query, (sid,)).fetchone()
+        end_of_block = tmpos._blocktail(lvl, bid)
+
+        dbcon.close()
+
+        if epoch:
+            return end_of_block
+        else:
+            return pd.Timestamp.fromtimestamp(end_of_block).tz_localize('UTC')
