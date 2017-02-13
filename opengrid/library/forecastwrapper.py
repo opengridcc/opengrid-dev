@@ -1,14 +1,22 @@
+# -*- coding: utf-8 -*-
 __author__ = 'Jan Pecinovsky'
 
 import datetime as dt
-from copy import copy
 import forecastio
-import geopy
+from forecastio.models import Forecast
+from geopy import Location, Point, GoogleV3
 import numpy as np
 import pandas as pd
 import pytz
+from cached_property import cached_property
+from tqdm import tqdm
+import os
+import pickle
 
-from .misc import dayset, calculate_temperature_equivalent, calculate_degree_days
+from .misc import dayset, calculate_temperature_equivalent, \
+    calculate_degree_days
+from opengrid import config
+cfg = config.Config()
 
 
 class Weather():
@@ -17,151 +25,230 @@ class Weather():
         NOTE: Forecast.io allows 1000 requests per day, after that you have to pay. Each requested day is 1 request.
     """
 
-    def __init__(self, api_key, location, start, end=None, tz=None):
+    def __init__(self, location, start, end=None, cache=True):
         """
             Constructor
 
             Parameters
             ----------
-            api_key : string
-                Forecast.io API Key
-            location : string OR iterable with 2 floats, latitude and longitude
-                String can be City, address, POI. Iterable = [lat,lng]
-            start : datetime-like object
+            location : str | tuple(float, float)
+                String can be City, address, POI. tuple = (lat, lng)
+            start : datetime.datetime | pandas.Timestamp
                 start of the interval to be searched
-            end : datetime-like object (optional, default=None)
-                end of the interval to be searched, if None, use current time
-            tz : timezone string (optional)
-                tz specifies the timezone of the response.
-                If none, response will be in the timezone of the location
+            end : datetime.datetime | pandas.Timestamp, optional
+                end of the interval to be searched
+                if None, use current time
+            cache : bool
+                use the cache or not
         """
+        self.api_key = cfg.get('Forecast.io', 'apikey')
+        self._location = location
+        self._start = start
+        self._end = end
+        self.cache = cache
 
-        self.start = start
-        if end is None:
-            end = pd.Timestamp('now', tz=tz)
-        self.end = end
+        self._forecasts = []
 
-        self.api_key = api_key
+    @cached_property  # so we don't have to lookup every time it is called
+    def location(self):
+        """
+        Get the location, but as a geopy location object
 
-        # input location
-        if isinstance(location, str):
-            self.location = self._get_geolocator().geocode(location)
+        Returns
+        -------
+        Location
+        """
+        # if the input was a string, we do a google lookup
+        if isinstance(self._location, str):
+            location = GoogleV3().geocode(self._location)
+
+        # if the input was an iterable, it is latitude and longitude
+        elif hasattr(self._location, '__iter__'):
+            lat, long = self._location
+            gepoint = Point(latitude=lat, longitude=long)
+            location = Location(point=gepoint)
+
         else:
-            self.location = geopy.location.Location(
-                point=geopy.location.Point(latitude=location[0], longitude=location[1]))
+            raise ValueError('Invalid location')
 
-        self.forecasts = [self._get_forecast(date=date) for date in dayset(start=start, end=end)]
+        return location
 
-        if tz is not None:
-            self.tz = tz
+    @property
+    def start(self):
+        """
+        Return localized start time
+
+        Returns
+        -------
+        datetime.datetime | pandas.Timestamp
+        """
+        if self._start.tzinfo is None:
+            return self.tz.localize(self._start)
         else:
-            self.tz = self.lookup_timezone()
+            return self._start
 
-        if hasattr(self.start, 'tzinfo') and self.start.tzinfo is None:
-            tz = pytz.timezone(self.tz)
-            self.start = tz.localize(self.start)
-        if hasattr(self.end, 'tzinfo') and self.end.tzinfo is None:
-            tz = pytz.timezone(self.tz)
-            self.end = tz.localize(self.end)
+    @property
+    def end(self):
+        """
+        Return localized end time
 
-    def days(self,
-             include_average_temperature=True,
-             include_temperature_equivalent=True,
-             include_heating_degree_days=True,
-             heating_base_temperatures=[16.5],
-             include_cooling_degree_days=True,
-             cooling_base_temperatures=[18],
-             include_daytime_cloud_cover=True,
-             include_daytime_temperature=True
-             ):
+        Returns
+        -------
+        datetime.datetime | pandas.Timestamp
+        """
+        if self._end is None:
+            return pd.Timestamp('now', tz=self.tz.zone)
+        elif self._end.tzinfo is None:
+            return self.tz.localize(self._end)
+        else:
+            return self._end
+
+    @property
+    def tz(self):
+        """
+        Get the local timezone of the requested location
+
+        Returns
+        -------
+        pytz.timezone
+        """
+        # if there already are some forecasts, the timezone is in there
+        if self._forecasts:
+            tz = self._lookup_timezone()
+
+        # use Google geocoder to lookup timezone
+        else:
+            lat, long, _alt = self.location.point
+            tz = GoogleV3().timezone(location=(lat, long)).zone
+
+        # return as a pytz object
+        return pytz.timezone(tz)
+
+    @property
+    def forecasts(self):
+        """
+        Get a list of all forecast objects
+
+        Returns
+        -------
+        list(Forecast)
+        """
+        # we stick the list in self._forecasts, only if it is still empty
+        if not self._forecasts:
+            # get list of seperate days
+            days = dayset(start=self.start, end=self.end)
+            # wrap in a tqdm so we get the progress bar
+            for date in tqdm(days):
+                self._forecasts.append(self._get_forecast(date=date))
+
+        return self._forecasts
+
+    def days(
+            self,
+            heating_base_temperatures=[16.5],
+            cooling_base_temperatures=[18],
+            irradiances=None,
+            wind_orients=None
+    ):
         """
         Create a dataframe with all weather data in daily resolution
 
         Parameters
         ----------
-        include_average_temperature : bool (optional, default: True)
-            Include automatic calculation of average temperature from hourly data
-        include_temperature_equivalent : bool (optional, default: True)
-            Include Temperature Equivalent to dataframe
-        include_heating_degree_days : bool (optional, default: True)
-            Add heating degree days to the dataframe
         heating_base_temperatures : list of numbers (optional, default 16.5)
             List of possible base temperatures for which to calculate heating degree days
-        include_cooling_degree_days : bool (optional, default: False)
-            Add cooling degree days to the dataframe
         cooling_base_temperatures : list of numbers (optional, default 18)
             List of possible base temperatures for which to calculate cooling degree days
-        include_daytime_cloud_cover : bool (optional, default: True)
-            Include average Cloud Cover during daytime hours (from sunrise to sunset)
-        include_daytime_temperature : bool (optional, default: True)
-            Include average Temperature during daytime hours (from sunrise to sunset)
+        irradiances : list[tuple], optional
+            Calculate the global solar irradiance for multiple surfaces with a
+            given orientation and tilt (in Wh/m^2)
+            List with tuples. tuple = (orientation, tilt)
+            Orientation in degrees from north (0 = north, 90 = east, ...)
+            Tilt in degrees (0 = horizontal, 90 = vertical)
+        wind_orients : list[int] | list[float], optional
+            Calculate the wind force on surfaces with a given orientations
+            Orientation in degrees from north (0 = north, 90 = east, ...)
 
         Returns
         -------
-        Pandas Dataframe
+        pandas.DataFrame
         """
-        if include_heating_degree_days or include_cooling_degree_days:
-            include_temperature_equivalent = True
 
-        if include_temperature_equivalent:
-            include_average_temperature = True
+        # add 2 days before to calculate degree days
+        self._add_forecast(self.start - pd.Timedelta(days=1))
+        self._add_forecast(self.start - pd.Timedelta(days=2))
 
-        # if temperature_equivalent is needed,
-        # we need to add 2 days before the start
-        if include_temperature_equivalent:
-            self._add_forecast(self.start - pd.Timedelta(days=1))
-            self._add_forecast(self.start - pd.Timedelta(days=2))
-
-        day_list = [self._forecast_to_day_series(forecast=forecast,
-                                                 include_average_temperature=include_average_temperature,
-                                                 include_daytime_cloud_cover=include_daytime_cloud_cover,
-                                                 include_daytime_temperature=include_daytime_temperature
-                                                 ) for forecast in self.forecasts]
-
+        # create a dataframe from the daily observations
+        day_list = [self._forecast_to_day_series(forecast=forecast) for forecast in self.forecasts]
         frame = pd.concat(day_list)
         frame = self._fix_index(frame).sort_index()
 
-        if include_temperature_equivalent:
-            frame['temperatureEquivalent'] = calculate_temperature_equivalent(temperatures=frame.temperature)
-            frame.dropna(subset=['temperatureEquivalent'], inplace=True)
+        # add aggregates from hourly observations to the dataframe
+        hourly_frame = self.hours(irradiances=irradiances,
+                                  no_truncate=True,
+                                  wind_orients=wind_orients)
+        temperature = hourly_frame.temperature.resample('d').mean()
+        ghi = hourly_frame.GlobalHorizontalIrradiance.dropna().resample('d').sum()
+        tilted_gi = hourly_frame.filter(like='GlobalIrradiance').dropna().resample('d').sum()
+        wind_force = hourly_frame.filter(like='windForce').dropna().resample('d').sum()
+        frame = pd.concat([frame, temperature, ghi, tilted_gi, wind_force], axis=1)
+        frame = frame.tz_convert(self.tz.zone)  # because the concat loses tz info
 
-        if include_heating_degree_days:
-            for base in heating_base_temperatures:
-                frame['heatingDegreeDays{}'.format(base)] = calculate_degree_days(
-                    temperature_equivalent=frame.temperatureEquivalent, base_temperature=base
-                )
+        # add temperature equivalent and degree days
+        frame['temperatureEquivalent'] = calculate_temperature_equivalent(temperatures=frame.temperature)
+        frame.dropna(subset=['temperatureEquivalent'], inplace=True)
 
-        if include_cooling_degree_days:
-            for base in cooling_base_temperatures:
-                frame['coolingDegreeDays{}'.format(base)] = calculate_degree_days(
-                    temperature_equivalent=frame.temperatureEquivalent, base_temperature=base, cooling=True
-                )
+        for base in heating_base_temperatures:
+            frame['heatingDegreeDays{}'.format(base)] = calculate_degree_days(
+                temperature_equivalent=frame.temperatureEquivalent, base_temperature=base
+            )
+
+        for base in cooling_base_temperatures:
+            frame['coolingDegreeDays{}'.format(base)] = calculate_degree_days(
+                temperature_equivalent=frame.temperatureEquivalent, base_temperature=base, cooling=True
+            )
 
         return frame
 
-    def hours(self):
+    def hours(self, irradiances=None, no_truncate=False, wind_orients=None):
         """
         Create a dataframe with all weather data in hourly resolution
 
+        Parameters
+        ----------
+        irradiances : list[tuple], optional
+            Calculate the global solar irradiance for multiple surfaces with a
+            given orientation and tilt
+            List with tuples. tuple = (orientation, tilt)
+            Orientation in degrees from north (0 = north, 90 = east, ...)
+            Tilt in degrees (0 = horizontal, 90 = vertical)
+        no_truncate : bool
+            do not truncate to the exact timestamps
+            useful for when using the hour dataframe to do aggregations
+        wind_orients : list[int] | list[float], optional
+            Calculate the wind force on surfaces with a given orientations
+            Orientation in degrees from north (0 = north, 90 = east, ...)
+
         Returns
         -------
-        Pandas Dataframe
+        pandas.DataFrame
         """
         day_list = [self._forecast_to_hour_series(forecast) for forecast in self.forecasts]
         frame = pd.concat(day_list)
-        return self._fix_index(frame).sort_index().truncate(before=self.start, after=self.end)
+        frame = self._fix_index(frame)
+        frame.sort_index(inplace=True)
+        if not no_truncate:
+            frame = frame.truncate(before=self.start, after=self.end)
 
-    def _get_geolocator(self):
-        """
-            Only create the geolocator if needed
+        if irradiances is not None:
+            for ir in irradiances:
+                frame = self._add_irradiance(frame=frame, orient=ir[0], tilt=ir[1])
 
-            Returns
-            -------
-            geopy.geolocator
-        """
-        if not hasattr(self, 'geolocator'):
-            self.geolocator = geopy.GoogleV3()
-        return self.geolocator
+        if wind_orients is not None:
+            for orient in wind_orients:
+                frame = self._add_wind_force(frame=frame, orient=orient)
+
+        return frame
 
     def _get_forecast(self, date):
         """
@@ -179,8 +266,24 @@ class Weather():
         # conversion from dt.date to dt.datetime, there must be a better way, right?
         time = dt.datetime(year=date.year, month=date.month, day=date.day)
 
-        return forecastio.load_forecast(key=self.api_key, lat=self.location.latitude, lng=self.location.longitude,
-                                        time=time)
+        f = None
+        if self.cache:
+            f = self._load_from_cache(date)
+
+        if not f:
+            # We specifically ask for si units,
+            # so we can inject the SOLAR argument to get solar data
+            # which is in beta (januari 2017)
+            f = forecastio.load_forecast(key=self.api_key,
+                                         lat=self.location.latitude,
+                                         lng=self.location.longitude,
+                                         time=time,
+                                         units='si&solar'
+                                         )
+            if self.cache:
+                self._save_in_cache(f, date)
+
+        return f
 
     def _get_forecast_dates(self):
         """
@@ -195,7 +298,7 @@ class Weather():
             time = forecast.currently().time
 
             # the time is in UTC, we need to localize it.
-            tz = pytz.timezone(self.lookup_timezone())
+            tz = pytz.timezone(self._lookup_timezone())
             time_utc = tz.fromutc(time)
 
             dates.append(time_utc.date())
@@ -207,14 +310,14 @@ class Weather():
 
         Parameters
         ----------
-        date : dt.date
+        date : dt.date | dt.datetime | pd.Timestamp
         """
         # for if you pass a datetime instead of a date
         if hasattr(date, 'date'):
             date = date.date()
 
         if date not in self._get_forecast_dates():
-            self.forecasts.append(self._get_forecast(date))
+            self._forecasts.append(self._get_forecast(date))
 
     def _forecast_to_hour_series(self, forecast):
         """
@@ -229,9 +332,47 @@ class Weather():
         Pandas Dataframe
 
         """
-        hour_list = [pd.Series(hour.d) for hour in forecast.hourly().data]
+
+        hour_list = [pd.Series(self._flatten_solar(hour.d)) for hour in forecast.hourly().data]
         frame = pd.concat(hour_list, axis=1).T
+        frame.temperature = frame.temperature.astype(float)
         return frame
+
+    @staticmethod
+    def _flatten_solar(j):
+        """
+        Extracts the 'solar' part from the response json,
+        renames the fields and includes them along with everything else
+
+        Parameters
+        ----------
+        j : dict
+
+        Returns
+        -------
+        dict
+        """
+        try:
+            solar = j.pop('solar')
+        except KeyError:
+            return j
+        else:
+            # give the properties some more verbose names
+            new_names = {'altitude': 'SolarAltitude',
+                         'dni': 'DirectNormalIrradiance',
+                         'ghi': 'GlobalHorizontalIrradiance',
+                         'dhi': 'DiffuseHorizontalIrradiance',
+                         'etr': 'ExtraTerrestrialRadiation',
+                         'azimuth': 'SolarAzimuth'
+                         }
+            solar = {new_names[key]: val for key, val in solar.items()}
+            j.update(solar)
+
+            # workaround for the 90 bug by Dark Sky
+            # add 90 and take modulo 360 to stay between 0 and 360
+            j.update({'SolarAzimuth': (j.get('SolarAzimuth') + 90) % 360})
+
+            return j
 
     def _fix_index(self, frame):
         """
@@ -249,10 +390,10 @@ class Weather():
         frame['time'] = pd.DatetimeIndex(frame['time'].astype('datetime64[s]'))
         frame.set_index('time', inplace=True)
         frame = frame.tz_localize('UTC')
-        frame = frame.tz_convert(self.tz)
+        frame = frame.tz_convert(self.tz.zone)
         return frame
 
-    def lookup_timezone(self):
+    def _lookup_timezone(self):
         """
         Lookup the timezone in the JSON of the first forecast
 
@@ -263,91 +404,188 @@ class Weather():
         tz = self.forecasts[0].json['timezone']
         return tz
 
-    def _forecast_to_day_series(
-            self,
-            forecast,
-            include_average_temperature,
-            include_daytime_cloud_cover,
-            include_daytime_temperature
-    ):
+    def _forecast_to_day_series(self, forecast):
         """
         Transforms the daily data of a forecast object to a pandas dataframe
 
         Parameters
         ----------
-        include_daytime_cloud_cover : bool
-        include_daytime_temperature : bool
-        include_average_temperature : bool
-        forecast : Forecast Object
+        forecast : forecastio.models.Forecast
 
         Returns
         -------
-        Pandas dataframe
+        pandas.DataFrame
 
         """
         data = forecast.daily().data[0].d
-
-        if include_average_temperature:
-            average_temperature = self._get_daily_average(forecast=forecast, key='temperature')
-            data.update({'temperature': average_temperature})
-        if include_daytime_cloud_cover:
-            daytime_cloud_cover = self._get_daytime_average(forecast=forecast, key='cloudCover')
-            data.update({'daytimeCloudCover': daytime_cloud_cover})
-        if include_daytime_temperature:
-            daytime_temperature = self._get_daytime_average(forecast=forecast, key='temperature')
-            data.update({'daytimeTemperature': daytime_temperature})
-
         frame = [pd.Series(data)]
         return pd.concat(frame, axis=1).T
 
-    def _get_daily_average(self, forecast, key):
+    @property
+    def cache_folder(self):
+        location_str = "{}_{}".format(round(self.location.latitude, 4),
+                                      round(self.location.longitude, 4))
+
+        forecast_folder = os.path.join(os.path.abspath(cfg.get('data', 'folder')),
+                            'forecasts')
+        location_folder = os.path.join(forecast_folder, location_str)
+
+        for folder in [forecast_folder, location_folder]:
+            if not os.path.exists(folder):
+                print("This folder does not exist: {}, it will be created".format(folder))
+                os.mkdir(folder)
+
+        return location_folder
+
+    def _pickle_path(self, date):
+        filename = str(date) + '.pkl'
+        path = os.path.join(self.cache_folder, filename)
+        return path
+
+    def _save_in_cache(self, f, date):
         """
-        Calculate the average daily value for a given forecast and a given key from the hourly values
+        Save Forecast object to cache
 
         Parameters
         ----------
-        forecast : Forecast object
-        key : String
-
-        Returns
-        -------
-        float
+        f : Forecast
+        date : datetime.date
         """
-        # make a list of all hourly values for the given key
-        values = [hour.d[key] for hour in forecast.hourly().data]
-        # calculate the mean, round to 2 significant figures and return
-        return round(np.mean(values), 2)
 
-    def _get_daytime_average(self, forecast, key):
+        pickle.dump(f, open(self._pickle_path(date), "wb"))
+
+    def _load_from_cache(self, date):
         """
-        Calculate the average for a given value during daytime hours (from sunrise to sunset)
+        Load Forecast object from cache
 
         Parameters
         ----------
-        forecast : Forecast Object
-        key : String
+        date : datetime.date
 
         Returns
         -------
-        float
+        Forecast
         """
-        # extract values from forecast
-        try:
-            values = [hour.d[key] for hour in forecast.hourly().data]
-        except KeyError:
+        path = self._pickle_path(date)
+        if os.path.exists(path):
+            return pickle.load(open(path, "rb"))
+        else:
             return None
 
-        # make a time series
-        time = [hour.d['time'] for hour in forecast.hourly().data]
-        ts = pd.Series(data=values, index=time)
-        ts.index = pd.DatetimeIndex(ts.index.astype('datetime64[s]'))
+    @staticmethod
+    def irradiance_on_tilted_surface(dni, dhi, altitude, azimuth, orient, tilt):
+        """
+        Calculate the global solar radiation on a tilted surface
 
-        # get sunrise and sunset
-        sunrise = dt.datetime.utcfromtimestamp(forecast.daily().data[0].d['sunriseTime'])
-        sunset = dt.datetime.utcfromtimestamp(forecast.daily().data[0].d['sunsetTime'])
+        Parameters
+        ----------
+        dni : pandas.Series
+            Direct Normal Irradiance
+        dhi : pandas.Series
+            Diffuse Horizontal Irradiance
+        altitude : pandas.Series
+            altitude of the sun above the horizon (in degrees)
+            0 = horizon, 90 = right above
+        azimuth : pandas.Series
+            location of the sun in respect to North (in degrees)
+            0 = North, 90 = East, 180 = South, 270 = West
+        orient : int|float
+            orientation of the surface
+            0 = North, 90 = East, 180 = South, 270 = West
+        tilt : int|float
+            tilt of the surface
+            0 = Horizontal, 90 = Vertical
 
-        # truncate timeseries
-        ts = ts.truncate(before=sunrise, after=sunset)
+        Returns
+        -------
+        pandas.Series
+        """
+        a = np.radians(altitude.astype(float))
+        b = np.radians(float(tilt))
+        c = np.radians(float(orient))
+        d = np.radians(azimuth.astype(float))
 
-        # return mean of truncated timeseries
-        return round(ts.mean(), 2)
+        direct = dni * (np.cos(a) * np.sin(b) * np.cos(c - d) + np.sin(a) * np.cos(b))
+        direct[direct < 0] = 0
+        return direct + dhi
+
+    def _add_irradiance(self, frame, orient, tilt):
+        """
+        Add a column to the frame with the global irradiance on a surface for
+        a given orientation and tilt
+
+        Parameters
+        ----------
+        frame : pandas.DataFrame
+        orient : float|int
+            in degrees from north
+        tilt : float|int
+            in degrees from horizontal
+
+        Returns
+        -------
+        pandas.DataFrame
+        """
+        new_col = self.irradiance_on_tilted_surface(
+            dni=frame.DirectNormalIrradiance,
+            dhi=frame.DiffuseHorizontalIrradiance,
+            altitude=frame.SolarAltitude,
+            azimuth=frame.SolarAzimuth,
+            orient=orient,
+            tilt=tilt
+        )
+        name = "GlobalIrradianceO{}T{}".format(int(orient), int(tilt))
+
+        frame[name] = new_col
+
+        return frame
+
+    @staticmethod
+    def wind_on_oriented_face(bearing, speed, orient):
+        """
+        Calculate the wind speed with respect to a given orientation
+        (of a building wall for example)
+
+        Parameters
+        ----------
+        bearing : pandas.Series
+        speed : pandas.Series
+        orient : int | float
+
+        Returns
+        -------
+        pandas.Series
+        """
+        b = np.radians(bearing.astype(float))
+        o = np.radians(float(orient))
+
+        wind = speed * np.cos(b - o)
+        wind[wind < 0] = 0
+        return wind
+
+    def _add_wind_force(self, frame, orient):
+        """
+        Add a column to the frame with the wind force on a building face for
+        a given orientation
+
+        Parameters
+        ----------
+        frame : pandas.DataFrame
+        orient : float|int
+            in degrees from north
+
+        Returns
+        -------
+        pandas.DataFrame
+        """
+        new_col = self.wind_on_oriented_face(
+            bearing=frame.windBearing,
+            speed=frame.windSpeed,
+            orient=orient
+        )
+        new_col = new_col ** 2
+        name = "windForce{}".format(int(orient))
+
+        frame[name] = new_col
+
+        return frame

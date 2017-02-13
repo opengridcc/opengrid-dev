@@ -216,6 +216,7 @@ class Fluksosensor(Sensor):
             else:
                 self.cumulative = False
 
+<<<<<<< HEAD
         self._tmpos = tmpos
 
     @property
@@ -228,6 +229,22 @@ class Fluksosensor(Sensor):
             raise AttributeError('TMPO session not defined')
 
     def get_data(self, head=None, tail=None, diff='default', resample='min', unit='default'):
+=======
+    @property
+    def has_data(self):
+        """
+        Checks if a sensor actually has data by checking the length of the
+        tmpo block list
+
+        Returns
+        -------
+        bool
+        """
+        tmpos = self.site.hp.get_tmpos()
+        return len(tmpos.list(self.key)[0]) != 0
+
+    def get_data(self, head=None, tail=None, diff='default', resample='min', unit='default', tz='UTC'):
+>>>>>>> opengridcc/develop
         """
         Connect to tmpo and fetch a data series
 
@@ -238,7 +255,8 @@ class Fluksosensor(Sensor):
         sensortype : string (optional)
             gas, water, electricity. If None, and Sensors = None,
             all available sensors in the houseprint are fetched
-        head, tail: timestamps,
+        head, tail: timestamps
+            Can be epoch, datetime of pd.Timestamp, with our without timezone (default=UTC)
         diff : bool or 'default'
             If True, the original data will be differentiated
             If 'default', the sensor will decide: if it has the attribute
@@ -247,6 +265,8 @@ class Fluksosensor(Sensor):
             Sampling rate, if any.  Use 'raw' if no resampling.
         unit : str , default='default'
             String representation of the target unit, eg m**3/h, kW, ...
+        tz : str, default='UTC'
+            Specify the timezone for the index of the returned dataframe
 
         Returns
         -------
@@ -265,7 +285,9 @@ class Fluksosensor(Sensor):
             # Return an empty dataframe with correct name
             return pd.Series(name=self.key)
 
-        elif resample != 'raw':
+        data = data.tz_convert(tz)
+
+        if resample != 'raw':
 
             if resample == 'hour':
                 rule = 'H'
@@ -275,7 +297,7 @@ class Fluksosensor(Sensor):
                 rule = resample
 
             # interpolate to requested frequency
-            newindex = data.resample(rule).index
+            newindex = data.resample(rule).first().index
             data = data.reindex(data.index.union(newindex))
             data = data.interpolate(method='time')
             data = data.reindex(newindex)

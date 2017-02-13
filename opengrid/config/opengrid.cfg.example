@@ -8,6 +8,7 @@
 [data]
 # Used for all kind of data files that are saved locally, eg by the cache.py module
 # For the daily cache, a subfolder called cache_day will be created in the folder specified below
+# The folder for the tmpo database is specified separately in the [tmpo] section
 folder: path
 
 [opengrid_server]
@@ -25,8 +26,12 @@ apikey: CHANGE_ME
 [tmpo]
 # specify the location of tmpo-py.  Not needed normally as tmpo can now be installed by pip
 folder: path_to_folder_containing_tmpo.py
-# data: only specify the path to the tmpo-data if different from the default
+# specify the folder to contain the tmpo-database
 # data: path_to_tmpo_data
+
+[Slack]
+# Used for testing our alerting services.
+webhook: https://hooks.slack.com/services/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
 
 [env]
 # type can be dev or prod.  
@@ -36,3 +41,6 @@ type: dev
 # Use qt if you want all plots to be rendered in a separate window.
 # This can be useful for zooming or panning.
 plots: inline
+
+[Slack]
+webhook: Get the webhook URL from an OpenGrid developer
