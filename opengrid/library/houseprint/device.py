@@ -97,6 +97,25 @@ class Device(object):
         """
         return len(self.get_sensors(sensortype=sensortype))
 
+    def last_timestamp(self, epoch=False):
+        """
+        Get the last timestamp for a device, by returning the latest timestamp
+        of the sensors
+
+        Parameters
+        ----------
+        epoch : bool
+            default False
+            If True return as epoch
+            If False return as pd.Timestamp
+
+        Returns
+        -------
+        pd.Timestamp | int
+        """
+        timestamps = [sensor.last_timestamp(epoch=epoch) for sensor in self.sensors]
+        return max(timestamps)
+
 
 class Fluksometer(Device):
     def __init__(self, site, key, mastertoken = None):
