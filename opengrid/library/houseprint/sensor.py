@@ -176,7 +176,7 @@ class Fluksosensor(Sensor):
         # invoke init method of abstract Sensor
         super(Fluksosensor, self).__init__(key=key,
                                            device=device,
-                                           site=device.site,
+                                           site=device.site if device else None,
                                            type=type,
                                            description=description,
                                            system=system,
