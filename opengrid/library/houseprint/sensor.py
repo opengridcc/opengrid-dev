@@ -216,20 +216,6 @@ class Fluksosensor(Sensor):
             else:
                 self.cumulative = False
 
-<<<<<<< HEAD
-        self._tmpos = tmpos
-
-    @property
-    def tmpos(self):
-        if self._tmpos is not None:
-            return self._tmpos
-        elif self.device is not None:
-            return self.device.tmpos
-        else:
-            raise AttributeError('TMPO session not defined')
-
-    def get_data(self, head=None, tail=None, diff='default', resample='min', unit='default'):
-=======
     @property
     def has_data(self):
         """
@@ -244,7 +230,6 @@ class Fluksosensor(Sensor):
         return len(tmpos.list(self.key)[0]) != 0
 
     def get_data(self, head=None, tail=None, diff='default', resample='min', unit='default', tz='UTC'):
->>>>>>> opengridcc/develop
         """
         Connect to tmpo and fetch a data series
 
