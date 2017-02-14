@@ -64,9 +64,21 @@ class MVLinReg(analysis.Analysis):
         except:
             pass
 
-        self.do_analysis()
+        self.do_analysis(**kwargs)
 
-    def do_analysis(self):
+
+    def do_analysis(self, cross_validation=False):
+        """
+        Find the best model (fit) and create self.list_of_fits and self.fit
+
+        """
+        if cross_validation:
+            return self._do_analysis_cross_validation()
+        else:
+            return self._do_analysis_no_cross_validation()
+
+
+    def _do_analysis_no_cross_validation(self):
         """
         Find the best model (fit) and create self.list_of_fits and self.fit
 
@@ -97,6 +109,51 @@ class MVLinReg(analysis.Analysis):
             else:
                 self.list_of_fits.append(best_fit)
                 all_exog.remove(x)
+        self.fit = self.list_of_fits[-1]
+
+
+    def _do_analysis_cross_validation(self):
+        """
+        Find the best model (fit) based on cross-valiation (leave one out)
+
+        """
+        assert len(self.df) < 15, "Cross-validation is not implemented if your sample contains more than 15 datapoints"
+
+        self.list_of_fits = []
+        # first model is just the mean
+        self.list_of_fits.append(fm.ols(formula='{} ~ 1'.format(self.endog), data=self.df).fit())
+        # try to improve the model until no improvements can be found
+        all_exog = self.list_of_exog[:]
+        while all_exog:
+            # try each x in all_exog and overwrite the best_fit if we find a better one
+            # the first best_fit is the one from the previous round
+            best_fit = deepcopy(self.list_of_fits[-1])
+            prediction = self._predict(df=self.df)
+            best_error = (prediction['predicted'] - prediction[self.endog]).mean()
+            for x in all_exog:
+                formula = self.list_of_fits[-1].model.formula + '+{}'.format(x)
+                # cross_validation, currently only implemented for monthly data
+                # compute the mean error for a given formula based on leave-one-out.
+                errors = []
+                for i in self.df.index:
+                    # make new_fit, compute cross-validation and store error
+                    df_ = self.df.drop(i, axis=0)
+                    fit = fm.ols(formula=formula, data=df_).fit()
+                    cross_prediction = self._predict(df=self.df.loc[i, :])
+                    errors.append(cross_prediction['predicted'] - cross_prediction[self.endog])
+
+                if np.mean(np.array(errors) < best_error):
+                    # better model, keep it
+                    best_fit = deepcopy(fit)
+                    best_error = np.mean(np.array(errors))
+
+            # if best_fit does not contain more variables than last fit in self.list_of_fits, exit
+            if best_fit.model.formula in self.list_of_fits[-1].model.formula:
+                break
+            else:
+                self.list_of_fits.append(best_fit)
+                all_exog.remove(x)
+
         self.fit = self.list_of_fits[-1]
 
 
