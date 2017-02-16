@@ -246,7 +246,7 @@ class Weather():
 
         if wind_orients is not None:
             for orient in wind_orients:
-                frame = self._add_wind_force(frame=frame, orient=orient)
+                frame = self._add_wind_components(frame=frame, orient=orient)
 
         return frame
 
@@ -563,10 +563,13 @@ class Weather():
         wind[wind < 0] = 0
         return wind
 
-    def _add_wind_force(self, frame, orient):
+    def _add_wind_components(self, frame, orient):
         """
-        Add a column to the frame with the wind force on a building face for
-        a given orientation
+        Add columns to the frame with
+            the wind speed,
+            the wind speed squared (force or pressure)
+            the wind speed cubed (power on a turbine)
+        for a given orientation
 
         Parameters
         ----------
@@ -578,14 +581,19 @@ class Weather():
         -------
         pandas.DataFrame
         """
-        new_col = self.wind_on_oriented_face(
+        oriented_speed = self.wind_on_oriented_face(
             bearing=frame.windBearing,
             speed=frame.windSpeed,
             orient=orient
         )
-        new_col = new_col ** 2
-        name = "windForce{}".format(int(orient))
 
-        frame[name] = new_col
+        name = "windComponent{}".format(int(orient))
+        frame[name] = oriented_speed
+
+        name = "windComponentSquared{}".format(int(orient))
+        frame[name] = oriented_speed ** 2
+
+        name = "windComponentCubed{}".format(int(orient))
+        frame[name] = oriented_speed ** 3
 
         return frame
