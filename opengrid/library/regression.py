@@ -20,7 +20,7 @@ class MVLinReg(analysis.Analysis):
 
     The analysis is based on a forward-selection approach: starting from a simple model, the model is iteratively
     refined and verified until no statistical relevant improvements can be obtained.  Each model in the iteration loop
-    is stored in the attribute self.list_of_fits.  The selected model is self.fit (normally the last element of
+    is stored in the attribute self.list_of_fits.  The selected model is self.fit (=pointer to the last element of
     self.list_of_fits).
 
     The dataframe can contain daily, weekly, monthly, yearly ... values.  Each row is an instance.
@@ -51,6 +51,13 @@ class MVLinReg(analysis.Analysis):
             If a list with column names is given, only try these columns as exogenous variables
         confint : float, default=0.05
             Two-sided confidence interval for predictions.
+        cross_validation : bool, default=False
+            If True, compute the model based on cross-validation (leave one out)
+            Only possible if the df has less than 15 entries.
+            Note : this will take much longer computation times!
+        allow_negative_predictions : bool, default=False
+            If True, allow predictions to be negative.
+            For gas consumption or PV production, this is not physical so allow_negative_predictions should be False
         """
         self.df = df
         assert endog in self.df.columns, "The endogenous variable {} is not a column in the dataframe".format(endog)
@@ -59,20 +66,22 @@ class MVLinReg(analysis.Analysis):
         self.p_max = kwargs.get('p_max', 0.05)
         self.list_of_exog = kwargs.get('list_of_kwargs', self.df.columns.tolist())
         self.confint = kwargs.get('confint', 0.05)
+        self.cross_validation = kwargs.get('cross_validation', False)
+        self.allow_negative_predictions = kwargs.get('allow_negative_predictions', False)
         try:
             self.list_of_exog.remove(self.endog)
         except:
             pass
 
-        self.do_analysis(**kwargs)
+        self.do_analysis()
 
 
-    def do_analysis(self, cross_validation=False):
+    def do_analysis(self):
         """
         Find the best model (fit) and create self.list_of_fits and self.fit
 
         """
-        if cross_validation:
+        if self.cross_validation:
             return self._do_analysis_cross_validation()
         else:
             return self._do_analysis_no_cross_validation()
@@ -119,17 +128,27 @@ class MVLinReg(analysis.Analysis):
         """
         assert len(self.df) < 15, "Cross-validation is not implemented if your sample contains more than 15 datapoints"
 
-        self.list_of_fits = []
-        # first model is just the mean
-        self.list_of_fits.append(fm.ols(formula='{} ~ 1'.format(self.endog), data=self.df).fit())
+        # initialization: first model is the mean, but compute cv correctly.
+        errors = []
+        formula = '{} ~ 1'.format(self.endog)
+        for i in self.df.index:
+            # make new_fit, compute cross-validation and store error
+            df_ = self.df.drop(i, axis=0)
+            fit = fm.ols(formula=formula, data=df_).fit()
+            cross_prediction = self._predict(fit=fit, df=self.df.loc[[i], :])
+            errors.append(cross_prediction['predicted'] - cross_prediction[self.endog])
+
+        self.list_of_fits = [fm.ols(formula=formula, data=self.df).fit()]
+        self.list_of_cverrors = [np.mean(np.abs(np.array(errors)))]
+
         # try to improve the model until no improvements can be found
         all_exog = self.list_of_exog[:]
         while all_exog:
-            # try each x in all_exog and overwrite the best_fit if we find a better one
-            # the first best_fit is the one from the previous round
-            best_fit = deepcopy(self.list_of_fits[-1])
-            prediction = self._predict(df=self.df)
-            best_error = (prediction['predicted'] - prediction[self.endog]).mean()
+            #import pdb;pdb.set_trace()
+            # try each x in all_exog and overwrite if we find a better one
+            # at the end of iteration (and not earlier), save the best of the iteration
+            better_model_found = False
+            best = dict(fit=self.list_of_fits[-1], cverror=self.list_of_cverrors[-1])
             for x in all_exog:
                 formula = self.list_of_fits[-1].model.formula + '+{}'.format(x)
                 # cross_validation, currently only implemented for monthly data
@@ -139,22 +158,30 @@ class MVLinReg(analysis.Analysis):
                     # make new_fit, compute cross-validation and store error
                     df_ = self.df.drop(i, axis=0)
                     fit = fm.ols(formula=formula, data=df_).fit()
-                    cross_prediction = self._predict(df=self.df.loc[i, :])
+                    cross_prediction = self._predict(fit=fit, df=self.df.loc[[i], :])
                     errors.append(cross_prediction['predicted'] - cross_prediction[self.endog])
-
-                if np.mean(np.array(errors) < best_error):
+                cverror = np.mean(np.abs(np.array(errors)))
+                # compare the model with the current fit
+                if  cverror < best['cverror']:
                     # better model, keep it
-                    best_fit = deepcopy(fit)
-                    best_error = np.mean(np.array(errors))
+                    # first, reidentify using all the datapoints
+                    best['fit'] = fm.ols(formula=formula, data=self.df).fit()
+                    best['cverror'] = cverror
+                    better_model_found = True
 
-            # if best_fit does not contain more variables than last fit in self.list_of_fits, exit
-            if best_fit.model.formula in self.list_of_fits[-1].model.formula:
-                break
+            if better_model_found:
+                self.list_of_fits.append(best['fit'])
+                self.list_of_cverrors.append(best['cverror'])
             else:
-                self.list_of_fits.append(best_fit)
-                all_exog.remove(x)
+                # if we did not find a better model, exit
+                break
+
+            # next iteration with the found exog removed
+            all_exog.remove(x)
 
         self.fit = self.list_of_fits[-1]
+
+
 
 
     def _prune(self, fit, p_max):
@@ -198,7 +225,7 @@ class MVLinReg(analysis.Analysis):
         return res[0]
 
 
-    def _predict(self, df=None, **kwargs):
+    def _predict(self, fit, df, **kwargs):
         """
         Return a df with predictions and confidence interval
         The df will contain the following columns:
@@ -207,6 +234,7 @@ class MVLinReg(analysis.Analysis):
 
         Parameters
         ----------
+        fit : Statsmodels fit
         df : pandas DataFrame or None (default)
             If None, use self.df
         confint : float (default=0.05)
@@ -217,22 +245,21 @@ class MVLinReg(analysis.Analysis):
         df : pandas DataFrame
             same as df with additional columns 'predicted', 'interval_u' and 'interval_l'
         """
-        if df is None:
-            df_ = self.df.copy()
-        else:
-            df_ = df.copy()
+
 
         confint = kwargs.get('confint', self.confint)
 
         # Add model results to data as column 'predictions'
-        if 'Intercept' in self.fit.model.exog_names:
-            df_['Intercept'] = 1.0
-        prstd, interval_l, interval_u = wls_prediction_std(self.fit, df_[self.fit.model.exog_names])
-        df_['interval_l'] = interval_l
-        df_['interval_u'] = interval_u
-        df_['predicted'] = self.fit.predict(df_)
+        if 'Intercept' in fit.model.exog_names:
+            df['Intercept'] = 1.0
+        df['predicted'] = fit.predict(df)
+        if not self.allow_negative_predictions:
+            df.loc[df['predicted'] < 0, 'predicted'] = 0
+        prstd, interval_l, interval_u = wls_prediction_std(fit, df[fit.model.exog_names])
+        df['interval_l'] = interval_l
+        df['interval_u'] = interval_u
 
-        return df_
+        return df
 
     def predict(self, **kwargs):
         """
@@ -250,7 +277,7 @@ class MVLinReg(analysis.Analysis):
         -------
         Nothing, adds columns to self.df
         """
-        self.df = self._predict(df=None, **kwargs)
+        self.df = self._predict(fit=self.fit, df=self.df, **kwargs)
 
     def plot(self, model=True, bar=True):
         """
