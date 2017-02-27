@@ -59,7 +59,7 @@ class MVLinReg(analysis.Analysis):
             If True, allow predictions to be negative.
             For gas consumption or PV production, this is not physical so allow_negative_predictions should be False
         """
-        self.df = df
+        self.df = df.copy()
         assert endog in self.df.columns, "The endogenous variable {} is not a column in the dataframe".format(endog)
         self.endog = endog
 
