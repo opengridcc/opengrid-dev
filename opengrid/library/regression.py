@@ -279,57 +279,96 @@ class MVLinReg(analysis.Analysis):
         """
         self.df = self._predict(fit=self.fit, df=self.df, **kwargs)
 
-    def plot(self, model=True, bar=True):
+    def plot(self, model=True, bar_chart=True, **kwargs):
         """
         Plot measurements and predictions.
 
+        By default, use self.fit and self.df, but both can be overruled by the arguments df and fit
+        This function will detect if the data has been used for the modelling or not and will
+        visualize them differently.
+
         Parameters
         ----------
-        model
-        bar
+        model : boolean, default=True
+            If True, show the modified energy signature
+        bar_chart : boolean, default=True
+            If True, make a bar chart with predicted and measured data
+        df : pandas Dataframe, default=None
+            The data to be plotted.  If None, use self.df
+            If the dataframe does not have a column 'predicted', a prediction will be made
+        fit : statsmodels fit, default=None
+            The model to be used.  if None, use self.fit
+        confint : float (default=0.05)
+            Confidence level for two-sided hypothesis, if given, overrides the default one.
 
         Returns
         -------
+        Nothing, will make a plot
 
         """
-        if not 'predicted' in self.df.columns:
-            self.predict()
+        fit = kwargs.get('fit', self.fit)
+        df = kwargs.get('df', self.df)
+
+        if not 'predicted' in df.columns:
+            df = self._predict(fit=fit, df=df, confint=kwargs.get('confint', 0.05))
+        # split the df in the auto-validation and prognosis part
+        try:
+            df_auto = df.loc[self.df.index, :]
+        except KeyError:
+            # no overlap between self.df and df
+            df_auto = pd.DataFrame()
+            df_prog = df
+        else:
+            df_prog = df.drop(self.df.index)
+            if len(df_prog) > 0:
+                assert df_prog.index[0] > df_auto.index[-1], "Back-casting is currently not implemented"
 
         if model:
             # The first variable in the formula is the most significant.  Use it as abcis for the plot
             try:
-                exog1 = self.fit.model.formula.split('+')[1].strip()
+                exog1 = fit.model.formula.split('+')[1].strip()
             except IndexError:
                 exog1 = self.list_of_exog[0]
 
             plt.figure()
             # plot dots for the measurements
-            plt.plot(self.df[exog1], self.df[self.endog], 'ro', ms=8)
+            if len(df_auto) > 0:
+                plt.plot(df_auto[exog1], df_auto[self.endog], 'ro', ms=8, label='Data used for model fitting')
+            if len(df_prog) > 0:
+                plt.plot(df_prog[exog1], df_prog[self.endog], 'o', color='orange', ms=8, label='Data not used for model fitting')
             # plot model as an adjusted trendline
             # get sorted model values
-            dfmodel = self.df[[exog1, 'predicted', 'interval_u', 'interval_l']]
+            dfmodel = df[[exog1, 'predicted', 'interval_u', 'interval_l']]
             dfmodel.index = dfmodel[exog1]
             dfmodel.sort(inplace=True)
             plt.plot(dfmodel.index, dfmodel['predicted'], 'b--')
             plt.plot(dfmodel.index, dfmodel['interval_l'], 'b:')
             plt.plot(dfmodel.index, dfmodel['interval_u'], 'b:')
-            plt.title('{} - rsquared={} - BIC={}'.format(self.fit.model.formula, self.fit.rsquared, self.fit.bic))
+            plt.title('{} - rsquared={} - BIC={}'.format(fit.model.formula, fit.rsquared, fit.bic))
 
-        if bar:
-            ind = np.arange(len(self.df.index))  # the x locations for the groups
+        if bar_chart:
+            ind = np.arange(len(df.index))  # the x locations for the groups
             width = 0.35  # the width of the bars
 
             fig, ax = plt.subplots()
-            predicted = ax.bar(ind, self.df['predicted'], width*2, color='orange',
-                               yerr=self.df['interval_u'] - self.df['predicted'], label=self.endog + ' predicted')
-            meas = ax.bar(ind+width/2., self.df[self.endog], width, color='red', label=self.endog + ' measured')
+            title = 'Measured' # will be appended based on the available data
+            if len(df_auto) > 0:
+                model = ax.bar(ind[:len(df_auto)], df_auto['predicted'], width*2, color='gold',
+                               yerr=df_auto['interval_u'] - df_auto['predicted'], label=self.endog + ' modelled')
+                title = title + ', modelled'
+            if len(df_prog) > 0:
+                prog = ax.bar(ind[len(df_auto):], df_prog['predicted'], width * 2, color='orange',
+                              yerr=df_prog['interval_u'] - df_prog['predicted'], label=self.endog + ' expected')
+                title = title + ' and predicted'
+
+            meas = ax.bar(ind+width/2., df[self.endog], width, color='red', label=self.endog + ' measured')
             # add some text for labels, title and axes ticks
             ax.set_ylabel(self.endog)
-            ax.set_title('Measured and predicted {}'.format(self.endog))
+            ax.set_title('{} {}'.format(title, self.endog))
             ax.set_xticks(ind + width)
-            ax.set_xticklabels([x.strftime('%d-%m-%Y') for x in self.df.index], rotation='vertical')
+            ax.set_xticklabels([x.strftime('%d-%m-%Y') for x in df.index], rotation='vertical')
 
-            plt.legend()
+            plt.legend(ncol=3, loc='upper center')
 
         plt.show()
 
