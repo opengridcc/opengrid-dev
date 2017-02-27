@@ -189,8 +189,8 @@ class Weather():
                                   wind_orients=wind_orients)
         temperature = hourly_frame.temperature.resample('d').mean()
         ghi = hourly_frame.GlobalHorizontalIrradiance.dropna().resample('d').sum()
-        tilted_gi = hourly_frame.filter(like='GlobalIrradiance').dropna().resample('d').sum()
-        wind_force = hourly_frame.filter(like='windForce').dropna().resample('d').sum()
+        tilted_gi = hourly_frame.filter(regex='^GlobalIrradiance').dropna().resample('d').sum()
+        wind_force = hourly_frame.filter(regex='^windComponent').dropna().resample('d').sum()
         frame = pd.concat([frame, temperature, ghi, tilted_gi, wind_force], axis=1)
         frame = frame.tz_convert(self.tz.zone)  # because the concat loses tz info
 
