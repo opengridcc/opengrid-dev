@@ -11,10 +11,13 @@ This class contains all metadata concerning the function and type of the sensor 
 from opengrid.library import misc
 from opengrid import ureg
 import pandas as pd
+import tmpo, sqlite3
 
 
 class Sensor(object):
-    def __init__(self, key, device, site, type, description, system, quantity, unit, direction, tariff, cumulative):
+    def __init__(self, key=None, device=None, site=None, type=None,
+                 description=None, system=None, quantity=None, unit=None,
+                 direction=None, tariff=None, cumulative=None):
         self.key = key
         self.device = device
         self.site = site
@@ -165,14 +168,33 @@ class Sensor(object):
                 source = str(q_int.units) + '/' + resample
             return CALORIFICVALUE * misc.unit_conversion_factor(source, target)
 
+    def last_timestamp(self, epoch=False):
+        """
+        Get the last timestamp for a sensor
+
+        Parameters
+        ----------
+        epoch : bool
+            default False
+            If True return as epoch
+            If False return as pd.Timestamp
+
+        Returns
+        -------
+        pd.Timestamp | int
+        """
+        raise NotImplementedError("Subclass must implement abstract method")
+
 
 class Fluksosensor(Sensor):
-    def __init__(self, key, token, device, type, description, system, quantity, unit, direction, tariff, cumulative):
+    def __init__(self, key=None, token=None, device=None, type=None,
+                 description=None, system=None, quantity=None, unit=None,
+                 direction=None, tariff=None, cumulative=None, tmpos=None):
 
         # invoke init method of abstract Sensor
         super(Fluksosensor, self).__init__(key=key,
                                            device=device,
-                                           site=device.site,
+                                           site=device.site if device else None,
                                            type=type,
                                            description=description,
                                            system=system,
@@ -212,6 +234,17 @@ class Fluksosensor(Sensor):
             else:
                 self.cumulative = False
 
+        self._tmpos = tmpos
+
+    @property
+    def tmpos(self):
+        if self._tmpos is not None:
+            return self._tmpos
+        elif self.device is not None:
+            return self.device.tmpos
+        else:
+            raise AttributeError('TMPO session not defined')
+
     @property
     def has_data(self):
         """
@@ -225,7 +258,7 @@ class Fluksosensor(Sensor):
         tmpos = self.site.hp.get_tmpos()
         return len(tmpos.list(self.key)[0]) != 0
 
-    def get_data(self, head=None, tail=None, diff='default', resample='min', unit='default'):
+    def get_data(self, head=None, tail=None, diff='default', resample='min', unit='default', tz='UTC'):
         """
         Connect to tmpo and fetch a data series
 
@@ -236,7 +269,8 @@ class Fluksosensor(Sensor):
         sensortype : string (optional)
             gas, water, electricity. If None, and Sensors = None,
             all available sensors in the houseprint are fetched
-        head, tail: timestamps,
+        head, tail: timestamps
+            Can be epoch, datetime of pd.Timestamp, with our without timezone (default=UTC)
         diff : bool or 'default'
             If True, the original data will be differentiated
             If 'default', the sensor will decide: if it has the attribute
@@ -245,6 +279,8 @@ class Fluksosensor(Sensor):
             Sampling rate, if any.  Use 'raw' if no resampling.
         unit : str , default='default'
             String representation of the target unit, eg m**3/h, kW, ...
+        tz : str, default='UTC'
+            Specify the timezone for the index of the returned dataframe
 
         Returns
         -------
@@ -252,22 +288,20 @@ class Fluksosensor(Sensor):
         the string representation of the unit of the data.
         """
 
-        tmpos = self.site.hp.get_tmpos()
-
         if head is None:
             head = 0
         if tail is None:
             tail = 2147483647  # tmpo epochs max
 
-        data = tmpos.series(sid=self.key,
-                            head=head,
-                            tail=tail)
+        data = self.tmpos.series(sid=self.key, head=head, tail=tail)
 
         if data.dropna().empty:
             # Return an empty dataframe with correct name
             return pd.Series(name=self.key)
 
-        elif resample != 'raw':
+        data = data.tz_convert(tz)
+
+        if resample != 'raw':
 
             if resample == 'hour':
                 rule = 'H'
@@ -296,3 +330,40 @@ class Fluksosensor(Sensor):
         data.unit = unit
 
         return data
+
+    def last_timestamp(self, epoch=False):
+        """
+        VERY HACKY CODE, WAITING FOR A PULL-REQUEST IN TMPO TO GO THROUGH
+
+            Get the theoretical last timestamp for a sensor
+            It is the mathematical end of the last block, the actual last sensor stamp may be earlier
+
+            Parameters
+            ----------
+            epoch : bool
+                default False
+                If True return as epoch
+                If False return as pd.Timestamp
+
+            Returns
+            -------
+            pd.Timestamp | int
+        """
+        query = tmpo.SQL_TMPO_LAST
+        sid = self.key
+        tmpos = self.site.hp.get_tmpos()
+
+        dbcon = sqlite3.connect(tmpos.db)
+        dbcur = dbcon.cursor()
+        dbcur.execute(tmpo.SQL_SENSOR_TABLE)
+        dbcur.execute(tmpo.SQL_TMPO_TABLE)
+
+        rid, lvl, bid = dbcur.execute(query, (sid,)).fetchone()
+        end_of_block = tmpos._blocktail(lvl, bid)
+
+        dbcon.close()
+
+        if epoch:
+            return end_of_block
+        else:
+            return pd.Timestamp.fromtimestamp(end_of_block).tz_localize('UTC')
