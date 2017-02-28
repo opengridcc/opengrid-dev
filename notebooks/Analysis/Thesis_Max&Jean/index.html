@@ -1,0 +1,457 @@
+<style>body{-moz-osx-font-smoothing:grayscale;-webkit-font-smoothing:antialiased;color:#555;font-family:sans-serif}
+small{font-weight:400;display:block;font-size:14px}
+code{background-color:#d3d3d3;border-radius:3px;font-family:monospace;padding:0 .5em}
+.icon.-facebook:before,.icon.-linkedin:before,.icon.-pinterest:before,.icon.-twitter:before{-moz-osx-font-smoothing:grayscale;-webkit-font-smoothing:antialiased;font-family:Post-Creator-Icons;font-style:normal;font-variant:normal;font-weight:400;line-height:1;speak:none;text-transform:none}
+@font-face{font-family:Post-Creator-Icons;src:url(fonts/Post-Creator-Icons.eot);src:url(fonts/Post-Creator-Icons.eot?#iefix) format('embedded-opentype'),url(fonts/Post-Creator-Icons.woff) format('woff'),url(fonts/Post-Creator-Icons.ttf) format('truetype'),url(fonts/Post-Creator-Icons.svg#Post-Creator-Icons) format('svg');font-weight:400;font-style:normal}
+.icon.-facebook:before{content:"\e001"}
+.icon.-linkedin:before{content:"\e002"}
+.icon.-pinterest:before{content:"\e003"}
+.icon.-twitter:before{content:"\e004"}
+.social-icons h4{display:inline-block;margin:20px 10px 0 0}
+.social-icons .icon{display:inline-block;margin:0 5px}
+body.modal-open{overflow:hidden}
+.jsoneditor table,.jsoneditor td,.jsoneditor td.tree,.jsoneditor tr{border:none;margin:0}</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.1/css/selectize.default.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/4.2.0/jsoneditor.min.css"/>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-sm-10">
+            <input type="text" id="variable-selector">
+        </div>
+        <div class="col-sm-2">
+            <button class="btn btn-default pull-right" type="submit" id="settings-button">Settings</button>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="collapse col-xs-12" id="settings-collapse">
+            <div class="panel panel-default" style="margin-top: 20px">
+                <div class="panel-heading"><h3 class="panel-title">Adjust chart settings</h3></div>
+                <div class="panel-body">
+                    <div class="row">
+                        <div id="jsoneditor" class="col-md-12" style="height: 350px"></div>
+                    </div>
+                    <div class="row" style="margin-top: 10px">
+                        <div class="col-sm-4">
+                            <button type="button" class="btn btn-primary" id="save-settings">
+                                Apply changes
+                            </button>
+                        </div>
+                        <div class="col-sm-8 text-right ">
+                            <form class="form-inline">
+                                <div class="form-group">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="options-input"
+                                               placeholder="settings" style="text-align: right">
+                                        <div class="input-group-addon"><strong>.json</strong></div>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary" id="options-button">Save</button>
+                            </form>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div id="chart-container" style="min-width: 310px;"></div>
+    </div>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.18/require.min.js"></script>
+
+
+
+
+
+
+<script>(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+//findIndex polyfill
+if (!Array.prototype.findIndex) {
+    Array.prototype.findIndex = function(predicate) {
+        if (this == null) {
+            throw new TypeError('Array.prototype.findIndex called on null or undefined');
+        }
+        if (typeof predicate !== 'function') {
+            throw new TypeError('predicate must be a function');
+        }
+        var list = Object(this);
+        var length = list.length >>> 0;
+        var thisArg = arguments[1];
+        var value;
+
+        for (var i = 0; i < length; i++) {
+            value = list[i];
+            if (predicate.call(thisArg, value, i, list)) {
+                return i;
+            }
+        }
+        return -1;
+    };
+}
+
+if (!Array.prototype.filter) {
+    Array.prototype.filter = function(fun/*, thisArg*/) {
+        'use strict';
+
+        if (this === void 0 || this === null) {
+            throw new TypeError();
+        }
+
+        var t = Object(this);
+        var len = t.length >>> 0;
+        if (typeof fun !== 'function') {
+            throw new TypeError();
+        }
+
+        var res = [];
+        var thisArg = arguments.length >= 2 ? arguments[1] : void 0;
+        for (var i = 0; i < len; i++) {
+            if (i in t) {
+                var val = t[i];
+
+                // NOTE: Technically this should Object.defineProperty at
+                //       the next index, as push can be affected by
+                //       properties on Object.prototype and Array.prototype.
+                //       But that method's new, and collisions should be
+                //       rare, so use the more-compatible alternative.
+                if (fun.call(thisArg, val, i, t)) {
+                    res.push(val);
+                }
+            }
+        }
+
+        return res;
+    };
+}
+
+function guid() {
+    function s4() {
+        return Math.floor((1 + Math.random()) * 0x10000)
+            .toString(16)
+            .substring(1);
+    }
+    return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+        s4() + '-' + s4() + s4() + s4();
+}
+
+Array.prototype.equals = function (array) {
+    // if the other array is a false value, return
+    if (!array)
+        return false;
+
+    // compare lengths - can save a lot of time
+    if (this.length != array.length)
+        return false;
+
+    for (var i = 0, l = this.length; i < l; i++) {
+        // Check if we have nested arrays
+        if (this[i] instanceof Array && array[i] instanceof Array) {
+            // recurse into the nested arrays
+            if (!this[i].equals(array[i]))
+                return false;
+        }
+        else if (this[i] != array[i]) {
+            // Warning - two different object instances will never be equal: {x:20} != {x:20}
+            return false;
+        }
+    }
+    return true;
+};
+
+},{}]},{},[1]);
+</script>
+<script>(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+
+
+requirejs.config({
+    "paths": {
+        "highstock": "https://cdnjs.cloudflare.com/ajax/libs/highstock/2.1.5/highstock",
+        "export": "https://cdnjs.cloudflare.com/ajax/libs/highstock/2.1.5/modules/exporting",
+        "more": "https://cdnjs.cloudflare.com/ajax/libs/highstock/2.1.7/highcharts-more",
+        "jsoneditor": "https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/4.2.0/jsoneditor.min",
+        "selectize": "https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.1/js/standalone/selectize.min",
+        "jquery": "https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min"
+    },
+    "shim": {
+        "export": ["highstock"],
+        "more": ["highstock"]
+    }
+});
+
+//Define jquery here to use the pre-loaded version
+define('jquery', [], function() {
+    return jQuery;
+});
+
+},{}]},{},[1]);
+</script>
+<script>(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+//Count the number of charts on the page
+if (window.counter == undefined) {
+    window.counter = 0;
+} else {
+    window.counter++;
+}
+
+requirejs([
+    'jquery',
+    'selectize',
+    'jsoneditor',
+    'highstock',
+    'export',
+    'more'
+], function ($, selectize, JSONEditor) {
+
+    function guid() {
+        function s4() {
+            return Math.floor((1 + Math.random()) * 0x10000)
+                .toString(16)
+                .substring(1);
+        }
+
+        return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+            s4() + '-' + s4() + s4() + s4();
+    }
+
+    var id = guid();
+    plot(id);
+
+    function plot(id) {
+        var series = [
+            {data: [1, 2, 4, 9], name: "temperature 1", display: true, color: '#2b908f'},
+            {data: [9, 4, 2, 1], name: "temperature 2", display: true},
+            {data: [0, 3, 5, 6], name: "temperature 3", display: false}
+        ];
+        var series = [{"data": [[1447174680000.0, 0.010298071964643895], [1447174740000.0, 0.010298071982106194], [1447174800000.0, 0.010298071964643895], [1447174860000.0, 0.010298071964643895], [1447174920000.0, 0.010298071982106194], [1447174980000.0, 0.010298071964643895], [1447175040000.0, 9.20017163454322], [1447175100000.0, 7.778723404248012], [1447175160000.0, 8.071276595746166], [1447175220000.0, 9.578571428573923], [1447175280000.0, 11.571428571426077], [1447175340000.0, 11.79999999999418], [1447175400000.0, 12.0], [1447175460000.0, 12.137931034492794], [1447175520000.0, 12.79064039408695], [1447175580000.0, 12.450738916260889], [1447175640000.0, 11.711598746082744], [1447175700000.0, 10.909090909076621], [1447175760000.0, 12.28571428572759], [1447175820000.0, 12.114285714284051], [1447175880000.0, 11.724999999994179], [1447175940000.0, 10.78928571427823], [1447176000000.0, 9.817421602795365], [1447176060000.0, 8.617129892221419], [1447176120000.0, 8.242071881610899], [1447176180000.0, 8.009090909088263], [1447176240000.0, 8.081818181817653], [1447176300000.0, 8.05151515152538], [1447176360000.0, 7.831884057959542], [1447176420000.0, 7.901449275371851], [1447176480000.0, 7.881159420293988], [1447176540000.0, 7.718840579706011], [1447176600000.0, 8.000000000005821], [1447176660000.0, 7.999999999988358], [1447176720000.0, 7.866666666674427], [1447176780000.0, 7.9362318840518125], [1447176840000.0, 7.930434782610973], [1447176900000.0, 1.5311688311747276], [1447176960000.0, 0.3896103895967826], [1447177020000.0, 0.38961038961424493], [1447177080000.0, 0.38961038961424493], [1447177140000.0, 0.38961038961424493], [1447177200000.0, 0.38961038961424493], [1447177260000.0, 0.3896103895967826], [1447177320000.0, 0.38961038961424493], [1447177380000.0, 0.38961038961424493], [1447177440000.0, 0.38961038961424493], [1447177500000.0, 0.3896103895967826], [1447177560000.0, 0.38961038961424493], [1447177620000.0, 0.38961038961424493], [1447177680000.0, 0.38961038961424493], [1447177740000.0, 0.38961038961424493]], "display": true, "name": "212ce724e124fbde0fb649396375d099"}]
+        var options = {};
+        var options = {"width": "auto", "scale": 2, "type": "line", "chart": {"type": "line"}, "height": 400}
+        var useHighStock = false;
+        var useHighStock = "inline"
+        var save = 'app/chart.svg';
+        var save = false
+        var url = 'http://127.0.0.1:65079';
+        var url = "http://127.0.0.1:59219/"
+        var settingsFile = 'settings';
+        var settingsFile = "settings"
+        var scale = options.scale;
+
+        //Create different containers for the charts
+        var chartContainer = document.getElementById("chart-container");
+        chartContainer.id = "chart-container" + id;
+        chartContainer.style.height = options.height.toString() + 'px';
+
+        if (options.width != 'auto') {
+            chartContainer.style.width = options.width.toString() + 'px';
+        }
+
+        var selector = $("#variable-selector");
+        selector.attr('id', "variable-selector" + id);
+
+        var settings = $("#settings-collapse");
+        settings.attr('id', "settings-collapse" + id);
+
+        var button = $("#settings-button");
+        button.attr('id', "settings-button" + id);
+
+        var saveButton = $("#save-settings");
+        saveButton.attr('id', "save-settings" + id);
+
+        var optionsInput = $("#options-input");
+        optionsInput.attr('id', "options-input" + id);
+        optionsInput.val(settingsFile);
+
+        var optionsButton = $("#options-button");
+        optionsButton.attr('id', "options-button" + id);
+
+        // create the editor
+        var editorContainer = document.getElementById("jsoneditor");
+        editorContainer.id = "jsoneditor" + id;
+        var editor = new JSONEditor(editorContainer);
+
+        button.on('click', showSettings);
+        saveButton.on('click', applyOptions);
+        optionsButton.on('click', saveOptions);
+
+        function applyOptions() {
+            var newOptions = editor.get();
+            setOptions(newOptions);
+            settings.collapse('hide');
+        }
+
+        function saveOptions(event) {
+            event.preventDefault();
+
+            applyOptions();
+
+            var options = chart.options;
+            delete options.exporting;
+
+            var name = optionsInput.val() ? optionsInput.val() + '.json' : 'settings.json';
+
+            options['settingsFile'] = name;
+
+            $.ajax({
+                type: "POST",
+                url: url,
+                data: JSON.stringify({
+                    options: options,
+                    name: name
+                })
+            });
+        }
+
+        function showSettings() {
+            settings.collapse('toggle');
+        }
+
+        //Choose a chart type
+        var ChartType = useHighStock ? Highcharts.StockChart : Highcharts.Chart;
+
+        //Default highchart colors
+        var colors = ['#7cb5ec', '#434348', '#90ed7d', '#f7a35c', '#8085e9',
+            '#f15c80', '#e4d354', '#2b908f', '#f45b5b', '#91e8e1'];
+
+        series.map(function (serie, index) {
+            if (!serie.color) {
+                serie['color'] = colors[index % 10];
+            }
+
+            return serie;
+        });
+
+        //Get all the keys
+        var keys = [];
+        var initialKeys = [];
+        $.each(series, function (index, serie) {
+            keys.push({
+                display: serie.display,
+                value: serie.name,
+                text: serie.name
+            });
+
+            if (serie.display) {
+                initialKeys.push(serie.name)
+            }
+        });
+
+        selector.selectize({
+            plugins: ['remove_button', 'restore_on_backspace'],
+            delimiter: ',',
+            options: keys,
+            items: initialKeys,
+            onItemAdd: function (key) {
+                console.log('series added');
+                addSeries(key);
+                newChart(chart.options, renderedSeries);
+            },
+            onItemRemove: function (key) {
+                console.log('series removed');
+                deleteSeries(key);
+                newChart(chart.options, renderedSeries);
+            }
+        });
+
+        //Set initial chart options
+        var chartOptions;
+        if (typeof options.chart === "undefined") {
+            chartOptions = {renderTo: chartContainer.id};
+        } else {
+            chartOptions = $.extend(options["chart"], {renderTo: chartContainer.id});
+        }
+
+        //Initial rendered series
+        var renderedSeries = [];
+        options = $.extend(options, {chart: chartOptions}, {series: renderedSeries});
+        var chart = new ChartType(options);
+
+        $.each(initialKeys, function (index, key) {
+            addSeries(key);
+        });
+
+        newChart(chart.options, renderedSeries);
+        editor.set(chart.options);
+
+        if (save) {
+            saveSVG(url, save)
+        }
+
+        function setOptions(options) {
+            //Prevent export from breaking
+            delete options.exporting;
+            options['exporting'] = {scale: options.scale};
+
+            chartContainer.style.height = options.height.toString() + 'px';
+
+            if (options.width != 'auto') {
+                chartContainer.style.width = options.width.toString() + 'px';
+            }
+
+            newChart(options, renderedSeries);
+
+        }
+
+        function findSeries(series, key) {
+            return series.findIndex(function (obj) {
+                return obj.name == key;
+            })
+        }
+
+        function newChart(options, series) {
+            //Disable animation
+            var newOptions = $.extend(options, {series: series});
+            newOptions.plotOptions['series'] = {animation: false};
+
+            //Get zoom
+            var xExtremes = chart.xAxis[0].getExtremes();
+
+            //Re-plot the chart
+            chart.destroy();
+            chart = new ChartType(newOptions);
+
+            //Reset the zoom
+            chart.xAxis[0].setExtremes(xExtremes.min, xExtremes.max, false, false);
+
+            //Re-draw chart
+            chart.redraw();
+        }
+
+        function addSeries(key) {
+            var index = findSeries(series, key);
+            var newSeries = series[index];
+            renderedSeries.push(newSeries)
+        }
+
+        function deleteSeries(key) {
+            var index = findSeries(renderedSeries, key);
+            renderedSeries.splice(index, 1)
+        }
+
+        function saveSVG(url, name) {
+            $.ajax({
+                type: "POST",
+                url: url,
+                data: JSON.stringify({
+                    svg: chart.getSVG(),
+                    name: name
+                })
+            });
+        }
+
+        console.log('loaded!', Date());
+    }
+
+});
+
+},{}]},{},[1]);
+</script>
+
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css"/>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
