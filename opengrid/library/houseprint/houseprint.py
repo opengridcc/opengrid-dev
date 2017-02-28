@@ -36,7 +36,11 @@ It can be pickled, saved and passed around
 
 
 class Houseprint(object):
-    def __init__(self, gjson=None, spreadsheet="Opengrid houseprint (Responses)"):
+    def __init__(self,
+                 gjson=None,
+                 spreadsheet="Opengrid houseprint (Responses)",
+                 empty_init=False
+                 ):
         """
             Parameters
             ---------
@@ -45,13 +49,14 @@ class Houseprint(object):
         """
 
         self.sites = []
-
-        if gjson is None:
-            gjson = config.get('houseprint', 'json')
-        self.gjson = gjson
-        self.spreadsheet = spreadsheet
-        self._parse_sheet()
         self.timestamp = dt.datetime.utcnow()  # Add a timestamp upon creation
+
+        if not empty_init:
+            if gjson is None:
+                gjson = config.get('houseprint', 'json')
+            self.gjson = gjson
+            self.spreadsheet = spreadsheet
+            self._parse_sheet()
 
     def reset(self):
         """
@@ -218,10 +223,7 @@ class Houseprint(object):
             else:
                 raise NotImplementedError('Sensors from {} are not supported'.format(r['manufacturer']))
 
-            # add sensor to device AND site
-            if new_sensor.device is not None:
-                new_sensor.device.sensors.append(new_sensor)
-            new_sensor.site.sensors.append(new_sensor)
+            new_sensor.device.sensors.append(new_sensor)
 
         print('{} sensors created'.format(sum([len(site.sensors) for site in self.sites])))
 
@@ -438,6 +440,10 @@ class Houseprint(object):
             self.init_tmpo()
             return self._tmpos
 
+    @property
+    def tmpos(self):
+        return self.get_tmpos()
+
     def sync_tmpos(self):
         """
             Add all Flukso sensors to the TMPO session and sync
@@ -471,7 +477,14 @@ class Houseprint(object):
         if sensors is None:
             sensors = self.get_sensors(sensortype)
         series = [sensor.get_data(head=head, tail=tail, diff=diff, resample=resample, unit=unit) for sensor in sensors]
-        df = pd.concat(series, axis=1)
+
+        # workaround for https://github.com/pandas-dev/pandas/issues/12985
+        series = [s for s in series if not s.empty]
+
+        if series:
+            df = pd.concat(series, axis=1)
+        else:
+            df = pd.DataFrame()
 
         # Add unit as string to each series in the df.  This is not persistent: the attribute unit will get
         # lost when doing operations with df, but at least it can be checked once.
@@ -482,6 +495,56 @@ class Houseprint(object):
                 pass
 
         return df
+
+    def get_data_dynamic(self, sensors=None, sensortype=None, head=None,
+                         tail=None, diff='default', resample='min',
+                         unit='default'):
+        """
+        Yield Pandas Series for the given sensors
+
+        Parameters
+        ----------
+        sensors : list(Sensor), optional
+            If None, use sensortype to make a selection
+        sensortype : str, optional
+            gas, water, electricity. If None, and Sensors = None,
+            all available sensors in the houseprint are fetched
+        head : dt.datetime | pd.Timestamp | int, optional
+        tail : dt.datetime | pd.Timestamp | int, optional
+        diff : bool | str('default')
+            If True, the original data will be differentiated
+            If 'default', the sensor will decide: if it has the attribute
+            cumulative==True, the data will be differentiated.
+        resample : str
+            default='min'
+            Sampling rate, if any.  Use 'raw' if no resampling.
+        unit : str
+            default='default'
+            String representation of the target unit, eg m**3/h, kW, ...
+
+        Yields
+        ------
+        Pandas.Series
+        """
+        if sensors is None:
+            sensors = self.get_sensors(sensortype)
+
+        for sensor in sensors:
+            ts = sensor.get_data(head=head, tail=tail, diff=diff,
+                                  resample=resample, unit=unit)
+            if ts.empty:
+                continue
+            else:
+                yield ts
+
+    def add_site(self, site):
+        """
+        Parameters
+        ----------
+        site : Site
+        """
+        site.hp = self
+        self.sites.append(site)
 
 
 def load_houseprint_from_file(filename):

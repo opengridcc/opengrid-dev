@@ -111,7 +111,10 @@ def parse(html, solar_duration_as_minutes=False):
                     else:
                         time = dt.time(hour=int(hour), minute=int(minute))
                 except ValueError:
-                    time = pd.NaT
+                    if solar_duration_as_minutes:
+                        time = float('NaN')
+                    else:
+                        time = pd.NaT
                 values.append(time)
             else:
                 try:

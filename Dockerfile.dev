@@ -13,5 +13,5 @@ VOLUME /data
 
 ENV PYTHONPATH=/usr/local/opengrid:$PYTHONPATH
 
-WORKDIR /usr/local/opengrid/notebooks
+WORKDIR /usr/local/opengrid
 CMD ipython notebook --ip='*'
