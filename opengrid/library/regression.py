@@ -331,19 +331,19 @@ class MVLinReg(analysis.Analysis):
                 exog1 = self.list_of_exog[0]
 
             plt.figure()
-            # plot dots for the measurements
-            if len(df_auto) > 0:
-                plt.plot(df_auto[exog1], df_auto[self.endog], 'ro', ms=8, label='Data used for model fitting')
-            if len(df_prog) > 0:
-                plt.plot(df_prog[exog1], df_prog[self.endog], 'o', color='orange', ms=8, label='Data not used for model fitting')
             # plot model as an adjusted trendline
             # get sorted model values
             dfmodel = df[[exog1, 'predicted', 'interval_u', 'interval_l']]
             dfmodel.index = dfmodel[exog1]
             dfmodel.sort(inplace=True)
-            plt.plot(dfmodel.index, dfmodel['predicted'], 'b--')
-            plt.plot(dfmodel.index, dfmodel['interval_l'], 'b:')
-            plt.plot(dfmodel.index, dfmodel['interval_u'], 'b:')
+            plt.plot(dfmodel.index, dfmodel['predicted'], '--', color='royalblue')
+            plt.plot(dfmodel.index, dfmodel['interval_l'], ':',  color='royalblue')
+            plt.plot(dfmodel.index, dfmodel['interval_u'], ':', color='royalblue')
+            # plot dots for the measurements
+            if len(df_auto) > 0:
+                plt.plot(df_auto[exog1], df_auto[self.endog], 'o', mfc='orangered', mec='orangered', ms=8, label='Data used for model fitting')
+            if len(df_prog) > 0:
+                plt.plot(df_prog[exog1], df_prog[self.endog], 'o', mfc='seagreen', mec='seagreen', ms=8, label='Data not used for model fitting')
             plt.title('{} - rsquared={} - BIC={}'.format(fit.model.formula, fit.rsquared, fit.bic))
 
         if bar_chart:
@@ -353,15 +353,15 @@ class MVLinReg(analysis.Analysis):
             fig, ax = plt.subplots()
             title = 'Measured' # will be appended based on the available data
             if len(df_auto) > 0:
-                model = ax.bar(ind[:len(df_auto)], df_auto['predicted'], width*2, color='gold',
+                model = ax.bar(ind[:len(df_auto)], df_auto['predicted'], width*2, color='#FDD787', ecolor='#FDD787',
                                yerr=df_auto['interval_u'] - df_auto['predicted'], label=self.endog + ' modelled')
                 title = title + ', modelled'
             if len(df_prog) > 0:
-                prog = ax.bar(ind[len(df_auto):], df_prog['predicted'], width * 2, color='orange',
+                prog = ax.bar(ind[len(df_auto):], df_prog['predicted'], width * 2, color='#6CD5A1', ecolor='#6CD5A1',
                               yerr=df_prog['interval_u'] - df_prog['predicted'], label=self.endog + ' expected')
                 title = title + ' and predicted'
 
-            meas = ax.bar(ind+width/2., df[self.endog], width, color='red', label=self.endog + ' measured')
+            meas = ax.bar(ind+width/2., df[self.endog], width, label=self.endog + ' measured', color='#D5756C')
             # add some text for labels, title and axes ticks
             ax.set_ylabel(self.endog)
             ax.set_title('{} {}'.format(title, self.endog))
