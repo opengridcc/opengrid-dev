@@ -358,7 +358,12 @@ class Fluksosensor(Sensor):
         dbcur.execute(tmpo.SQL_SENSOR_TABLE)
         dbcur.execute(tmpo.SQL_TMPO_TABLE)
 
-        rid, lvl, bid = dbcur.execute(query, (sid,)).fetchone()
+        query = dbcur.execute(query, (sid,))
+        try:
+            rid, lvl, bid = query.fetchone()
+        except TypeError:
+            return None
+
         end_of_block = tmpos._blocktail(lvl, bid)
 
         dbcon.close()
