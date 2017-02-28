@@ -5,12 +5,16 @@ import pandas as pd
 """
 A Site is a physical entity (a house, appartment, school, or other building).
 It may contain multiple devices and sensors.
-The Site contains most of the metadata, eg. the number of inhabitants, the size of the building, the location etc.
+The Site contains most of the metadata, eg. the number of inhabitants, the size
+of the building, the location etc.
 """
 
+
 class Site(object):
-    def __init__(self, hp, key, size, inhabitants, postcode, construction_year, k_level, e_level, epc_cert):
-        self.hp = hp #backref to parent
+    def __init__(self, hp=None, key=None, size=None, inhabitants=None,
+                 postcode=None, construction_year=None, k_level=None,
+                 e_level=None, epc_cert=None, tmpos=None):
+        self.hp = hp  # backref to parent
         self.key = key
         self.size = size
         self.inhabitants = inhabitants
@@ -21,7 +25,25 @@ class Site(object):
         self.epc_cert = epc_cert
 
         self.devices = []
-        self.sensors = []
+
+        self._tmpos = tmpos
+
+    @property
+    def tmpos(self):
+        if self._tmpos is not None:
+            return self._tmpos
+        elif self.hp.tmpos is not None:
+            return self.hp.tmpos
+        else:
+            raise AttributeError('TMPO session not defined')
+
+    @property
+    def sensors(self):
+        s = []
+        for device in self.devices:
+            for sensor in device.sensors:
+                s.append(sensor)
+        return s
 
     def __repr__(self):
         return """
@@ -93,3 +115,13 @@ class Site(object):
                 pass
 
         return df
+
+    def add_device(self, device):
+        """
+        Parameters
+        ----------
+        device : Device
+        """
+
+        device.site = self
+        self.devices.append(device)

@@ -1,14 +1,16 @@
 __author__ = 'Jan Pecinovsky'
 
-"""
-A Device is an entity that can contain multiple sensors.
-The generic Device class can be inherited by a specific device class, eg. Fluksometer
-"""
-
 import pandas as pd
 
+"""
+A Device is an entity that can contain multiple sensors.
+The generic Device class can be inherited by a specific device class, eg.
+Fluksometer
+"""
+
+
 class Device(object):
-    def __init__(self, key, site):
+    def __init__(self, key=None, site=None):
         self.key = key
         self.site = site
         self.sensors = []
@@ -97,11 +99,30 @@ class Device(object):
         """
         return len(self.get_sensors(sensortype=sensortype))
 
+    def add_sensor(self, sensor):
+        """
+        Parameters
+        ----------
+        sensor : Sensor
+        """
+        sensor.device = self
+        self.sensors.append(sensor)
+
 
 class Fluksometer(Device):
-    def __init__(self, site, key, mastertoken = None):
+    def __init__(self, site=None, key=None, mastertoken=None, tmpos=None):
 
-        #invoke init method of generic Device
+        # invoke init method of generic Device
         super(Fluksometer, self).__init__(key, site)
 
         self.mastertoken = mastertoken
+        self._tmpos = tmpos
+
+    @property
+    def tmpos(self):
+        if self._tmpos is not None:
+            return self._tmpos
+        elif self.site.tmpos is not None:
+            return self.site.tmpos
+        else:
+            raise AttributeError('TMPO session not defined')
