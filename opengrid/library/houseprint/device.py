@@ -1,14 +1,16 @@
 __author__ = 'Jan Pecinovsky'
 
-"""
-A Device is an entity that can contain multiple sensors.
-The generic Device class can be inherited by a specific device class, eg. Fluksometer
-"""
-
 import pandas as pd
 
+"""
+A Device is an entity that can contain multiple sensors.
+The generic Device class can be inherited by a specific device class, eg.
+Fluksometer
+"""
+
+
 class Device(object):
-    def __init__(self, key, site):
+    def __init__(self, key=None, site=None):
         self.key = key
         self.site = site
         self.sensors = []
@@ -65,7 +67,14 @@ class Device(object):
 
         sensors = self.get_sensors(sensortype)
         series = [sensor.get_data(head=head, tail=tail, diff=diff, resample=resample, unit=unit) for sensor in sensors]
-        df =  pd.concat(series, axis=1)
+
+        # workaround for https://github.com/pandas-dev/pandas/issues/12985
+        series = [s for s in series if not s.empty]
+
+        if series:
+            df = pd.concat(series, axis=1)
+        else:
+            df = pd.DataFrame()
 
         # Add unit as string to each series in the df.  This is not persistent: the attribute unit will get
         # lost when doing operations with df, but at least it can be checked once.
@@ -90,11 +99,49 @@ class Device(object):
         """
         return len(self.get_sensors(sensortype=sensortype))
 
+    def last_timestamp(self, epoch=False):
+        """
+        Get the last timestamp for a device, by returning the latest timestamp
+        of the sensors
+
+        Parameters
+        ----------
+        epoch : bool
+            default False
+            If True return as epoch
+            If False return as pd.Timestamp
+
+        Returns
+        -------
+        pd.Timestamp | int
+        """
+        timestamps = [sensor.last_timestamp(epoch=epoch) for sensor in self.sensors]
+        return max(timestamps)
+
+    def add_sensor(self, sensor):
+        """
+        Parameters
+        ----------
+        sensor : Sensor
+        """
+        sensor.device = self
+        self.sensors.append(sensor)
+
 
 class Fluksometer(Device):
-    def __init__(self, site, key, mastertoken = None):
+    def __init__(self, site=None, key=None, mastertoken=None, tmpos=None):
 
-        #invoke init method of generic Device
+        # invoke init method of generic Device
         super(Fluksometer, self).__init__(key, site)
 
         self.mastertoken = mastertoken
+        self._tmpos = tmpos
+
+    @property
+    def tmpos(self):
+        if self._tmpos is not None:
+            return self._tmpos
+        elif self.site.tmpos is not None:
+            return self.site.tmpos
+        else:
+            raise AttributeError('TMPO session not defined')
