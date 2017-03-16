@@ -303,9 +303,10 @@ class MVLinReg(analysis.Analysis):
 
         Returns
         -------
-        Nothing, will make a plot
+        figures : List of plt.figure objects.
 
         """
+        figures = []
         fit = kwargs.get('fit', self.fit)
         df = kwargs.get('df', self.df)
 
@@ -330,7 +331,6 @@ class MVLinReg(analysis.Analysis):
             except IndexError:
                 exog1 = self.list_of_exog[0]
 
-            plt.figure()
             # plot model as an adjusted trendline
             # get sorted model values
             dfmodel = df[[exog1, 'predicted', 'interval_u', 'interval_l']]
@@ -345,6 +345,7 @@ class MVLinReg(analysis.Analysis):
             if len(df_prog) > 0:
                 plt.plot(df_prog[exog1], df_prog[self.endog], 'o', mfc='seagreen', mec='seagreen', ms=8, label='Data not used for model fitting')
             plt.title('{} - rsquared={} - BIC={}'.format(fit.model.formula, fit.rsquared, fit.bic))
+            figures.append(plt.gcf())
 
         if bar_chart:
             ind = np.arange(len(df.index))  # the x locations for the groups
@@ -367,10 +368,16 @@ class MVLinReg(analysis.Analysis):
             ax.set_title('{} {}'.format(title, self.endog))
             ax.set_xticks(ind + width)
             ax.set_xticklabels([x.strftime('%d-%m-%Y') for x in df.index], rotation='vertical')
+            ax.yaxis.grid(True)
+            ax.xaxis.grid(False)
+
 
             plt.legend(ncol=3, loc='upper center')
+            figures.append(plt.gcf())
 
         plt.show()
+
+        return figures
 
 class LinearRegression(analysis.Analysis):
     """
