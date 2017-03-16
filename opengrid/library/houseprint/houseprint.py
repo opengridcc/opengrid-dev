@@ -12,6 +12,7 @@ import datetime as dt
 import pandas as pd
 from requests.exceptions import HTTPError
 import warnings
+from tqdm import tqdm
 
 # compatibility with py3
 if sys.version_info.major >= 3:
@@ -472,10 +473,13 @@ class Houseprint(object):
         """
 
         tmpos = self.get_tmpos()
-        for sensor in self.get_fluksosensors():
+        for sensor in tqdm(self.get_fluksosensors()):
             try:
+                warnings.simplefilter('ignore')
                 tmpos.sync(sensor.key)
+                warnings.simplefilter('default')
             except HTTPError as e:
+                warnings.simplefilter('default')
                 if http_errors == 'ignore':
                     continue
                 elif http_errors == 'warn':
