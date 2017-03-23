@@ -24,10 +24,10 @@ except Exception as e:
     hp = houseprint.Houseprint()
 
 hp.init_tmpo()
-hp.sync_tmpos()
+#hp.sync_tmpos()
 
 # Get the cache objects for gas, elec and water, and update them, sensor by sensor
-for sensortype in ['gas', 'elec', 'water']:
+for sensortype in ['gas', 'electricity', 'water']:
     cache = caching.Cache(variable=sensortype + '_daily_total')
     sensors = hp.get_sensors(sensortype=sensortype)
     df_cached = cache.get(sensors=sensors)
@@ -38,16 +38,19 @@ for sensortype in ['gas', 'elec', 'water']:
     # 3. fill up the cache with the new data
     for sensor in sensors:
         try:
-            last_ts = df_cached[sensor.key].index[-1]
+            last_ts = df_cached[sensor.key].dropna().index[-1]
         except:
             last_ts = pd.Timestamp('1970-01-01')
 
-        df = sensor.get_data(head=last_ts,
-                                 resample='day',
-                                 diff=False,
-                                 tz='Europe/Brussels')
+        # Only get data until the end of the last day
+        #tail = pd.Timestamp(pd.Timestamp('now', tz='Europe/Brussels').date(), tz='Europe/Brussels')
+        df = sensor.get_data(head=last_ts - pd.Timedelta(days=1),
+                             resample='day',
+                             diff=False,
+                             tz='Europe/Brussels')
         df = df.diff().shift(-1).dropna()
-        cache.update(df)
+        if not len(df) == 0:
+            cache.update(df)
 
     print("Updated {} with data from {} sensors".format(sensortype + '_daily_total', len(sensors)))
 
