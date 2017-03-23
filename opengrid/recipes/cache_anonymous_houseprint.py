@@ -18,4 +18,3 @@ print('Sensor data fetched')
 
 filename = os.path.join(c.get('data', 'folder'), 'hp_anonymous.pkl')
 hp.save(filename)
-print('Houseprint saved to {}'.filename)
