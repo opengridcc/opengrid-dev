@@ -23,6 +23,9 @@ RUN pip3 install -r /usr/local/opengrid/requirements.txt
 VOLUME /usr/local/opengrid
 VOLUME /data
 
+# add information for uploading a distribution to pypi.  No passwords!
+ADD .pypirc /root/.pypirc
+
 ENV PYTHONPATH=/usr/local/opengrid:$PYTHONPATH
 
 WORKDIR /usr/local/opengrid
