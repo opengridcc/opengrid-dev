@@ -5,9 +5,9 @@ cache: pip
 matrix:
   include:
     # "Legacy" environments: oldest supported versions, without and with numba
-    - python: "2.7"
-      env: DEPS="numpy scipy matplotlib pandas"
     - python: "3.4"
+      env: DEPS="numpy scipy matplotlib pandas"
+    - python: "3.5"
       env: DEPS="numpy scipy matplotlib pandas"
 
 
