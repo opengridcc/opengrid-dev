@@ -105,12 +105,14 @@ class Cache(object):
                 raise ValueError("pandas Series needs a name with sensor id")
             df_temp = pd.DataFrame(df)
 
+        df_temp = df_temp.dropna()
+
         sensor = df_temp.columns[0]
         # Find the file and read into a dataframe
         filename = self.variable + '_' + sensor + '.pkl'
         path = os.path.join(self.folder, filename)
 
-        pickle.dump(df, open(path, "wb"))
+        pickle.dump(df_temp, open(path, "wb"))
 
         return True
 
@@ -169,6 +171,7 @@ class Cache(object):
                 dfs.append(df)
         if dfs:
             df = pd.concat(dfs, axis=1)
+            df.index = df.index.tz_convert('Europe/Brussels')
         else:
             print("No cached sensordata found.")
             df = pd.DataFrame()
