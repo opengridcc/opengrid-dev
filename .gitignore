@@ -2,7 +2,6 @@
 opengrid/config/og.txt
 **opengrid.cfg
 **.ipynb_checkpoints
-*.pkl
 opengrid/tests/data_backup/
 opengrid/config/houseprint-d74f58100c93.json
 .idea/*
