@@ -171,7 +171,10 @@ class Cache(object):
                 dfs.append(df)
         if dfs:
             df = pd.concat(dfs, axis=1)
-            df.index = df.index.tz_convert('Europe/Brussels')
+            try:
+                df.index = df.index.tz_convert('Europe/Brussels')
+            except TypeError:
+                df.index = df.index.tz_localize('Europe/Brussels')
         else:
             print("No cached sensordata found.")
             df = pd.DataFrame()
