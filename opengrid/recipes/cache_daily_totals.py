@@ -24,7 +24,6 @@ except Exception as e:
     hp = houseprint.Houseprint()
 
 hp.init_tmpo()
-#hp.sync_tmpos()
 
 # Get the cache objects for gas, elec and water, and update them, sensor by sensor
 for sensortype in ['gas', 'electricity', 'water']:
