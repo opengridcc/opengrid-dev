@@ -64,7 +64,7 @@ class MVLinReg(analysis.Analysis):
         self.endog = endog
 
         self.p_max = kwargs.get('p_max', 0.05)
-        self.list_of_exog = kwargs.get('list_of_kwargs', self.df.columns.tolist())
+        self.list_of_exog = kwargs.get('list_of_exog', self.df.columns.tolist())
         self.confint = kwargs.get('confint', 0.05)
         self.cross_validation = kwargs.get('cross_validation', False)
         self.allow_negative_predictions = kwargs.get('allow_negative_predictions', False)

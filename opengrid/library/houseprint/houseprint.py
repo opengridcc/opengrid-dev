@@ -10,6 +10,9 @@ import json
 import jsonpickle
 import datetime as dt
 import pandas as pd
+from requests.exceptions import HTTPError
+import warnings
+from tqdm import tqdm
 
 # compatibility with py3
 if sys.version_info.major >= 3:
@@ -245,6 +248,21 @@ class Houseprint(object):
                 res.append(sensor)
         return res
 
+    def get_fluksosensors(self, **kwargs):
+        """
+        Same thing as get_sensors, but only for fluksosensors
+
+        Parameters
+        ----------
+        kwargs
+
+        Returns
+        -------
+        [Fluksosensor]
+        """
+        return [sensor for sensor in self.get_sensors(**kwargs) if isinstance(
+            sensor, Fluksosensor)]
+
     def get_devices(self):
         """
             Return a list with all devices
@@ -423,9 +441,8 @@ class Houseprint(object):
         """
         Add all flukso sensors in the houseprint to the tmpo session
         """
-        fluksosensors = [sensor for sensor in self.get_sensors() if isinstance(sensor, Fluksosensor)]
 
-        for sensor in fluksosensors:
+        for sensor in self.get_fluksosensors():
             self._tmpos.add(sensor.key, sensor.token)
 
     def get_tmpos(self):
@@ -444,12 +461,33 @@ class Houseprint(object):
     def tmpos(self):
         return self.get_tmpos()
 
-    def sync_tmpos(self):
+    def sync_tmpos(self, http_errors='warn'):
         """
             Add all Flukso sensors to the TMPO session and sync
+
+            Parameters
+            ----------
+            http_errors : 'raise' | 'warn' | 'ignore'
+                default 'warn'
+                define what should be done with TMPO Http-errors
         """
+
         tmpos = self.get_tmpos()
-        tmpos.sync()
+        for sensor in tqdm(self.get_fluksosensors()):
+            try:
+                warnings.simplefilter('ignore')
+                tmpos.sync(sensor.key)
+                warnings.simplefilter('default')
+            except HTTPError as e:
+                warnings.simplefilter('default')
+                if http_errors == 'ignore':
+                    continue
+                elif http_errors == 'warn':
+                    warnings.warn(message='Error for SensorID: ' + sensor.key
+                    + str(e))
+                else:
+                    print('Error for SensorID: ' + sensor.key)
+                    raise e
 
     def get_data(self, sensors=None, sensortype=None, head=None, tail=None, diff='default', resample='min',
                  unit='default'):

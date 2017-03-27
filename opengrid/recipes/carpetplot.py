@@ -10,14 +10,9 @@
 # In[ ]:
 
 import os
-import sys
-import pytz
 import time
-import inspect
-import numpy as np
 import pandas as pd
-import datetime as dt
-import tmpo
+
 
 from opengrid import config
 from opengrid.library import plotting
@@ -70,22 +65,18 @@ c.get('data','folder')
 
 # In[ ]:
 
-hp = houseprint.Houseprint()
+# Load houseprint from cache if possible, otherwise build it from source
+try:
+    hp_filename = os.path.join(c.get('data', 'folder'), 'hp_anonymous.pkl')
+    hp = houseprint.load_houseprint_from_file(hp_filename)
+    print("Houseprint loaded from {}".format(hp_filename))
+except Exception as e:
+    print(e)
+    print("Because of this error we try to build the houseprint from source")
+    hp = houseprint.Houseprint()
 
 end = pd.Timestamp(time.time(), unit='s')
 start = end - pd.Timedelta('21 days')
-
-
-# In[ ]:
-
-hp.save('new_houseprint.pkl')
-
-
-# ## Plotting
-
-# In[ ]:
-
-#hp.sync_tmpos()
 
 
 # ### Water sensors

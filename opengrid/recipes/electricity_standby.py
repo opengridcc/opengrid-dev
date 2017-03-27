@@ -41,7 +41,15 @@ plt.rcParams['figure.figsize'] = 12,8
 
 # In[2]:
 
-hp = houseprint.Houseprint()
+# Load houseprint from cache if possible, otherwise build it from source
+try:
+    hp_filename = os.path.join(c.get('data', 'folder'), 'hp_anonymous.pkl')
+    hp = houseprint.load_houseprint_from_file(hp_filename)
+    print("Houseprint loaded from {}".format(hp_filename))
+except Exception as e:
+    print(e)
+    print("Because of this error we try to build the houseprint from source")
+    hp = houseprint.Houseprint()
 sensors = hp.get_sensors(sensortype='electricity') # sensor objects
 
 # Remove some sensors
@@ -57,13 +65,6 @@ for s in sensors:
 
 hp.init_tmpo()
 
-
-# In[3]:
-
-hp.sync_tmpos()
-
-
-# In[ ]:
 
 # The first time, this will take a very looong time to get all the detailed data for building the cache
 # Afterwards, this is quick
