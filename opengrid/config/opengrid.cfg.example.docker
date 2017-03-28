@@ -30,9 +30,10 @@ apikey: CHANGE_ME
 [Forecast.io]
 apikey: CHANGE_ME
 
-[Slack]
+[slack]
 # Used for testing our alerting services. 
 webhook: https://hooks.slack.com/services/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
+config: /usr/local/opengrid/opengrid/config/alerts.cfg
 
 [tmpo]
 data: /data

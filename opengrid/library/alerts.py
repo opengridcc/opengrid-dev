@@ -4,6 +4,9 @@ Create alerts
 """
 
 import json
+from opengrid import config
+c=config.Config()
+import os
 
 def get_threshold(analysis, sensor_key):
     """
@@ -17,14 +20,14 @@ def get_threshold(analysis, sensor_key):
     sensor_key : str
         Sensor key for which the threshold has to be returned.
     """
-
-    threshold = json.load(open("alerts.cfg", "r"))
+    path_alerts = c.get('slack', 'config')
+    threshold = json.load(open(path_alerts, "r"))
     default = threshold[analysis]['default']
 
     return threshold[analysis].get(sensor_key, default)
 
 
-def create_alerts(df, hp, analysis, slack, column='result'):
+def create_alerts(df, hp, analysis, slack, title,  description, column='result'):
     """
     Create alerts for each sensor, if needed.
 
@@ -50,9 +53,8 @@ def create_alerts(df, hp, analysis, slack, column='result'):
                 "text": "",
                 "attachments": [
                     {
-                        "title": "High electricity consumption",
-                        "text": """We found a strange (high) value for the analysis {}.
-                        """.format(analysis),
+                        "title": title,
+                        "text": description,
                         "fallback": "OpenGrid alert",
                         "color": "warning",  # this will create a red line
                         "fields": [
@@ -74,6 +76,11 @@ def create_alerts(df, hp, analysis, slack, column='result'):
                             {
                                 "title": "Your threshold value",
                                 "value": tr,
+                                "short": True
+                            },
+                           {
+                                "title": "Link to OpenGrid website",
+                                "value": "https://opengrid.be/sensor/" + sensor_key,
                                 "short": True
                             }
                         ]
