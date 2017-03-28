@@ -14,4 +14,4 @@ dist/
 build/
 opengrid.egg-info/
 data/*
-.DS_Store
+*.DS_Store
