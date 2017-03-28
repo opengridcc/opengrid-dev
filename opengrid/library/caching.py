@@ -18,6 +18,7 @@ cfg = config.Config()
 from opengrid.library import misc
 from opengrid.library import analysis
 from tqdm import tqdm
+import pickle
 
 class Cache(object):
     """
@@ -72,14 +73,16 @@ class Cache(object):
         
         """
         # Find the file and read into a dataframe
-        filename = self.variable + '_' + sensorkey + '.csv'
+        filename = self.variable + '_' + sensorkey + '.pkl'
         path = os.path.join(self.folder, filename)
         
         if not os.path.exists(path):
             #print("Could not find {}".format(path))
             return pd.DataFrame()
         
-        df = pd.read_csv(path, index_col = 0, header=0, parse_dates=True, date_parser=dateutil.parser.parse)
+        df = pickle.load(open(path, "rb"))
+        if isinstance(df, pd.Series):
+            df = pd.DataFrame(df)
         return df
     
     
@@ -102,13 +105,15 @@ class Cache(object):
                 raise ValueError("pandas Series needs a name with sensor id")
             df_temp = pd.DataFrame(df)
 
+        df_temp = df_temp.dropna()
+
         sensor = df_temp.columns[0]
         # Find the file and read into a dataframe
-        filename = self.variable + '_' + sensor + '.csv'
+        filename = self.variable + '_' + sensor + '.pkl'
         path = os.path.join(self.folder, filename)
-        
-        df_temp.to_csv(path)
-        #print("Values for {} written to {}".format(sensor, path))
+
+        pickle.dump(df_temp, open(path, "wb"))
+
         return True
 
     def _write(self, df):
@@ -161,8 +166,18 @@ class Cache(object):
 
         dfs = []
         for sensor in sensors:
-            dfs.append(self._load(sensor.key))
-        df = pd.concat(dfs,axis=1)
+            df = self._load(sensor.key)
+            if not df.empty:
+                dfs.append(df)
+        if dfs:
+            df = pd.concat(dfs, axis=1)
+            try:
+                df.index = df.index.tz_convert('Europe/Brussels')
+            except TypeError:
+                df.index = df.index.tz_localize('Europe/Brussels')
+        else:
+            print("No cached sensordata found.")
+            df = pd.DataFrame()
 
         if len(df) == 0:
             return df
@@ -201,7 +216,7 @@ class Cache(object):
 
         """
         if len(df) == 0:
-            #print("Empty dataframe")
+            print("Empty dataframe")
             return False
         
         if df.index.freqstr != 'D':
@@ -249,7 +264,7 @@ class Cache(object):
 
         # Find the file and read into a dataframe
         sensor = df_temp.columns[0]
-        df_old = self._load(sensor)
+        df_old = self._load(sensor) #
         df_old.update(df_temp)
         df_res = df_old.combine_first(df_temp)
         self._write(df_res)

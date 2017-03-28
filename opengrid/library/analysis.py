@@ -34,6 +34,13 @@ class Analysis(object):
 
 
 class DailyAgg(Analysis):
+    """
+    Obtain a dataframe with daily aggregated data according to an aggregation operator
+    like min, max or mean
+    - for the entire day if starttime and endtime are not specified
+    - within a time-range specified by starttime and endtime.
+      This can be used eg. to get the minimum consumption during the night.
+    """
     def __init__(self, df, agg, starttime=dt.time.min, endtime=dt.time.max):
         """
         Parameters
@@ -55,6 +62,8 @@ class DailyAgg(Analysis):
             self.result = df
         else:
             self.result = pd.DataFrame()
+
+
 
 
 

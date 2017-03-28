@@ -13,5 +13,8 @@ VOLUME /data
 
 ENV PYTHONPATH=/usr/local/opengrid:$PYTHONPATH
 
+# add information for uploading a distribution to pypi.  No passwords!
+ADD .pypirc /root/.pypirc
+
 WORKDIR /usr/local/opengrid
 CMD ipython notebook --ip='*'
