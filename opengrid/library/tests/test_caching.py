@@ -66,14 +66,14 @@ class CacheTest(unittest.TestCase):
                                 quantity=None,unit=None,direction=None,tariff=None,cumulative=None)
         df = ch.get([mysensor])
         
-        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=365, tz='UTC')).all())
+        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=365, tz='Europe/Brussels')).all())
         self.assertEqual(df.columns, ['mysensor'])
         
         df = ch.get([mysensor], end='20160115')
-        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=15, tz='UTC')).all())
+        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=15, tz='Europe/Brussels')).all())
         
         df = ch.get([mysensor], start = '20160707', end='20160708')
-        self.assertTrue((df.index == pd.DatetimeIndex(start='20160707', freq='D', periods=2, tz='UTC')).all())
+        self.assertTrue((df.index == pd.DatetimeIndex(start='20160707', freq='D', periods=2, tz='Europe/Brussels')).all())
         # self.assertFalse(df.index.tz is None, "Returned dataframe is tz-naive") #Removed this test on 21/04/16 after pull request #136 and discussion in #135.
         # However, we need to finalise the discussion: a date is also timezone dependent...
 
@@ -88,7 +88,7 @@ class CacheTest(unittest.TestCase):
                                 quantity=None,unit=None,direction=None,tariff=None,cumulative=None)
         df = ch.get([mysensor, mysensor2], end='20160104')
 
-        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=4, tz='UTC')).all())
+        self.assertTrue((df.index == pd.DatetimeIndex(start='20160101', freq='D', periods=4, tz='Europe/Brussels')).all())
         self.assertListEqual(df.columns.tolist(), ['mysensor', 'mysensor2'])
         self.assertEqual(df.ix[1, 'mysensor2'], 5)
         self.assertTrue(np.isnan(df.ix[3, 'mysensor2']))
@@ -101,7 +101,7 @@ class CacheTest(unittest.TestCase):
         df = pd.Series()
         self.assertFalse(ch.check_df(df))
 
-        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
+        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='Europe/Brussels')
         ts = pd.Series(index=index, data=np.random.randn(3), name='A')
         self.assertTrue(ch.check_df(ts))
 
@@ -112,15 +112,15 @@ class CacheTest(unittest.TestCase):
         df = pd.DataFrame()
         self.assertFalse(ch.check_df(df))
 
-        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
+        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='Europe/Brussels')
         df = pd.DataFrame(index=index, data=np.random.randn(3,2), columns=['A', 'B'])
         self.assertTrue(ch.check_df(df))
         
-        index = pd.DatetimeIndex(['20160201', '20160202', '20160203'], tz='UTC')
+        index = pd.DatetimeIndex(['20160201', '20160202', '20160203'], tz='Europe/Brussels')
         df = pd.DataFrame(index=index, data=np.random.randn(3), columns=['A'])
         self.assertTrue(ch.check_df(df))
         
-        index = pd.DatetimeIndex(['20160201', '20160202', '20160204'], tz='UTC')
+        index = pd.DatetimeIndex(['20160201', '20160202', '20160204'], tz='Europe/Brussels')
         df = pd.DataFrame(index=index, data=np.random.randn(3), columns=['A'])
         self.assertFalse(ch.check_df(df))
 
@@ -129,9 +129,9 @@ class CacheTest(unittest.TestCase):
         ch = caching.Cache('elec_temp')
 
         # write a dataframe with single column
-        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
+        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='Europe/Brussels')
         df = pd.DataFrame(index=index, data=np.random.randn(3), columns=['testsensor'])
-        expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor.csv')
+        expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor.pkl')
         self.assertFalse(os.path.exists(expected_path))
         try:
             ch._write_single(df)
@@ -150,9 +150,9 @@ class CacheTest(unittest.TestCase):
         ch = caching.Cache('elec_temp')
 
         # write a dataframe with single column
-        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
+        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='Europe/Brussels')
         df = pd.Series(index=index, data=np.random.randn(3), name='testsensor_series')
-        expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor_series.csv')
+        expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor_series.pkl')
         self.assertFalse(os.path.exists(expected_path))
         try:
             ch._write_single(df)
@@ -171,10 +171,10 @@ class CacheTest(unittest.TestCase):
         ch = caching.Cache('elec_temp')
 
         # write a dataframe with single column
-        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
+        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='Europe/Brussels')
         df = pd.DataFrame(index=index, data=np.random.randn(3,2), columns=['testsensor1', 'testsensor2'])
-        expected_path1 = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor1.csv')
-        expected_path2 = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor2.csv')
+        expected_path1 = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor1.pkl')
+        expected_path2 = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor2.pkl')
         self.assertFalse(os.path.exists(expected_path1))
         self.assertFalse(os.path.exists(expected_path2))
 
@@ -197,13 +197,13 @@ class CacheTest(unittest.TestCase):
 
         try:
             # write a dataframe with single column
-            index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
+            index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='Europe/Brussels')
             df = pd.DataFrame(index=index, data=[0,1,2], columns=['testsensor'])
-            expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor.csv')
+            expected_path = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor.pkl')
             self.assertFalse(os.path.exists(expected_path))
             ch._write_single(df)
 
-            index = pd.DatetimeIndex(start='20160103', freq='D', periods=3, tz='UTC')
+            index = pd.DatetimeIndex(start='20160103', freq='D', periods=3, tz='Europe/Brussels')
             df_new = pd.DataFrame(index=index, data=[100,200,300], columns=['testsensor'])
             ch.update(df_new)
             df_res = ch.get([testsensor])
@@ -214,7 +214,7 @@ class CacheTest(unittest.TestCase):
         except:
             raise
         finally:
-            os.remove(os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor.csv'))
+            os.remove(os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor.pkl'))
 
     def test_update_multiple(self):
         """Update an existing cached sensor with new information"""
@@ -224,10 +224,10 @@ class CacheTest(unittest.TestCase):
                                 quantity=None,unit=None,direction=None,tariff=None,cumulative=None)
 
         # write a dataframe with two columns
-        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='UTC')
+        index = pd.DatetimeIndex(start='20160101', freq='D', periods=3, tz='Europe/Brussels')
         df = pd.DataFrame(index=index, data=dict(testsensor1=[0,1,2], testsensor2= [0,1,2]))
-        expected_path1 = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor1.csv')
-        expected_path2 = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor2.csv')
+        expected_path1 = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor1.pkl')
+        expected_path2 = os.path.join(test_dir, cfg.get('data', 'folder'), 'cache_day', 'elec_temp_testsensor2.pkl')
         self.assertFalse(os.path.exists(expected_path1))
         self.assertFalse(os.path.exists(expected_path2))
         try:
@@ -235,7 +235,7 @@ class CacheTest(unittest.TestCase):
             self.assertTrue(os.path.exists(expected_path1))
             self.assertTrue(os.path.exists(expected_path2))
 
-            index = pd.DatetimeIndex(start='20160103', freq='D', periods=3, tz='UTC')
+            index = pd.DatetimeIndex(start='20160103', freq='D', periods=3, tz='Europe/Brussels')
             df_new = pd.DataFrame(index=index, data=dict(testsensor1=[100,200,300], testsensor2=[100,200,300]))
             ch.update(df_new)
             df_res = ch.get([testsensor2])
@@ -253,10 +253,7 @@ class CacheTest(unittest.TestCase):
 
 if __name__ == '__main__':
     
-    #http://stackoverflow.com/questions/4005695/changing-order-of-unit-tests-in-python    
-    ln = lambda f: getattr(CacheTest, f).im_func.func_code.co_firstlineno
-    lncmp = lambda _, a, b: cmp(ln(a), ln(b))
-    unittest.TestLoader.sortTestMethodsUsing = lncmp
+
 
     suite1 = unittest.TestLoader().loadTestsFromTestCase(CacheTest)
     alltests = unittest.TestSuite([suite1])
