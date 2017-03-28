@@ -20,7 +20,7 @@ def get_threshold(analysis, sensor_key):
     sensor_key : str
         Sensor key for which the threshold has to be returned.
     """
-    path_alerts = c.get('slack', 'config')
+    path_alerts = c.get('Slack', 'config')
     threshold = json.load(open(path_alerts, "r"))
     default = threshold[analysis]['default']
 

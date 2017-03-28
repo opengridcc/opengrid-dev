@@ -78,7 +78,7 @@ df['days'] = df.timedelta.map(lambda x: x.days)
 
 # In[ ]:
 
-slack_url = c.get('slack', 'webhook')
+slack_url = c.get('Slack', 'webhook')
 username = 'NoDataBot'
 channel = "junk" # we don't want to clutter up everything
 emoji = ':warning:'
