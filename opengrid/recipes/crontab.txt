@@ -25,3 +25,4 @@
 5 * * * * cd /usr/local/src/opengrid; python recipes/timeseries_7days.py > /usr/local/data/logs/timeseries_7days.log 2>&1
 30 5 * * * cd /usr/local/src/opengrid; python recipes/electricity_standby.py > /usr/local/data/logs/electricity_standby.log 2>&1
 10 0 * * * cd /usr/local/src/opengrid; python recipes/carpetplot.py > /usr/local/data/logs/carpetplot.log 2>&1
+

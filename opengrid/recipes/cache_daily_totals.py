@@ -7,6 +7,7 @@ Created on 23/03/2017 by Roel De Coninck
 
 import os
 import pandas as pd
+from tqdm import tqdm
 
 from opengrid.library import houseprint, caching
 from opengrid import config
@@ -35,21 +36,29 @@ for sensortype in ['gas', 'electricity', 'water']:
     # 1. get the last timestamp of the cached daily total
     # 2. get the daily data since than
     # 3. fill up the cache with the new data
-    for sensor in sensors:
+    print('Caching daily totals for {}'.format(sensortype))
+    for sensor in tqdm(sensors):
         try:
             last_ts = df_cached[sensor.key].dropna().index[-1]
+            last_ts = last_ts.tz_convert('Europe/Brussels')
         except:
-            last_ts = pd.Timestamp('1970-01-01')
+            last_ts = pd.Timestamp('1970-01-01', tz='Europe/Brussels')
 
         # Only get data until the end of the last day
-        #tail = pd.Timestamp(pd.Timestamp('now', tz='Europe/Brussels').date(), tz='Europe/Brussels')
-        df = sensor.get_data(head=last_ts - pd.Timedelta(days=1),
-                             resample='day',
-                             diff=False,
-                             tz='Europe/Brussels')
-        df = df.diff().shift(-1).dropna()
-        if not len(df) == 0:
-            cache.update(df)
+        # Chunk the data retrieval and caching to avoid memory overflow
+        end_ts = pd.Timestamp(pd.Timestamp('now', tz='Europe/Brussels'))
+        months = pd.DatetimeIndex(start=last_ts, end=end_ts, freq='M').tolist()
+        months.insert(0, last_ts - pd.Timedelta(days=2))
+        months.append(end_ts)
+        for start, end in zip(months[:-1], months[1:]):
+            df = sensor.get_data(head=start - pd.Timedelta(days=1),
+                                 tail=end,
+                                 resample='day',
+                                 diff=False,
+                                 tz='Europe/Brussels')
+            df = df.diff().shift(-1).dropna()
+            if not len(df) == 0:
+                cache.update(df)
 
     print("Updated {} with data from {} sensors".format(sensortype + '_daily_total', len(sensors)))
 
