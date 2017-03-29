@@ -1,1 +1,1 @@
-*.ipynb filter=ipynb_stripout
+#*.ipynb filter=ipynb_stripout
