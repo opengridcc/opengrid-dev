@@ -371,7 +371,7 @@ class Houseprint(object):
                 return sensor
         return None
 
-    def save(self, filename):
+    def save(self, filename, pickle_format='jsonpickle'):
         """
         Save the houseprint object
 
@@ -380,6 +380,10 @@ class Houseprint(object):
         * filename : str
             Filename, if relative path or just filename, it is appended to the
             current working directory
+        pickle_format : str
+            'jsonpickle' or 'pickle'
+            pickle may be more robust, but jsonpickle should be compatible
+            across python versions
 
         """
         # temporarily delete tmpo session
@@ -389,11 +393,17 @@ class Houseprint(object):
         except:
             pass
 
-        frozen = jsonpickle.encode(self)
-
         abspath = os.path.join(os.getcwd(), filename)
-        with open(abspath, 'w') as f:
-            f.write(frozen)
+
+        if pickle_format == 'jsonpickle':
+            with open(abspath, 'w') as f:
+                frozen = jsonpickle.encode(self)
+                f.write(frozen)
+        elif pickle_format == 'pickle':
+            with open(abspath, 'wb') as f:
+                pickle.dump(self, file=f)
+        else:
+            raise NotImplementedError("Pickle format '{}' is not supported".format(pickle_format))
 
         print("Saved houseprint to {}".format(abspath))
 
@@ -585,15 +595,25 @@ class Houseprint(object):
         self.sites.append(site)
 
 
-def load_houseprint_from_file(filename):
+def load_houseprint_from_file(filename, pickle_format='jsonpickle'):
     """
     Return a static (=anonymous) houseprint object
 
     Parameters
     ----------
     filename : str
+    pickle_format : str
+        'jsonpickle' or 'pickle'
+        pickle may be more robust, but jsonpickle should be compatible
+        across python versions
     """
+    if pickle_format == 'jsonpickle':
+        with open(filename, 'r') as f:
+            hp = jsonpickle.decode(f.read())
+    elif pickle_format == 'pickle':
+        with open(filename, 'rb') as f:
+            hp = pickle.load(file=f)
+    else:
+        raise NotImplementedError("Pickle format '{}' is not supported".format(pickle_format))
 
-    with open(filename, 'r') as f:
-        hp = jsonpickle.decode(f.read())
     return hp
