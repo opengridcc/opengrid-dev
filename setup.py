@@ -26,7 +26,7 @@ if subprocess.call(["pip", "install","-r", path.join(here, "requirements.txt"), 
 
 setup(
     name='opengrid',
-    version="0.4.9",
+    version="0.4.11",
     description='Open-source algorithms for data-driven building analysis and control',
     #long_description=long_description,
     url='https://github.com/opengridcc/opengrid',
@@ -54,9 +54,9 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.2',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
     ],
 
     keywords='algorithms buildings monitoring analysis control',
