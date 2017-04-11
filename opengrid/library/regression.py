@@ -313,16 +313,11 @@ class MVLinReg(analysis.Analysis):
         if not 'predicted' in df.columns:
             df = self._predict(fit=fit, df=df, confint=kwargs.get('confint', 0.05))
         # split the df in the auto-validation and prognosis part
-        try:
-            df_auto = df.loc[self.df.index, :]
-        except KeyError:
-            # no overlap between self.df and df
-            df_auto = pd.DataFrame()
+        df_auto = df.ix[self.df.index[0]:self.df.index[-1], :]
+        if df_auto.empty:
             df_prog = df
         else:
-            df_prog = df.drop(self.df.index)
-            if len(df_prog) > 0:
-                assert df_prog.index[0] > df_auto.index[-1], "Back-casting is currently not implemented"
+            df_prog = df.ix[df_auto.index[-1]:].iloc[1:,:]
 
         if model:
             # The first variable in the formula is the most significant.  Use it as abcis for the plot
