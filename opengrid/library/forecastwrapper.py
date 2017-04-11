@@ -208,6 +208,8 @@ class Weather():
                 temperature_equivalent=frame.temperatureEquivalent, base_temperature=base, cooling=True
             )
 
+        frame['dayLength'] = frame.sunsetTime - frame.sunriseTime
+
         return frame
 
     def hours(self, irradiances=None, no_truncate=False, wind_orients=None):
