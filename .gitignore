@@ -1,3 +1,4 @@
+.DS_Store
 *.pyc
 opengrid/config/og.txt
 **opengrid.cfg
