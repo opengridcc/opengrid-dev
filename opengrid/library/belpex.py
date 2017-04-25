@@ -53,6 +53,7 @@ def get_belpex_day(date):
     series = pd.Series(index=index, data=data)
     if series.empty:
         print("No data found for {}".format(date))
+        return None
     else:
         series = series.tz_convert('Europe/Brussels')
     return series
