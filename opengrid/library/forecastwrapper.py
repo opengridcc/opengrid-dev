@@ -241,7 +241,8 @@ class Weather():
         -------
         pandas.DataFrame
         """
-        day_list = [self._forecast_to_hour_series(forecast) for forecast in self.forecasts]
+        day_list = [self._forecast_to_hour_series(forecast)
+                    for forecast in tqdm(self.forecasts)]
         frame = pd.concat(day_list)
         frame = self._fix_index(frame)
         frame.sort_index(inplace=True)
@@ -337,11 +338,13 @@ class Weather():
 
         Returns
         -------
-        Pandas Dataframe
+        pd.DataFrame
 
         """
 
         hour_list = [pd.Series(self._flatten_solar(hour.d)) for hour in forecast.hourly().data]
+        if len(hour_list) == 0:
+            return pd.DataFrame()
         frame = pd.concat(hour_list, axis=1).T
         frame.temperature = frame.temperature.astype(float)
         return frame
@@ -396,6 +399,7 @@ class Weather():
 
         """
         frame['time'] = pd.DatetimeIndex(frame['time'].astype('datetime64[s]'))
+        frame = frame.drop_duplicates(subset='time', keep='first')
         frame.set_index('time', inplace=True)
         frame = frame.tz_localize('UTC')
         frame = frame.tz_convert(self.tz.zone)
