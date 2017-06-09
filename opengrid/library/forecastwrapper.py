@@ -25,7 +25,8 @@ class Weather():
         NOTE: Forecast.io allows 1000 requests per day, after that you have to pay. Each requested day is 1 request.
     """
 
-    def __init__(self, location, start, end=None, cache=True, api_key=None):
+    def __init__(self, location, start, end=None, cache=True, api_key=None,
+                 timezone=None):
         """
             Constructor
 
@@ -42,6 +43,9 @@ class Weather():
                 use the cache or not
             api_key : str, optional
                 if None, we look for an apikey in the config file
+            timezone : str, optional
+                timezone lookup is done automatically, but you can set it
+                manually if you'd like
         """
         if api_key is not None:
             self.api_key = api_key
@@ -51,6 +55,7 @@ class Weather():
         self._start = start
         self._end = end
         self.cache = cache
+        self._tz = timezone
 
         self._forecasts = []
 
@@ -117,8 +122,11 @@ class Weather():
         -------
         pytz.timezone
         """
+        if self._tz is not None:
+            tz = self._tz
+
         # if there already are some forecasts, the timezone is in there
-        if self._forecasts:
+        elif self._forecasts:
             tz = self._lookup_timezone()
 
         # use Google geocoder to lookup timezone
