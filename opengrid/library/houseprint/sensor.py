@@ -333,8 +333,6 @@ class Fluksosensor(Sensor):
 
     def last_timestamp(self, epoch=False):
         """
-        VERY HACKY CODE, WAITING FOR A PULL-REQUEST IN TMPO TO GO THROUGH
-
             Get the theoretical last timestamp for a sensor
             It is the mathematical end of the last block, the actual last sensor stamp may be earlier
 
@@ -349,26 +347,5 @@ class Fluksosensor(Sensor):
             -------
             pd.Timestamp | int
         """
-        query = tmpo.SQL_TMPO_LAST
-        sid = self.key
         tmpos = self.site.hp.get_tmpos()
-
-        dbcon = sqlite3.connect(tmpos.db)
-        dbcur = dbcon.cursor()
-        dbcur.execute(tmpo.SQL_SENSOR_TABLE)
-        dbcur.execute(tmpo.SQL_TMPO_TABLE)
-
-        query = dbcur.execute(query, (sid,))
-        try:
-            rid, lvl, bid = query.fetchone()
-        except TypeError:
-            return None
-
-        end_of_block = tmpos._blocktail(lvl, bid)
-
-        dbcon.close()
-
-        if epoch:
-            return end_of_block
-        else:
-            return pd.Timestamp.fromtimestamp(end_of_block).tz_localize('UTC')
+        return tmpos.last_timestamp(sid=self.key, epoch=epoch)
