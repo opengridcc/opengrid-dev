@@ -13,7 +13,7 @@ of the building, the location etc.
 class Site(object):
     def __init__(self, hp=None, key=None, size=None, inhabitants=None,
                  postcode=None, construction_year=None, k_level=None,
-                 e_level=None, epc_cert=None, tmpos=None):
+                 e_level=None, epc_cert=None, tmpos=None, slack_name=None):
         self.hp = hp  # backref to parent
         self.key = key
         self.size = size
@@ -23,6 +23,9 @@ class Site(object):
         self.k_level = k_level
         self.e_level = e_level
         self.epc_cert = epc_cert
+        if slack_name == '':
+            slack_name = None
+        self.slack_name = slack_name
 
         self.devices = []
 
