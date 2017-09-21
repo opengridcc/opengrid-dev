@@ -79,8 +79,8 @@ class Cache(object):
         if not os.path.exists(path):
             #print("Could not find {}".format(path))
             return pd.DataFrame()
-        
-        df = pickle.load(open(path, "rb"))
+        with open(path, "rb") as f:
+            df = pickle.load(f)
         if isinstance(df, pd.Series):
             df = pd.DataFrame(df)
         return df
@@ -111,8 +111,8 @@ class Cache(object):
         # Find the file and read into a dataframe
         filename = self.variable + '_' + sensor + '.pkl'
         path = os.path.join(self.folder, filename)
-
-        pickle.dump(df_temp, open(path, "wb"))
+        with open(path, "wb") as f:
+            pickle.dump(df_temp, f)
 
         return True
 
