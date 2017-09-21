@@ -1,0 +1,10 @@
+FROM opengrid/dev:python3
+
+# install OpenGrid
+RUN pip3 install opengrid
+
+ADD ./opengrid/config/opengrid.cfg.example.docker /usr/local/opengrid/opengrid.cfg
+ADD ./opengrid/recipes/ /usr/local/opengrid/recipes/
+
+
+
