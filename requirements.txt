@@ -1,6 +1,6 @@
 numpy
 scipy
-matplotlib
+matplotlib>=2.0.0
 pandas>=0.18.1
 gspread==0.2.5
 requests>=2.12
@@ -13,8 +13,8 @@ oauth2client==1.5.2
 pyopenssl
 tmpo>=0.2.3
 jsonpickle
-python-coveralls 
-coverage 
+python-coveralls
+coverage
 pint
 beautifulsoup4
 iso8601
