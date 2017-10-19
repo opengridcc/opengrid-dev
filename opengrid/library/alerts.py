@@ -27,7 +27,7 @@ def get_threshold(analysis, sensor_key):
     return threshold[analysis].get(sensor_key, default)
 
 
-def create_alerts(df, hp, analysis, slack, title,  description, column='result'):
+def create_alerts(df, hp, analysis, slack, title,  description, column='result', comparison='higher'):
     """
     Create alerts for each sensor, if needed.
 
@@ -48,7 +48,8 @@ def create_alerts(df, hp, analysis, slack, title,  description, column='result')
 
     for sensor_key in df.index:
         tr = get_threshold(analysis, sensor_key=sensor_key)
-        if df.loc[sensor_key, column] > tr:
+        operation = dict(higher='gt', lower='lt')[comparison]
+        if eval('df.loc[sensor_key, [column]].{}(tr).any()'.format(operation)):
             json_message = {
                 "text": "",
                 "attachments": [

@@ -3,6 +3,7 @@ import requests
 import iso8601
 import datetime as dt
 import pandas as pd
+from tqdm import tqdm
 from .misc import dayset
 
 
@@ -24,7 +25,7 @@ def get_belpex(start, end=None):
         end = dt.date.today() + dt.timedelta(days=1)
     # Prices are fetched per day, so we'll create a set of days, download seperate dataframes per day and put them
     # together
-    series = [get_belpex_day(date) for date in dayset(start, end)]
+    series = [get_belpex_day(date) for date in tqdm(dayset(start, end))]
     return pd.concat(series)
 
 
@@ -45,12 +46,16 @@ def get_belpex_day(date):
     # parse html into an array of timestamps and values
     try:
         index, data = parse_html(html)
-    except KeyError:  # something goes wrong when parsing, probably meaning data is unavailable.
-        print("No data found for {}".format(date.date()))
+    except Exception:  # something goes wrong when parsing, probably meaning data is unavailable.
+        print("No data found for {}".format(date))
         return None
 
     series = pd.Series(index=index, data=data)
-    series = series.tz_convert('Europe/Brussels')
+    if series.empty:
+        print("No data found for {}".format(date))
+        return None
+    else:
+        series = series.tz_convert('Europe/Brussels')
     return series
 
 
@@ -105,7 +110,10 @@ def parse_html(html):
     for span in spans:
         # There is a iso8601 timestamp somewhere in an 'onclick' JavaScript call...
         # Luckily all arguments passed are of constant width so we can grab the stamp by index
-        date = iso8601.parse_date(span['onclick'][128:152])
+        try:
+            date = iso8601.parse_date(span['onclick'][128:152])
+        except KeyError:
+            continue
         index.append(date)
         # the value is right in the middle of the span
         value = float(span.text)

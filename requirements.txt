@@ -11,7 +11,7 @@ python-forecastio
 geopy
 oauth2client==1.5.2
 pyopenssl
-tmpo==0.2.3
+tmpo>=0.2.3
 jsonpickle
 python-coveralls 
 coverage 

@@ -25,7 +25,8 @@ class Weather():
         NOTE: Forecast.io allows 1000 requests per day, after that you have to pay. Each requested day is 1 request.
     """
 
-    def __init__(self, location, start, end=None, cache=True):
+    def __init__(self, location, start, end=None, cache=True, api_key=None,
+                 timezone=None):
         """
             Constructor
 
@@ -40,12 +41,21 @@ class Weather():
                 if None, use current time
             cache : bool
                 use the cache or not
+            api_key : str, optional
+                if None, we look for an apikey in the config file
+            timezone : str, optional
+                timezone lookup is done automatically, but you can set it
+                manually if you'd like
         """
-        self.api_key = cfg.get('Forecast.io', 'apikey')
+        if api_key is not None:
+            self.api_key = api_key
+        else:
+            self.api_key = cfg.get('Forecast.io', 'apikey')
         self._location = location
         self._start = start
         self._end = end
         self.cache = cache
+        self._tz = timezone
 
         self._forecasts = []
 
@@ -112,8 +122,11 @@ class Weather():
         -------
         pytz.timezone
         """
+        if self._tz is not None:
+            tz = self._tz
+
         # if there already are some forecasts, the timezone is in there
-        if self._forecasts:
+        elif self._forecasts:
             tz = self._lookup_timezone()
 
         # use Google geocoder to lookup timezone
@@ -179,7 +192,8 @@ class Weather():
         self._add_forecast(self.start - pd.Timedelta(days=2))
 
         # create a dataframe from the daily observations
-        day_list = [self._forecast_to_day_series(forecast=forecast) for forecast in self.forecasts]
+        day_list = [self._forecast_to_day_series(forecast=forecast)
+                    for forecast in tqdm(self.forecasts)]
         frame = pd.concat(day_list)
         frame = self._fix_index(frame).sort_index()
 
@@ -208,6 +222,8 @@ class Weather():
                 temperature_equivalent=frame.temperatureEquivalent, base_temperature=base, cooling=True
             )
 
+        frame['dayLength'] = frame.sunsetTime - frame.sunriseTime
+
         return frame
 
     def hours(self, irradiances=None, no_truncate=False, wind_orients=None):
@@ -233,7 +249,8 @@ class Weather():
         -------
         pandas.DataFrame
         """
-        day_list = [self._forecast_to_hour_series(forecast) for forecast in self.forecasts]
+        day_list = [self._forecast_to_hour_series(forecast)
+                    for forecast in tqdm(self.forecasts)]
         frame = pd.concat(day_list)
         frame = self._fix_index(frame)
         frame.sort_index(inplace=True)
@@ -329,11 +346,13 @@ class Weather():
 
         Returns
         -------
-        Pandas Dataframe
+        pd.DataFrame
 
         """
 
         hour_list = [pd.Series(self._flatten_solar(hour.d)) for hour in forecast.hourly().data]
+        if len(hour_list) == 0:
+            return pd.DataFrame()
         frame = pd.concat(hour_list, axis=1).T
         frame.temperature = frame.temperature.astype(float)
         return frame
@@ -388,6 +407,7 @@ class Weather():
 
         """
         frame['time'] = pd.DatetimeIndex(frame['time'].astype('datetime64[s]'))
+        frame = frame.drop_duplicates(subset='time', keep='first')
         frame.set_index('time', inplace=True)
         frame = frame.tz_localize('UTC')
         frame = frame.tz_convert(self.tz.zone)
@@ -417,7 +437,11 @@ class Weather():
         pandas.DataFrame
 
         """
-        data = forecast.daily().data[0].d
+        data_list = forecast.daily().data
+        if len(data_list) == 0:
+            return pd.DataFrame()
+
+        data = data_list[0].d
         frame = [pd.Series(data)]
         return pd.concat(frame, axis=1).T
 

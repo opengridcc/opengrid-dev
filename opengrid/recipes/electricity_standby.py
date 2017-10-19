@@ -22,20 +22,13 @@ BXL = pytz.timezone('Europe/Brussels')
 # configuration for the plots
 DEV = c.get('env', 'type') == 'dev' # DEV is True if we are in development environment, False if on the droplet
 print("Environment configured for development: {}".format(DEV))
-if not DEV:
-    # production environment: don't try to display plots
-    import matplotlib
-    matplotlib.use('Agg')
+# production environment: don't try to display plots
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.dates import MinuteLocator, HourLocator, DateFormatter, AutoDateLocator, num2date
 
-if DEV:
-    if c.get('env', 'plots') == 'inline':
-        get_ipython().magic(u'matplotlib inline')
-    else:
-        get_ipython().magic(u'matplotlib qt')
-else:
-    pass # don't try to render plots
+
 plt.rcParams['figure.figsize'] = 12,8
 
 
@@ -71,10 +64,10 @@ hp.init_tmpo()
 starttime = dt.time(0, tzinfo=BXL)
 endtime = dt.time(5, tzinfo=BXL)
 caching.cache_results(hp=hp, sensors=sensors, resultname='elec_min_night_0-5', AnalysisClass=DailyAgg,  
-                      agg='min', starttime=starttime, endtime=endtime)
+                      agg='min', chunk=False, starttime=starttime, endtime=endtime)
 
 caching.cache_results(hp=hp, sensors=sensors, resultname='elec_max_night_0-5', AnalysisClass=DailyAgg, 
-                      agg='max', starttime=starttime, endtime=endtime)
+                      agg='max', chunk=False, starttime=starttime, endtime=endtime)
 
 
 # In[ ]:
