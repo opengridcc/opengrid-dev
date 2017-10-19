@@ -26,7 +26,7 @@ if subprocess.call(["pip", "install","-r", path.join(here, "requirements.txt"), 
 
 setup(
     name='opengrid',
-    version="0.4.11",
+    version="0.4.12",
     description='Open-source algorithms for data-driven building analysis and control',
     #long_description=long_description,
     url='https://github.com/opengridcc/opengrid',
@@ -77,6 +77,6 @@ setup(
     package_data={
         'opengrid': ['LICENSE', 'README.md', 'requirements.txt', 'opengrid/library/houseprint/tests/test_saved_hp.hp',
                      'opengrid/library/tests/*', 'opengrid/library/tests/data/*', 'opengrid/library/tests/data/cache_day/*',
-                     'notebooks/*'],
+                     'notebooks/Analysis/', 'notebooks/Demo/'],
     },
 )
