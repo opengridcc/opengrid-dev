@@ -63,7 +63,8 @@ setup(
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
-    packages=find_packages(),
+    packages=['opengrid'],
+    #packages=find_packages(),
 
     # Alternatively, if you want to distribute just a my_module.py, uncomment
     # this:
@@ -75,8 +76,9 @@ setup(
     # Note: for creating the source distribution, they had to be included in the
     # MANIFEST.in as well. 
     package_data={
-        'opengrid': ['LICENSE', 'README.md', 'requirements.txt', 'opengrid/library/houseprint/tests/test_saved_hp.hp',
-                     'opengrid/library/tests/*', 'opengrid/library/tests/data/*', 'opengrid/library/tests/data/cache_day/*',
-                     'notebooks/Analysis/', 'notebooks/Demo/'],
+        'opengrid': ['library/houseprint/tests/test_saved_hp.hp',
+                     'library/tests/*', 'library/tests/data/*', 'library/tests/data/cache_day/*',
+                     'notebooks/Analysis/*', 'notebooks/Demo/*'],
     },
+    data_files=[('', ['LICENSE', 'README.md', 'requirements.txt'])]
 )

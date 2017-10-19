@@ -9,6 +9,9 @@ opengrid/config/houseprint-d74f58100c93.json
 notebooks/*.json
 notebooks/*.csv
 notebooks/index.html
+opengrid/notebooks/*.json
+opengrid/notebooks/*.csv
+opengrid/notebooks/index.html
 dist/
 build/
 opengrid.egg-info/
