@@ -3,10 +3,10 @@ FROM opengrid/dev:latest
 # install OpenGrid
 RUN pip3 install opengrid
 
-RUN /bin/bash -c "cp -r /usr/local/lib/python3.5/dist-packages/opengrid/notebooks /usr/local/opengrid/notebooks"
+RUN cp -r /usr/local/lib/python3.5/dist-packages/opengrid/notebooks /root/notebooks
 
-ADD ./opengrid/config/opengrid.cfg.example.docker /usr/local/opengrid/notebooks/opengrid.cfg
+ADD ./opengrid/config/opengrid.cfg.example.docker /usr/local/lib/python3.5/dist-packages/opengrid/config/opengrid.cfg
 
-WORKDIR /usr/local/opengrid/notebooks
+WORKDIR /root/notebooks
 
 

@@ -57,21 +57,27 @@ class Config(SafeConfigParser):
 
     def __add_defaults(self):
         self.add_section('opengrid_server')
-        self.set('opengrid_server', 'host', '95.85.34.168')
+        self.set('opengrid_server', 'host', '188.226.160.64')
         self.set('opengrid_server', 'port', '8080')
         self.set('opengrid_server', 'user', 'opengrid')
         self.set('opengrid_server', 'password', 'CHANGE ME IN AN OPENGRID.CFG FILE')
 
         self.add_section('data')
-        self.set('data', 'folder', os.path.expanduser("~/.opengrid/data"))
+        self.set('data', 'folder', os.path.expanduser("/data"))
 
         self.add_section('houseprint')
-        self.set('houseprint', 'password', 'CHANGE ME IN AN OPENGRID.CFG FILE')
+        self.set('houseprint', 'json', '/usr/local/opengrid/opengrid/config/houseprint-d74f58100c93.json')
 
         self.add_section('env')
         self.set('env', 'type', 'dev')
         self.set('env', 'plots', 'inline')
 
+        self.add_section('Slack')
+        self.set('slack', 'webhook', 'https://hooks.slack.com/services/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')
+        self.set('slack', 'config', '/usr/local/opengrid/opengrid /config/alerts.cfg')
+
+        self.add_section('Forecast.io')
+        self.set('Forecast.io', 'apikey', '116259d8d170613d2e83edfb08163a46')
 
 
 
