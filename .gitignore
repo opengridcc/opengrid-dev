@@ -17,3 +17,4 @@ build/
 opengrid.egg-info/
 data/*
 *.DS_Store
+*houseprint.pkl
