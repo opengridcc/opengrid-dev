@@ -46,14 +46,14 @@ def carpet(timeseries, **kwargs):
     if timeseries.dropna().empty:
         print('skipped {} - no data'.format(title))
         return
-    ts = timeseries.resample('min', how='mean', label='left', closed='left')
+    ts = timeseries.resample('min', label='left', closed='left').mean()
     vmin = max(0.1, kwargs.pop('vmin', ts[ts > 0].min()))
     vmax = max(vmin, kwargs.pop('vmax', ts.quantile(.999)))
 
     # convert to dataframe with date as index and time as columns by
     # first replacing the index by a MultiIndex
     # tz_convert('UTC'): workaround for https://github.com/matplotlib/matplotlib/issues/3896
-    mpldatetimes = date2num(ts.index.tz_convert('UTC').astype(dt.datetime))
+    mpldatetimes = date2num(ts.index.tz_convert('UTC').to_pydatetime())
     ts.index = pd.MultiIndex.from_arrays(
         [np.floor(mpldatetimes), 2 + mpldatetimes % 1])  # '2 +': matplotlib bug workaround.
     # and then unstacking the second index level to columns
@@ -126,12 +126,12 @@ def fanchart(timeseries, **kwargs):
     if timeseries.dropna().empty:
         print('skipped {} - no data'.format(title))
         return
-    ts = timeseries.resample('min', how='mean', label='left', closed='left')
+    ts = timeseries.resample('min', label='left', closed='left').mean()
 
     # convert to dataframe with date as index and time as columns by
     # first replacing the index by a MultiIndex
     # tz_convert('UTC'): workaround for https://github.com/matplotlib/matplotlib/issues/3896
-    mpldatetimes = date2num(ts.index.tz_convert('UTC').astype(dt.datetime))
+    mpldatetimes = date2num(ts.index.tz_convert('UTC').to_pydatetime())
     ts.index = pd.MultiIndex.from_arrays(
         [np.floor(mpldatetimes), 2 + mpldatetimes % 1])  # '2 +': matplotlib bug workaround.
     # and then unstacking the second index level to columns
