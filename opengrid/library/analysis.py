@@ -64,13 +64,12 @@ class DailyAgg(Analysis):
             self.result = pd.DataFrame()
 
 
-
-
-
-
-
-
-
-
-
-
+def standby(df, resolution='d'):
+    """
+    Parameters
+    ----------
+    df : Pandas DataFrame
+        Electricity Power
+    resolution : str
+    """
+    return df.resample(resolution).min()
