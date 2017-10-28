@@ -142,7 +142,9 @@ class Houseprint(object):
                             construction_year=r['construction year'],
                             k_level=r['K-level'],
                             e_level=r['E-level'],
-                            epc_cert=r['EPC certificate'])
+                            epc_cert=r['EPC certificate'],
+                            slack_name=r['Slack name']
+                            )
             self.sites.append(new_site)
 
         print('{} Sites created'.format(len(self.sites)))
