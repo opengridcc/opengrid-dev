@@ -8,7 +8,7 @@ and return a dataframe or list of dataframes.
 
 import datetime as dt
 import pandas as pd
-
+from opengrid.library.exceptions import EmptyDataFrameError
 
 class Analysis(object):
     """
@@ -64,13 +64,15 @@ class DailyAgg(Analysis):
             self.result = pd.DataFrame()
 
 
+def standby(df, resolution='d'):
+    """
+    Parameters
+    ----------
+    df : Pandas DataFrame
+        Electricity Power
+    resolution : str
+    """
 
-
-
-
-
-
-
-
-
-
+    if df.empty:
+        raise EmptyDataFrameError()
+    return df.resample(resolution).min()
