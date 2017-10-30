@@ -72,7 +72,7 @@ class Config(SafeConfigParser):
         self.set('env', 'type', 'dev')
         self.set('env', 'plots', 'inline')
 
-        self.add_section('Slack')
+        self.add_section('slack')
         self.set('slack', 'webhook', 'https://hooks.slack.com/services/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')
         self.set('slack', 'config', '/usr/local/opengrid/opengrid /config/alerts.cfg')
 
