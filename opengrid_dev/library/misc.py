@@ -4,7 +4,7 @@ Created on Thu Jan  7 10:31:00 2016
 
 @author: roel
 """
-from opengrid import ureg
+from opengrid_dev import ureg
 import pandas as pd
 from dateutil import rrule
 import datetime as dt
