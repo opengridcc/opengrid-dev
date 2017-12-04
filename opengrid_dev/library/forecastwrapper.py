@@ -15,7 +15,7 @@ import pickle
 
 from .misc import dayset, calculate_temperature_equivalent, \
     calculate_degree_days
-from opengrid import config
+from opengrid_dev import config
 cfg = config.Config()
 
 
