@@ -1,6 +1,6 @@
 import unittest
 
-from opengrid import datasets
+from opengrid_dev import datasets
 
 class DatasetTest(unittest.TestCase):
     def test_datasets(self):

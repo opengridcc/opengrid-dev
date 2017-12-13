@@ -4,7 +4,7 @@ Create alerts
 """
 
 import json
-from opengrid import config
+from opengrid_dev import config
 c=config.Config()
 import os
 

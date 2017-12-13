@@ -12,8 +12,8 @@ import matplotlib
 matplotlib.use('Agg')
 
 import pandas as pd
-from opengrid.library import houseprint, caching, regression, forecastwrapper
-from opengrid import config
+from opengrid_dev.library import houseprint, caching, regression, forecastwrapper
+from opengrid_dev import config
 c = config.Config()
 
 import matplotlib.pyplot as plt

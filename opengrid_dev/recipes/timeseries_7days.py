@@ -12,11 +12,11 @@ import pandas as pd
 import charts
 from time import time
 
-from opengrid import config
+from opengrid_dev import config
 c=config.Config()
 DEV = c.get('env', 'type') == 'dev' # DEV is True if we are in development environment, False if on the droplet
 
-from opengrid.library import houseprint
+from opengrid_dev.library import houseprint
 
 
 # ### Script settings

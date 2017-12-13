@@ -14,9 +14,9 @@ import time
 import pandas as pd
 
 
-from opengrid import config
-from opengrid.library import plotting
-from opengrid.library import houseprint
+from opengrid_dev import config
+from opengrid_dev.library import plotting
+from opengrid_dev.library import houseprint
 
 c=config.Config()
 

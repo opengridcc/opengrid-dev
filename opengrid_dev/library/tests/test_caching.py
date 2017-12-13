@@ -24,11 +24,11 @@ test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe(
 os.chdir(test_dir)
 # add the path to opengrid to sys.path
 sys.path.insert(1, os.path.join(test_dir, os.pardir, os.pardir, os.pardir))
-from opengrid.library import caching
+from opengrid_dev.library import caching
 from opengrid.library.houseprint import Sensor
 
 # Note: there is a opengrid.cfg in the test_dir which is loaded here!!
-from opengrid import config
+from opengrid_dev import config
 cfg = config.Config()
 
 class CacheTest(unittest.TestCase):

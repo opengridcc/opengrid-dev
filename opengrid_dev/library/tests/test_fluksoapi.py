@@ -17,7 +17,7 @@ import pytz
 test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 # add the path to opengrid to sys.path
 sys.path.append(os.path.join(test_dir, os.pardir, os.pardir))
-from opengrid.library import fluksoapi
+from opengrid_dev.library import fluksoapi
 
 class FluksoapiTest(unittest.TestCase):
     """

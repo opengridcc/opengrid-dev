@@ -1,4 +1,4 @@
-from opengrid.library import analysis
+from opengrid_dev.library import analysis
 import logging
 from scipy import stats
 import matplotlib.pyplot as plt

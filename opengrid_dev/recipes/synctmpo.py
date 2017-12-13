@@ -6,8 +6,8 @@ Created on 16/12/2014 by Roel De Coninck
 """
 
 import os
-from opengrid.library import houseprint
-from opengrid import config
+from opengrid_dev.library import houseprint
+from opengrid_dev import config
 
 c = config.Config()
 

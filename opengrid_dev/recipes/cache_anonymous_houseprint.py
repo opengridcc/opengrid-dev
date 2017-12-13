@@ -7,7 +7,7 @@ Created on 05/07/2014 by Roel De Coninck
 import os
 
 from opengrid.library.houseprint import houseprint
-from opengrid import config
+from opengrid_dev import config
 c = config.Config()
 
 

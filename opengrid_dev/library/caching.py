@@ -13,10 +13,10 @@ import os
 import numpy as np
 import pandas as pd
 import dateutil
-from opengrid import config
+from opengrid_dev import config
 cfg = config.Config()
-from opengrid.library import misc
-from opengrid.library import analysis
+from opengrid_dev.library import misc
+from opengrid_dev.library import analysis
 from tqdm import tqdm
 import pickle
 

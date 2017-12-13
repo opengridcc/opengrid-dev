@@ -8,8 +8,8 @@ It is an abstract class definition which has to be overridden (by eg. a Fluksose
 This class contains all metadata concerning the function and type of the sensor (eg. electricity - solar, ...)
 """
 
-from opengrid.library import misc
-from opengrid import ureg
+from opengrid_dev.library import misc
+from opengrid_dev import ureg
 import pandas as pd
 import tmpo, sqlite3
 

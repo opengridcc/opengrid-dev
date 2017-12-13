@@ -9,8 +9,8 @@ import os
 import pandas as pd
 from tqdm import tqdm
 
-from opengrid.library import houseprint, caching
-from opengrid import config
+from opengrid_dev.library import houseprint, caching
+from opengrid_dev import config
 
 c = config.Config()
 
