@@ -2,7 +2,7 @@ import unittest
 from six import string_types
 from pandas.core.frame import DataFrame
 
-from opengrid.library.kmi import *
+from opengrid_dev.library.kmi import *
 
 
 class KMITest(unittest.TestCase):

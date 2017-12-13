@@ -12,7 +12,7 @@ import unittest
 import inspect
 import numpy as np
 
-from opengrid.library.houseprint import houseprint
+from opengrid_dev.library.houseprint import houseprint
 
 class HouseprintTest(unittest.TestCase):
     """

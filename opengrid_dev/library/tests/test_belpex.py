@@ -2,7 +2,7 @@ import unittest
 from six import string_types
 from pandas.core.series import Series
 
-from opengrid.library.belpex import *
+from opengrid_dev.library.belpex import *
 
 
 class BelpexTest(unittest.TestCase):

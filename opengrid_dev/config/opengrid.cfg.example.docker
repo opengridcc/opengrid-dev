@@ -22,7 +22,7 @@ password: CHANGE_ME
 # Download this file and save in the cloned github repo in opengrid/config
 # Don't modify the path below: this folder is mounted to 
 # /usr/local/opengrid/opengrid/config in the docker container
-json: /usr/local/opengrid/opengrid/config/houseprint-d74f58100c93.json
+json: /usr/local/opengrid/opengrid_dev/config/houseprint-d74f58100c93.json
 
 [Wunderground]
 apikey: CHANGE_ME
@@ -33,7 +33,7 @@ apikey: CHANGE_ME
 [Slack]
 # Used for testing our alerting services. 
 webhook: https://hooks.slack.com/services/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
-config: /usr/local/opengrid/opengrid/config/alerts.cfg
+config: /usr/local/opengrid/opengrid_dev/config/alerts.cfg
 
 [tmpo]
 data: /data

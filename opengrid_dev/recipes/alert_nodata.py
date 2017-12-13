@@ -5,9 +5,9 @@
 
 # opengrid imports
 from opengrid_dev.library import misc, houseprint, caching
-from opengrid.library.analysis import DailyAgg
+from opengrid_dev.library.analysis import DailyAgg
 from opengrid_dev import config
-from opengrid.library.slack import Slack
+from opengrid_dev.library.slack import Slack
 from opengrid_dev.library import alerts
 c=config.Config()
 

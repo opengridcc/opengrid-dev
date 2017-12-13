@@ -15,7 +15,7 @@ import pytz
 test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 # add the path to OpenGrid to sys.path
 sys.path.insert(1, os.path.join(test_dir, os.pardir, os.pardir, os.pardir))
-from opengrid.library.misc import *
+from opengrid_dev.library.misc import *
 
 
 class MiscTest(unittest.TestCase):

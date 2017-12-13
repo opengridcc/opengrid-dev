@@ -20,7 +20,7 @@ import datetime as dt
 import pytz
 
 from opengrid_dev.library import analysis
-from opengrid.library.exceptions import EmptyDataFrameError
+from opengrid_dev.library.exceptions import EmptyDataFrameError
 
 class AnalysisTest(unittest.TestCase):
     

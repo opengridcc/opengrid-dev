@@ -15,7 +15,7 @@ import os, sys
 import unittest
 import inspect
 
-from opengrid.library.houseprint import houseprint
+from opengrid_dev.library.houseprint import houseprint
 
 class HouseprintTest(unittest.TestCase):
     """

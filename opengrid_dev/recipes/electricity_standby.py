@@ -5,7 +5,7 @@
 
 # opengrid imports
 from opengrid_dev.library import misc, houseprint, caching
-from opengrid.library.analysis import DailyAgg
+from opengrid_dev.library.analysis import DailyAgg
 from opengrid_dev import config
 c=config.Config()
 
