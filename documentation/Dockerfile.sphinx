@@ -1,0 +1,20 @@
+FROM python
+
+WORKDIR /home/sphinx
+
+USER root
+
+RUN pip install \
+    docutils \
+    Jinja2 \
+    pygments \
+    Sphinx
+
+RUN useradd sphinx && \
+    usermod -aG sudo sphinx && \
+    echo "sphinx\nsphinx" | passwd sphinx && \
+    chown "sphinx:sphinx" /home/sphinx
+
+USER sphinx
+
+CMD sphinx-quickstart
