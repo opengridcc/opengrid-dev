@@ -14,6 +14,10 @@ if [[ $1 ]]; then
 		docker run --rm -it --name sphinx -v "$PWD/build:/home/sphinx" sphinx $2 $3 $4
 		DONE=1
 	fi 
+	if [[ $1 = "make" ]]; then
+		docker run --rm -it --name sphinx -v "$PWD/build:/home/sphinx" sphinx $1 $2
+		DONE=1;
+	fi
 	if ! [[ $DONE ]]; then
 		echo $ERROUT;
 	fi
